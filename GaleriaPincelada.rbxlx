@@ -460,7 +460,6 @@ return Colors
           <string name="Name">Config</string>
           <string name="Source"><![CDATA[-- Ajustes generales: economía, mejoras, maestría y visitantes.
 
-local Designs = require(script.Parent.Designs)
 local Colors = require(script.Parent.Colors)
 
 local Config = {}
@@ -527,7 +526,7 @@ Config.Upgrades = {
 		id = "pincel",
 		name = "Pincel grande",
 		icon = "🖌️",
-		desc = "Pintas más rápido y con trazo más ancho.",
+		desc = "Trazo más ancho: coloreas mucho más rápido.",
 		max = 8,
 		cost = 90,
 		growth = 1.6,
@@ -605,12 +604,9 @@ function Config.luck(levels)
 	return 1 + 0.1 * (levels.suerte or 0)
 end
 
-function Config.brushSpeed(levels)
-	return 1 + 0.3 * (levels.pincel or 0)
-end
-
+-- Radio del pincel (en fracción del lienzo).
 function Config.brushRadius(levels)
-	return 0.035 + 0.008 * (levels.pincel or 0)
+	return 0.05 + 0.009 * (levels.pincel or 0)
 end
 
 function Config.hasBucket(levels)
@@ -649,11 +645,21 @@ end
 Config.STAR_BONUS = { [1] = 0, [2] = 0.1, [3] = 0.25 }
 
 -- Tiempo "ideal" para pintar un diseño con tus mejoras.
+-- Tiempo de referencia para las estrellas: lo que tarda alguien que pasa el
+-- pincel a buen ritmo por toda la superficie visible del dibujo.
+local SWEEP_SPEED = 0.9
 function Config.parTime(design, levels)
 	if Config.hasBucket(levels) then
 		return 3 + #design.shapes * 0.45
 	end
-	return 3 + Designs.totalTime(design) / Config.brushSpeed(levels)
+	local width = 2 * Config.brushRadius(levels)
+	local total = 2
+	for _, shape in ipairs(design.shapes) do
+		if shape.visible > 0 then
+			total += 0.3 + shape.visible / (width * SWEEP_SPEED)
+		end
+	end
+	return total
 end
 
 function Config.starsFor(design, levels, elapsed)
@@ -676,11 +682,17 @@ function Config.paintingValue(design, colors, levels, made, stars)
 end
 
 -- Tiempo mínimo que el servidor exige para aceptar un cuadro (anti-trampas).
+-- Mínimo humanamente posible (antitrampas): barrer muy rápido y sin repasar.
 function Config.minPaintTime(design, levels)
 	if Config.hasBucket(levels) then
 		return #design.shapes * 0.08
 	end
-	return Designs.totalTime(design) / Config.brushSpeed(levels) * 0.45
+	local width = 2 * Config.brushRadius(levels)
+	local area = 0
+	for _, shape in ipairs(design.shapes) do
+		area += shape.visible
+	end
+	return area * 0.85 / (width * 3.5)
 end
 
 -- Coleccionistas VIP: a veces llega uno que paga el doble.
@@ -740,9 +752,9 @@ end
 
 -- Tutorial ---------------------------------------------------------------------------------
 Config.Tutorial = {
-	{ text = "Tira la máquina de colores 3 veces", target = "machine", goal = 3 },
+	{ text = "Ve a la máquina de colores y tira 3 veces", target = "machine", goal = 3 },
 	{ text = "Ve a la mesa de dibujo y empieza un cuadro", target = "easel", goal = 1 },
-	{ text = "Pasa el pincel por todas las figuras del dibujo", target = nil, goal = 1 },
+	{ text = "Colorea el dibujo pasando el pincel", target = nil, goal = 1 },
 	{ text = "Expón tu cuadro en la galería", target = nil, goal = 1 },
 	{ text = "Espera a que un visitante compre tu cuadro", target = "gallery", goal = 1 },
 }
@@ -1540,21 +1552,6 @@ end
 
 -- Segundos de pincel que necesita una figura (las grandes tardan más).
 -- Las figuras tapadas del todo no hace falta pintarlas.
-function Designs.shapeTime(shape)
-	if shape.visible <= 0 then
-		return 0
-	end
-	return 0.25 + 3 * math.sqrt(shape.visible)
-end
-
-function Designs.totalTime(design)
-	local total = 0
-	for _, shape in ipairs(design.shapes) do
-		total += Designs.shapeTime(shape)
-	end
-	return total
-end
-
 -- ¿Está abierto el nivel? (todos los diseños del nivel anterior pintados).
 function Designs.isLevelOpen(level, made)
 	if level <= 1 then
@@ -1651,8 +1648,6 @@ end
 local GetState = remote("RemoteFunction", "GetState")
 local StateChanged = remote("RemoteEvent", "StateChanged")
 local Notify = remote("RemoteEvent", "Notify")
-local Roll = remote("RemoteFunction", "Roll")
-local SetAutoRoll = remote("RemoteEvent", "SetAutoRoll")
 local RollResult = remote("RemoteEvent", "RollResult")
 local OpenDesigns = remote("RemoteEvent", "OpenDesigns")
 local UnlockDesign = remote("RemoteFunction", "UnlockDesign")
@@ -1675,6 +1670,8 @@ pcall(function()
 end)
 
 local tryRoll
+local renderAutoPrompt
+local toggleAutoRoll
 
 -- Estado de la sesión --------------------------------------------------------------------
 local plotOf = {}
@@ -1897,6 +1894,15 @@ local function renderMachine(plot, colorId)
 	end
 end
 
+renderAutoPrompt = function(plot, data)
+	if not (plot and data) then
+		return
+	end
+	local autoPrompt = plot.workshop.autoPrompt
+	autoPrompt.Enabled = Config.hasAutoRoll(data.upgrades)
+	autoPrompt.ActionText = data.autoRoll and "Pausar Auto-Rolling" or "Activar Auto-Rolling"
+end
+
 local function slotEntry(data, slot)
 	for i, entry in ipairs(data.gallery) do
 		if entry.s == slot then
@@ -1980,6 +1986,12 @@ local function createPlot(player, data)
 			tryRoll(player)
 		end
 	end)
+	plot.workshop.autoPrompt.Triggered:Connect(function(who)
+		if who == player then
+			toggleAutoRoll(player)
+		end
+	end)
+	renderAutoPrompt(plot, data)
 	return plot
 end
 
@@ -2047,26 +2059,32 @@ function tryRoll(player)
 	if now < session.nextRoll then
 		return nil
 	end
-	session.nextRoll = now + Config.rollInterval(data.upgrades)
+	local interval = Config.rollInterval(data.upgrades)
+	session.nextRoll = now + interval
+	-- El aviso de la máquina desaparece mientras gira.
+	local plot = plotOf[player]
+	if plot then
+		local machinePrompt = plot.workshop.machinePrompt
+		machinePrompt.Enabled = false
+		task.delay(interval, function()
+			if plotOf[player] == plot then
+				machinePrompt.Enabled = true
+			end
+		end)
+	end
 	return doRoll(player, false)
 end
 
-Roll.OnServerInvoke = function(player)
-	return tryRoll(player)
-end
-
-SetAutoRoll.OnServerEvent:Connect(function(player, enabled)
+toggleAutoRoll = function(player)
 	local data = DataService.get(player)
-	if not (data and type(enabled) == "boolean") then
+	if not (data and Config.hasAutoRoll(data.upgrades)) then
 		return
 	end
-	if enabled and not Config.hasAutoRoll(data.upgrades) then
-		notify(player, "🔒 Desbloquea «Auto-Rolling» en Mejoras", "error")
-		return
-	end
-	data.autoRoll = enabled
+	data.autoRoll = not data.autoRoll
+	renderAutoPrompt(plotOf[player], data)
+	notify(player, data.autoRoll and "🤖 Auto-Rolling activado" or "⏸ Auto-Rolling en pausa", "info")
 	pushState(player)
-end)
+end
 
 -- Diseños y pintura -------------------------------------------------------------------------------
 UnlockDesign.OnServerInvoke = function(player, designId)
@@ -2310,6 +2328,7 @@ BuyUpgrade.OnServerInvoke = function(player, id)
 	end
 	if id == "auto" then
 		data.autoRoll = true
+		renderAutoPrompt(plotOf[player], data)
 	end
 	pushState(player)
 	return true, upgrade.name .. " subió a nivel " .. (level + 1) .. "!"
@@ -4604,7 +4623,8 @@ local function buildWorkshop(model, L)
 		Material = Enum.Material.Metal,
 		Parent = machine,
 	})
-	part({
+	local dispenser = part({
+		Name = "Dispenser",
 		Size = Vector3.new(2, 1.4, 1.4),
 		CFrame = mc * CFrame.new(0, 1.5, -3),
 		Color = rgb(60, 50, 80),
@@ -4629,6 +4649,11 @@ local function buildWorkshop(model, L)
 	})
 	addLight(glow, "PointLight", { Range = 12, Brightness = 1.2, Color = rgb(255, 255, 255) })
 	local machinePrompt = prompt(body, "Tirar color", "Máquina de colores", 12)
+	-- Segundo aviso (tecla F) para encender o pausar el Auto-Rolling.
+	local autoPrompt = prompt(dispenser, "Activar Auto-Rolling", "Máquina de colores", 12)
+	autoPrompt.KeyboardKeyCode = Enum.KeyCode.F
+	autoPrompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+	autoPrompt.Enabled = false
 	machine.Parent = workshop
 	part({
 		Shape = Enum.PartType.Cylinder,
@@ -4830,6 +4855,7 @@ local function buildWorkshop(model, L)
 		easelCanvas = easelCanvas,
 		drawPrompt = drawPrompt,
 		machinePrompt = machinePrompt,
+		autoPrompt = autoPrompt,
 		machineTop = top,
 		machineCan = can,
 		machineGlow = glow,
@@ -5218,7 +5244,11 @@ function WorldBuilder.buildLot(slot)
 			L(-22, 0.3, -110),
 			L(90, 0.3, -110),
 		},
-		ownerSpawn = CFrame.lookAt(origin + Vector3.new(-2, 3.5, -44), origin + Vector3.new(-2, 3.5, 0)),
+		-- Apareces dentro del taller, entre la máquina y el caballete.
+		ownerSpawn = CFrame.lookAt(
+			origin + Vector3.new(15, FLOOR + 3.5, -3),
+			origin + Vector3.new(15, FLOOR + 3.5, 10)
+		),
 		decorFolder = decor,
 		visitorsFolder = visitors,
 		workshop = workshop,
@@ -5288,8 +5318,6 @@ for _, name in ipairs({
 	"GetState",
 	"StateChanged",
 	"Notify",
-	"Roll",
-	"SetAutoRoll",
 	"RollResult",
 	"OpenDesigns",
 	"UnlockDesign",
@@ -6134,8 +6162,12 @@ return Daily
             <Properties>
               <string name="Name">DesignArt</string>
               <string name="Source"><![CDATA[-- Dibuja un diseño (figuras) dentro de un Frame cuadrado.
--- mode = "color": cuadro terminado. mode = "lineart": líneas para colorear,
--- cada figura se va rellenando de abajo arriba con setProgress.
+-- mode = "color": cuadro terminado.
+-- mode = "paint": boceto para colorear. Cada figura se ve en un tono pálido de
+-- su color con línea de lápiz; las pinceladas (addDab) se recortan a la forma
+-- de la figura con un CanvasGroup y, al completarla, el color final aparece.
+
+local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Colors = require(Shared.Colors)
@@ -6143,40 +6175,38 @@ local Designs = require(Shared.Designs)
 
 local DesignArt = {}
 
-local LINE_COLOR = Color3.fromRGB(236, 150, 186)
+local WHITE = Color3.new(1, 1, 1)
+local SKETCH_LINE = Color3.fromRGB(150, 140, 172)
+local UNPAINTED_LIGHT = Color3.fromRGB(196, 190, 214)
+local FADE = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local function applyColor(frame, gradient, colorId)
 	local entry = Colors.ById[colorId]
 	if entry and entry.gradient then
-		frame.BackgroundColor3 = Color3.new(1, 1, 1)
+		frame.BackgroundColor3 = WHITE
 		gradient.Color = Colors.sequence(colorId)
 	else
-		frame.BackgroundColor3 = entry and entry.color or Color3.new(1, 1, 1)
-		gradient.Color = ColorSequence.new(Color3.new(1, 1, 1))
+		frame.BackgroundColor3 = entry and entry.color or WHITE
+		gradient.Color = ColorSequence.new(WHITE)
 	end
 end
 
-local function revealSequence(p)
-	if p >= 1 then
-		return NumberSequence.new(0)
+local function addCorner(frame, shape)
+	if shape.r > 0 then
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(shape.r, 0)
+		corner.Parent = frame
 	end
-	if p <= 0 then
-		return NumberSequence.new(1)
-	end
-	local edge = math.min(p + 0.05, 1)
-	if edge >= 1 then
-		return NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0),
-			NumberSequenceKeypoint.new(p, 0),
-			NumberSequenceKeypoint.new(1, 1),
-		})
-	end
-	return NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(p, 0),
-		NumberSequenceKeypoint.new(edge, 1),
-		NumberSequenceKeypoint.new(1, 1),
-	})
+end
+
+-- Punto del lienzo (0..1) en coordenadas locales de la figura (0..1).
+function DesignArt.toLocal(shape, x, y)
+	local dx, dy = x - shape.x, y - shape.y
+	local rad = math.rad(shape.rot)
+	local c, s = math.cos(rad), math.sin(rad)
+	local lx = dx * c + dy * s
+	local ly = -dx * s + dy * c
+	return lx / shape.w + 0.5, ly / shape.h + 0.5
 end
 
 function DesignArt.render(container, design, opts)
@@ -6208,40 +6238,37 @@ function DesignArt.render(container, design, opts)
 		base.Rotation = shape.rot
 		base.BorderSizePixel = 0
 		base.ZIndex = zindex
-		if shape.r > 0 then
-			local corner = Instance.new("UICorner")
-			corner.CornerRadius = UDim.new(shape.r, 0)
-			corner.Parent = base
-		end
+		addCorner(base, shape)
 
-		local entry = { shape = shape, base = base }
-		if mode == "lineart" then
-			base.BackgroundColor3 = Color3.new(1, 1, 1)
+		local entry = { shape = shape, base = base, done = false }
+		if mode == "paint" then
+			local main = Colors.mainColor(colors[shape.area])
+			entry.main = main
+			-- Tono pálido del color final; los colores muy claros se ven en gris
+			-- para que se note qué falta por pintar.
+			local light = 0.299 * main.R + 0.587 * main.G + 0.114 * main.B
+			base.BackgroundColor3 = light > 0.8 and main:Lerp(UNPAINTED_LIGHT, 0.6) or main:Lerp(WHITE, 0.78)
 			local line = Instance.new("UIStroke")
-			line.Color = LINE_COLOR
+			line.Color = SKETCH_LINE
 			line.Thickness = stroke
-			line.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			line.Transparency = 0.1
 			line.Parent = base
+			entry.line = line
 
 			local fill = Instance.new("Frame")
 			fill.Name = "Fill"
 			fill.Size = UDim2.fromScale(1, 1)
 			fill.BorderSizePixel = 0
-			fill.ZIndex = zindex
-			if shape.r > 0 then
-				local corner = Instance.new("UICorner")
-				corner.CornerRadius = UDim.new(shape.r, 0)
-				corner.Parent = fill
-			end
+			fill.BackgroundTransparency = 1
+			fill.ZIndex = zindex + 2
+			addCorner(fill, shape)
 			local gradient = Instance.new("UIGradient")
-			gradient.Rotation = -90
-			gradient.Transparency = revealSequence(0)
+			gradient.Rotation = 35
 			gradient.Parent = fill
 			applyColor(fill, gradient, colors[shape.area])
 			fill.Parent = base
 			entry.fill = fill
 			entry.gradient = gradient
-			entry.progress = 0
 		else
 			local gradient = Instance.new("UIGradient")
 			gradient.Rotation = 35
@@ -6260,20 +6287,99 @@ function DesignArt.render(container, design, opts)
 		handle.shapes[i] = entry
 	end
 
-	function handle.setProgress(i, p)
-		local entry = handle.shapes[i]
-		if entry and entry.gradient and entry.fill then
-			entry.progress = p
-			entry.gradient.Transparency = revealSequence(p)
+	-- Capa de pintura recortada a la forma de la figura.
+	local function paintLayer(entry)
+		if entry.group then
+			return entry.group
 		end
+		local group = Instance.new("CanvasGroup")
+		group.Name = "Paint"
+		group.Size = UDim2.fromScale(1, 1)
+		group.BackgroundTransparency = 1
+		group.ZIndex = zindex + 1
+		addCorner(group, entry.shape)
+		group.Parent = entry.base
+		entry.group = group
+		return group
 	end
 
-	-- Dirección del relleno (en grados): el color "entra" desde donde pasó el pincel.
-	function handle.setFillDirection(i, rotation)
+	-- Pincelada redonda de radio `radius` (en fracción del lienzo) en (x, y).
+	function handle.addDab(i, x, y, radius)
 		local entry = handle.shapes[i]
-		if entry and entry.fill and entry.progress <= 0 then
-			entry.gradient.Rotation = rotation
+		if not entry or entry.done or mode ~= "paint" then
+			return
 		end
+		local shape = entry.shape
+		local u, v = DesignArt.toLocal(shape, x, y)
+		local dab = Instance.new("Frame")
+		dab.AnchorPoint = Vector2.new(0.5, 0.5)
+		dab.Position = UDim2.fromScale(u, v)
+		dab.Size = UDim2.fromScale(2 * radius / shape.w, 2 * radius / shape.h)
+		dab.BackgroundColor3 = entry.main
+		dab.BorderSizePixel = 0
+		dab.ZIndex = zindex + 1
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = dab
+		dab.Parent = paintLayer(entry)
+	end
+
+	-- Relleno de cubeta: una mancha que crece desde (x, y) hasta cubrir la figura.
+	function handle.flood(i, x, y, duration)
+		local entry = handle.shapes[i]
+		if not entry or entry.done or mode ~= "paint" then
+			return
+		end
+		local shape = entry.shape
+		local u, v = DesignArt.toLocal(shape, x, y)
+		local dab = Instance.new("Frame")
+		dab.AnchorPoint = Vector2.new(0.5, 0.5)
+		dab.Position = UDim2.fromScale(u, v)
+		dab.Size = UDim2.fromScale(0, 0)
+		dab.BackgroundColor3 = entry.main
+		dab.BorderSizePixel = 0
+		dab.ZIndex = zindex + 1
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = dab
+		dab.Parent = paintLayer(entry)
+		local reach = 2.2 * math.sqrt(shape.w * shape.w + shape.h * shape.h)
+		TweenService:Create(
+			dab,
+			TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = UDim2.fromScale(reach / shape.w, reach / shape.h) }
+		):Play()
+	end
+
+	-- La figura queda pintada con su color final (con o sin animación).
+	function handle.complete(i, animate)
+		local entry = handle.shapes[i]
+		if not entry or entry.done then
+			return
+		end
+		entry.done = true
+		if mode ~= "paint" then
+			return
+		end
+		local finalLine = entry.main:Lerp(Color3.new(0, 0, 0), 0.25)
+		if animate then
+			TweenService:Create(entry.fill, FADE, { BackgroundTransparency = 0 }):Play()
+			TweenService:Create(entry.line, FADE, { Color = finalLine, Transparency = 0.55 }):Play()
+			local group = entry.group
+			if group then
+				task.delay(0.3, function()
+					group:Destroy()
+				end)
+			end
+		else
+			entry.fill.BackgroundTransparency = 0
+			entry.line.Color = finalLine
+			entry.line.Transparency = 0.55
+			if entry.group then
+				entry.group:Destroy()
+			end
+		end
+		entry.group = nil
 	end
 
 	function handle.setColors(newColors)
@@ -6798,8 +6904,8 @@ return DesignPicker
           <Item class="ModuleScript" referent="25">
             <Properties>
               <string name="Name">HUD</string>
-              <string name="Source"><![CDATA[-- Interfaz principal: monedas, menú lateral, misiones diarias, tutorial,
--- avisos y confeti.
+              <string name="Source"><![CDATA[-- Interfaz principal, mínima: monedas y cuadros en venta arriba, una columna
+-- de botones a la izquierda, misiones plegables, tutorial, avisos y confeti.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -6807,7 +6913,6 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
-local Designs = require(Shared.Designs)
 
 local Theme = require(script.Parent.Theme)
 
@@ -6824,7 +6929,6 @@ local questRows = {}
 local shownCoins = nil
 local toastHolder
 local confettiHolder
-local questsVisible = true
 
 local KIND_GRADIENT = { info = "primary", success = "mint", error = "red", gold = "gold" }
 local CONFETTI_COLORS = {
@@ -6841,14 +6945,14 @@ function HUD.notify(text, kind)
 		return
 	end
 	local holder, body = Theme.card({
-		Size = UDim2.new(1, 0, 0, 48),
-		Radius = 24,
+		Size = UDim2.new(1, 0, 0, 40),
+		Radius = 20,
 		LayoutOrder = -math.floor(os.clock() * 100),
 		Parent = toastHolder,
 	})
 	local accent = Theme.new("Frame", {
-		Position = UDim2.fromOffset(6, 6),
-		Size = UDim2.fromOffset(36, 36),
+		Position = UDim2.fromOffset(5, 5),
+		Size = UDim2.fromOffset(30, 30),
 		BackgroundColor3 = C.White,
 		Parent = body,
 	}, { Theme.round(), Theme.gradient(KIND_GRADIENT[kind] or "primary", 90) })
@@ -6857,23 +6961,23 @@ function HUD.notify(text, kind)
 		Text = kind == "error" and "!" or (kind == "gold" and "★" or "✓"),
 		Font = Theme.Fonts.Heavy,
 		TextColor3 = C.White,
-		MaxTextSize = 20,
+		MaxTextSize = 17,
 		Parent = accent,
 	})
 	Theme.label({
-		Size = UDim2.new(1, -62, 1, -12),
-		Position = UDim2.fromOffset(50, 6),
+		Size = UDim2.new(1, -54, 1, -10),
+		Position = UDim2.fromOffset(42, 5),
 		Text = text,
 		Font = Theme.Fonts.Bold,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 19,
+		MaxTextSize = 16,
 		Parent = body,
 	})
 	Theme.pop(holder, 0.7)
 	if kind == "error" then
 		Theme.playSound("click", 0.6)
 	end
-	task.delay(4, function()
+	task.delay(3.5, function()
 		if holder.Parent then
 			holder:Destroy()
 		end
@@ -6884,7 +6988,7 @@ function HUD.notify(text, kind)
 			table.insert(toasts, child)
 		end
 	end
-	if #toasts > 4 then
+	if #toasts > 3 then
 		table.sort(toasts, function(a, b)
 			return a.LayoutOrder > b.LayoutOrder
 		end)
@@ -6894,7 +6998,7 @@ end
 
 function HUD.celebrate()
 	local random = Random.new()
-	for _ = 1, 80 do
+	for _ = 1, 70 do
 		local piece = Theme.new("Frame", {
 			Size = UDim2.fromOffset(random:NextInteger(8, 14), random:NextInteger(12, 20)),
 			Position = UDim2.new(random:NextNumber(0.05, 0.95), 0, -0.05, 0),
@@ -6919,38 +7023,25 @@ local function pill(parent, props)
 	local holder, body = Theme.card({
 		Name = props.Name,
 		Size = props.Size,
-		Radius = 24,
+		Radius = 21,
 		LayoutOrder = props.LayoutOrder,
 		Parent = parent,
 	})
 	local icon = Theme.new("Frame", {
 		Position = UDim2.fromOffset(5, 5),
-		Size = UDim2.fromOffset(38, 38),
+		Size = UDim2.fromOffset(32, 32),
 		BackgroundColor3 = C.White,
 		Parent = body,
 	}, { Theme.round(), Theme.gradient(props.Gradient, 90) })
-	Theme.label({ Size = UDim2.fromScale(1, 1), Text = props.Icon, MaxTextSize = 22, Parent = icon }, nil)
-	if props.Caption then
-		Theme.label({
-			Name = "Caption",
-			Size = UDim2.new(1, -60, 0, 14),
-			Position = UDim2.fromOffset(50, 5),
-			Text = props.Caption,
-			Font = Theme.Fonts.Heavy,
-			TextColor3 = C.InkFaint,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			MaxTextSize = 12,
-			Parent = body,
-		})
-	end
+	Theme.label({ Size = UDim2.fromScale(1, 1), Text = props.Icon, MaxTextSize = 19, Parent = icon })
 	local label = Theme.label({
 		Name = "Value",
-		Size = props.Caption and UDim2.new(1, -60, 0, 24) or UDim2.new(1, -60, 1, -12),
-		Position = UDim2.fromOffset(50, props.Caption and 19 or 6),
+		Size = UDim2.new(1, -(props.Right or 52), 1, -10),
+		Position = UDim2.fromOffset(44, 5),
 		Text = "0",
 		Font = props.Font or Theme.Fonts.Heavy,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = props.MaxTextSize or 24,
+		MaxTextSize = props.MaxTextSize or 22,
 		Parent = body,
 	})
 	return holder, label, body
@@ -6961,25 +7052,27 @@ local function buildTopBar()
 		Name = "TopBar",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.new(0, 620, 0, 48),
+		Size = UDim2.new(0, 330, 0, 42),
 		BackgroundTransparency = 1,
 		Parent = gui,
-	}, { Theme.list("h", 12, Enum.HorizontalAlignment.Center) })
+	}, { Theme.list("h", 10, Enum.HorizontalAlignment.Center) })
 	local coins, coinsLabel, coinsBody = pill(bar, {
 		Name = "Coins",
-		Size = UDim2.new(0, 220, 1, 0),
+		Size = UDim2.new(0, 190, 1, 0),
 		Gradient = "gold",
 		Icon = "💵",
 		LayoutOrder = 1,
 		Font = Theme.Fonts.Display,
-		MaxTextSize = 28,
+		MaxTextSize = 24,
+		Right = 86,
 	})
 	refs.coins = coinsLabel
+	refs.coinsBody = coinsBody
 	refs.coinsFrame = coins
 	local plus = Theme.new("TextButton", {
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -6, 0.5, 0),
-		Size = UDim2.fromOffset(34, 34),
+		Position = UDim2.new(1, -5, 0.5, 0),
+		Size = UDim2.fromOffset(32, 32),
 		BackgroundColor3 = C.White,
 		Font = Theme.Fonts.Heavy,
 		Text = "+",
@@ -6993,92 +7086,35 @@ local function buildTopBar()
 	end)
 	local _, gallery = pill(bar, {
 		Name = "Gallery",
-		Size = UDim2.new(0, 160, 1, 0),
+		Size = UDim2.new(0, 120, 1, 0),
 		Gradient = "pink",
 		Icon = "🖼️",
-		Caption = "EN VENTA",
 		LayoutOrder = 2,
-		MaxTextSize = 21,
+		MaxTextSize = 20,
+		Right = 52,
 	})
 	refs.gallery = gallery
-	local _, level = pill(bar, {
-		Name = "Level",
-		Size = UDim2.new(0, 160, 1, 0),
-		Gradient = "purple",
-		Icon = "🎨",
-		Caption = "DISEÑOS",
-		LayoutOrder = 3,
-		MaxTextSize = 21,
-	})
-	refs.level = level
 end
 
--- Menú lateral --------------------------------------------------------------------------------------
+-- Columna de botones -------------------------------------------------------------------------------
 local function buildMenu()
 	local menu = Theme.new("Frame", {
 		Name = "Menu",
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 14, 0.5, 0),
-		Size = UDim2.new(0, 170, 0, 290),
+		Position = UDim2.new(0, 12, 0.5, 0),
+		Size = UDim2.fromOffset(66, 400),
 		BackgroundTransparency = 1,
 		Parent = gui,
-	}, {
-		Theme.new("UIGridLayout", {
-			CellSize = UDim2.fromOffset(78, 82),
-			CellPadding = UDim2.fromOffset(12, 14),
-			SortOrder = Enum.SortOrder.LayoutOrder,
-		}),
-	})
+	}, { Theme.list("v", 10, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center) })
 	local entries = {
-		{
-			"paint",
-			"🖌️",
-			"Pintar",
-			"primary",
-			function()
-				app.openDesigns()
-			end,
-		},
-		{
-			"colors",
-			"📚",
-			"Colores",
-			"blue",
-			function()
-				app.openCollection()
-			end,
-		},
-		{
-			"shop",
-			"🛒",
-			"Mejoras",
-			"mint",
-			function()
-				app.openShop()
-			end,
-		},
-		{
-			"quests",
-			"📜",
-			"Misiones",
-			"gold",
-			function()
-				HUD.toggleQuests()
-			end,
-		},
-		{
-			"daily",
-			"🎁",
-			"Regalo",
-			"pink",
-			function()
-				app.openDaily()
-			end,
-		},
+		{ "shop", "🛒", "Mejoras", "mint", app.openShop },
+		{ "colors", "📚", "Colores", "blue", app.openCollection },
+		{ "quests", "📜", "Misiones", "gold", HUD.toggleQuests },
+		{ "daily", "🎁", "Regalo", "pink", app.openDaily },
 		{
 			"home",
 			"🏠",
-			"Mi galería",
+			"Taller",
 			"orange",
 			function()
 				app.remotes.GoHome:FireServer()
@@ -7086,31 +7122,55 @@ local function buildMenu()
 		},
 	}
 	for order, entry in ipairs(entries) do
+		local action = entry[5]
 		tiles[entry[1]] = Theme.tile({
 			Name = entry[1],
+			Size = UDim2.fromOffset(64, 64),
+			IconSize = 26,
 			Icon = entry[2],
 			Text = entry[3],
 			Gradient = entry[4],
 			LayoutOrder = order,
 			Parent = menu,
-			OnClick = entry[5],
+			OnClick = function()
+				action()
+			end,
 		})
 	end
+	-- Sonido on/off, discreto debajo de los botones.
+	local sound = Theme.new("TextButton", {
+		Name = "Settings",
+		Size = UDim2.fromOffset(38, 38),
+		BackgroundColor3 = C.White,
+		BackgroundTransparency = 0.15,
+		Font = Theme.Fonts.Bold,
+		Text = "🔊",
+		TextScaled = true,
+		LayoutOrder = 99,
+		Parent = menu,
+	}, { Theme.round(), Theme.stroke(C.Border, 2), Theme.padding(8) })
+	sound.Activated:Connect(function()
+		Theme.soundsEnabled = not Theme.soundsEnabled
+		sound.Text = Theme.soundsEnabled and "🔊" or "🔇"
+		Theme.playSound("click")
+	end)
+	refs.menu = menu
 end
 
--- Misiones diarias -------------------------------------------------------------------------------
+-- Misiones diarias (plegables) ---------------------------------------------------------------------
 local function buildQuests()
 	local holder, body = Theme.card({
 		Name = "Quests",
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -14, 0, 70),
-		Size = UDim2.fromOffset(290, 318),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 90, 0.5, 0),
+		Size = UDim2.fromOffset(284, 300),
 		Radius = 20,
+		Visible = false,
 		Parent = gui,
 	})
 	refs.quests = holder
 	local header = Theme.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 46),
+		Size = UDim2.new(1, 0, 0, 44),
 		BackgroundColor3 = C.White,
 		Parent = body,
 	}, { Theme.corner(20), Theme.gradient("gold", 0) })
@@ -7123,67 +7183,83 @@ local function buildQuests()
 	}, { Theme.gradient("gold", 0) })
 	local title = Theme.label({
 		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.new(1, -28, 0, 30),
+		Size = UDim2.new(1, -60, 0, 28),
 		Text = "📜 Misiones de hoy",
 		Font = Theme.Fonts.Display,
 		TextColor3 = C.White,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 22,
+		MaxTextSize = 21,
 		Parent = header,
 	})
 	Theme.textStroke(C.GoldDark, 1.5, 0.3).Parent = title
+	local close = Theme.new("TextButton", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -8, 0.5, 0),
+		Size = UDim2.fromOffset(30, 30),
+		BackgroundColor3 = C.White,
+		BackgroundTransparency = 0.15,
+		Font = Theme.Fonts.Heavy,
+		Text = "✕",
+		TextScaled = true,
+		TextColor3 = C.GoldDark,
+		Parent = header,
+	}, { Theme.round(), Theme.padding(8) })
+	close.Activated:Connect(function()
+		Theme.playSound("click")
+		HUD.toggleQuests(false)
+	end)
 	local list = Theme.new("Frame", {
-		Position = UDim2.fromOffset(10, 54),
-		Size = UDim2.new(1, -20, 1, -90),
+		Position = UDim2.fromOffset(10, 52),
+		Size = UDim2.new(1, -20, 1, -86),
 		BackgroundTransparency = 1,
 		Parent = body,
-	}, { Theme.list("v", 8) })
+	}, { Theme.list("v", 6) })
 	for i = 1, Config.QUESTS_PER_DAY do
 		local row = Theme.new("Frame", {
-			Size = UDim2.new(1, 0, 0, 72),
+			Size = UDim2.new(1, 0, 0, 64),
 			BackgroundColor3 = C.PanelSoft,
 			LayoutOrder = i,
 			Parent = list,
 		}, { Theme.corner(14) })
 		local icon = Theme.new("Frame", {
 			Position = UDim2.fromOffset(8, 8),
-			Size = UDim2.fromOffset(34, 34),
+			Size = UDim2.fromOffset(28, 28),
 			BackgroundColor3 = C.GoldLight,
 			Parent = row,
-		}, { Theme.corner(10) })
-		local iconLabel = Theme.label({ Size = UDim2.fromScale(1, 1), Text = "", MaxTextSize = 20, Parent = icon })
+		}, { Theme.corner(9) })
+		local iconLabel = Theme.label({ Size = UDim2.fromScale(1, 1), Text = "", MaxTextSize = 17, Parent = icon })
 		local text = Theme.label({
-			Position = UDim2.fromOffset(50, 6),
-			Size = UDim2.new(1, -58, 0, 36),
+			Position = UDim2.fromOffset(44, 6),
+			Size = UDim2.new(1, -52, 0, 32),
 			Text = "",
 			Font = Theme.Fonts.Bold,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			MaxTextSize = 16,
+			MaxTextSize = 15,
 			Parent = row,
 		})
 		local bar = Theme.progress({
-			Position = UDim2.fromOffset(10, 50),
-			Size = UDim2.new(1, -120, 0, 12),
+			Position = UDim2.fromOffset(10, 46),
+			Size = UDim2.new(1, -132, 0, 8),
 			Gradient = "gold",
 			Parent = row,
 		})
 		local count = Theme.label({
-			Position = UDim2.new(1, -108, 0, 44),
-			Size = UDim2.fromOffset(40, 22),
+			Position = UDim2.new(1, -118, 0, 41),
+			Size = UDim2.fromOffset(48, 18),
 			Text = "",
 			Font = Theme.Fonts.Heavy,
 			TextColor3 = C.InkSoft,
-			MaxTextSize = 14,
+			MaxTextSize = 13,
 			Parent = row,
 		})
 		local claim = Theme.button({
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -6, 0, 42),
-			Size = UDim2.fromOffset(62, 26),
+			Position = UDim2.new(1, -6, 0, 38),
+			Size = UDim2.fromOffset(62, 22),
 			Text = "",
 			Variant = "mint",
-			Radius = 10,
-			MaxTextSize = 13,
+			Radius = 9,
+			MaxTextSize = 12,
 			Parent = row,
 			OnClick = function()
 				app.claimQuest(i)
@@ -7192,21 +7268,23 @@ local function buildQuests()
 		questRows[i] = { row = row, icon = iconLabel, text = text, bar = bar, count = count, claim = claim }
 	end
 	refs.questBonus = Theme.label({
-		Position = UDim2.new(0, 10, 1, -32),
-		Size = UDim2.new(1, -20, 0, 24),
-		Text = "🎁 Completa las 3: ¡color Épico o mejor!",
+		Position = UDim2.new(0, 10, 1, -30),
+		Size = UDim2.new(1, -20, 0, 22),
+		Text = "",
 		Font = Theme.Fonts.Bold,
 		TextColor3 = C.GoldDark,
-		MaxTextSize = 15,
+		MaxTextSize = 14,
 		Parent = body,
 	})
 end
 
-function HUD.toggleQuests()
-	questsVisible = not questsVisible
-	refs.quests.Visible = questsVisible
-	if questsVisible then
-		Theme.pop(refs.quests.Body, 0.85)
+function HUD.toggleQuests(show)
+	if show == nil then
+		show = not refs.quests.Visible
+	end
+	refs.quests.Visible = show
+	if show then
+		Theme.popCard(refs.quests, 0.9)
 	end
 end
 
@@ -7225,13 +7303,12 @@ local function refreshQuests(state)
 			if quest.claimed then
 				rowRefs.claim.SetText("✔")
 				rowRefs.claim.SetEnabled(false)
-			elseif done then
-				claimable += 1
-				rowRefs.claim.SetText("💵 " .. Theme.formatNumber(quest.reward))
-				rowRefs.claim.SetEnabled(true)
 			else
+				if done then
+					claimable += 1
+				end
 				rowRefs.claim.SetText("💵 " .. Theme.formatNumber(quest.reward))
-				rowRefs.claim.SetEnabled(false)
+				rowRefs.claim.SetEnabled(done)
 			end
 			rowRefs.row.BackgroundColor3 = (done and not quest.claimed) and C.MintLight or C.PanelSoft
 		end
@@ -7241,24 +7318,23 @@ local function refreshQuests(state)
 	tiles.quests.SetBadge(claimable > 0 and claimable or nil)
 end
 
--- Tutorial ------------------------------------------------------------------------------------------
+-- Tutorial (una sola línea) ----------------------------------------------------------------------
 local function buildTutorial()
 	local holder, body = Theme.card({
 		Name = "Tutorial",
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 66),
-		Size = UDim2.fromOffset(470, 62),
+		Position = UDim2.new(0.5, 0, 0, 58),
+		Size = UDim2.fromOffset(420, 40),
 		Radius = 20,
-		Color = C.White,
 		StrokeColor = C.Primary,
-		StrokeThickness = 2.5,
+		StrokeThickness = 2,
 		Visible = false,
 		Parent = gui,
 	})
 	refs.tutorial = holder
 	local step = Theme.new("Frame", {
-		Position = UDim2.fromOffset(8, 8),
-		Size = UDim2.fromOffset(46, 46),
+		Position = UDim2.fromOffset(6, 6),
+		Size = UDim2.fromOffset(28, 28),
 		BackgroundColor3 = C.White,
 		Parent = body,
 	}, { Theme.round(), Theme.gradient("primary", 90) })
@@ -7267,26 +7343,16 @@ local function buildTutorial()
 		Text = "1",
 		Font = Theme.Fonts.Display,
 		TextColor3 = C.White,
-		MaxTextSize = 24,
+		MaxTextSize = 17,
 		Parent = step,
 	})
-	refs.tutorialTitle = Theme.label({
-		Position = UDim2.fromOffset(64, 6),
-		Size = UDim2.new(1, -76, 0, 18),
-		Text = "TUTORIAL",
-		Font = Theme.Fonts.Heavy,
-		TextColor3 = C.Primary,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 13,
-		Parent = body,
-	})
 	refs.tutorialText = Theme.label({
-		Position = UDim2.fromOffset(64, 24),
-		Size = UDim2.new(1, -76, 0, 30),
+		Position = UDim2.fromOffset(42, 6),
+		Size = UDim2.new(1, -54, 1, -12),
 		Text = "",
 		Font = Theme.Fonts.Bold,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 20,
+		MaxTextSize = 16,
 		Parent = body,
 	})
 end
@@ -7298,37 +7364,15 @@ local function refreshTutorial(state)
 	refs.tutorial.Visible = visible
 	if def then
 		refs.tutorialStep.Text = tostring(step)
-		refs.tutorialTitle.Text = "TUTORIAL · PASO " .. step .. " DE " .. #Config.Tutorial
-		local suffix = def.goal > 1 and ("  (" .. (state.tutorialProgress or 0) .. "/" .. def.goal .. ")") or ""
-		refs.tutorialText.Text = "👉 " .. def.text .. suffix
+		local suffix = def.goal > 1 and ("  " .. (state.tutorialProgress or 0) .. "/" .. def.goal) or ""
+		refs.tutorialText.Text = def.text .. suffix
 	end
 	if refs.lastTutorial ~= step then
 		refs.lastTutorial = step
 		if visible then
-			Theme.pop(refs.tutorial.Body, 0.8)
+			Theme.popCard(refs.tutorial, 0.85)
 		end
 	end
-end
-
--- Ajustes (sonido) -----------------------------------------------------------------------------------
-local function buildSettings()
-	local button = Theme.new("TextButton", {
-		Name = "Settings",
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -14, 1, -14),
-		Size = UDim2.fromOffset(46, 46),
-		BackgroundColor3 = C.White,
-		Font = Theme.Fonts.Bold,
-		Text = "🔊",
-		TextScaled = true,
-		Parent = gui,
-	}, { Theme.round(), Theme.stroke(C.Border, 2), Theme.padding(9) })
-	refs.settings = button
-	button.Activated:Connect(function()
-		Theme.soundsEnabled = not Theme.soundsEnabled
-		button.Text = Theme.soundsEnabled and "🔊" or "🔇"
-		Theme.playSound("click")
-	end)
 end
 
 -- Estado --------------------------------------------------------------------------------------------
@@ -7344,7 +7388,7 @@ local function animateCoins(target)
 		return
 	end
 	if target > start then
-		Theme.pop(refs.coinsFrame, 0.88)
+		Theme.popCard(refs.coinsFrame, 0.9)
 	end
 	task.spawn(function()
 		local duration = 0.6
@@ -7362,11 +7406,9 @@ end
 
 function HUD.applyState(state)
 	animateCoins(state.coins)
-	refs.gallery.Text = state.displayed .. " / " .. state.slots
-	refs.level.Text = "Nivel " .. state.openLevel .. " / " .. Designs.MAX_LEVEL
+	refs.gallery.Text = state.displayed .. "/" .. state.slots
 	tiles.daily.SetBadge(state.dailyReady)
 	tiles.daily.Caption.Text = state.dailyReady and "¡Regalo!" or Theme.formatTime(state.dailyWait)
-	tiles.paint.SetBadge(state.painting and "…" or nil)
 	refreshQuests(state)
 	refreshTutorial(state)
 end
@@ -7388,7 +7430,6 @@ function HUD.init(appRef)
 	buildMenu()
 	buildQuests()
 	buildTutorial()
-	buildSettings()
 
 	local overlay = Theme.new("ScreenGui", {
 		Name = "Notifications",
@@ -7398,11 +7439,11 @@ function HUD.init(appRef)
 	})
 	toastHolder = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 136),
-		Size = UDim2.new(0, 480, 0, 280),
+		Position = UDim2.new(0.5, 0, 0, 106),
+		Size = UDim2.new(0, 420, 0, 150),
 		BackgroundTransparency = 1,
 		Parent = overlay,
-	}, { Theme.list("v", 8, Enum.HorizontalAlignment.Center) })
+	}, { Theme.list("v", 6, Enum.HorizontalAlignment.Center) })
 	confettiHolder = Theme.new("Frame", {
 		Position = UDim2.fromOffset(0, -80),
 		Size = UDim2.new(1, 0, 1, 80),
@@ -7412,24 +7453,18 @@ function HUD.init(appRef)
 	})
 
 	-- Escala en pantallas pequeñas.
-	local scaled = { gui.TopBar, gui.Menu, refs.quests, refs.tutorial, toastHolder, refs.settings }
+	local scaled = { gui.TopBar, refs.menu, refs.quests, refs.tutorial, toastHolder }
 	local function updateScale()
 		local camera = Workspace.CurrentCamera
 		if not camera then
 			return
 		end
 		local viewport = camera.ViewportSize
-		local scale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 720), 0.55, 1)
+		local scale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 720), 0.6, 1)
 		for _, frame in ipairs(scaled) do
 			local uiScale = frame:FindFirstChild("ViewportScale")
 				or Theme.new("UIScale", { Name = "ViewportScale", Parent = frame })
 			uiScale.Scale = scale
-		end
-		-- En pantallas estrechas las misiones empiezan ocultas.
-		if viewport.X < 900 and refs.quests.Visible and not refs.questsAutoHidden then
-			refs.questsAutoHidden = true
-			questsVisible = false
-			refs.quests.Visible = false
 		end
 	end
 	updateScale()
@@ -7445,8 +7480,9 @@ return HUD
           <Item class="ModuleScript" referent="26">
             <Properties>
               <string name="Name">Machine</string>
-              <string name="Source"><![CDATA[-- Máquina de colores: panel inferior con carrete animado, cartel sobre la
--- máquina del taller, aviso de colores raros y ventana de colección.
+              <string name="Source"><![CDATA[-- Máquina de colores: los colores solo se tiran en la máquina del taller
+-- (aviso «Tirar color»). Aquí está el cartel sobre la máquina, la tarjeta con
+-- el resultado de cada tirada, el aviso de colores raros y la colección.
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -7468,12 +7504,10 @@ local gui
 local refs = {}
 local board = {}
 local collection
-local lastRollAt = -100
-local rolling = false
 local spinning = false
 local spinToken = 0
+local cardToken = 0
 local knownPaints = nil
-local rollCooldown = 2.5
 
 local function rarityText(colorId)
 	local entry = Colors.ById[colorId]
@@ -7492,35 +7526,34 @@ local function myMachine()
 	return workshop and workshop:FindFirstChild("Machine")
 end
 
--- Panel inferior -------------------------------------------------------------------------------
-local function buildWidget()
+-- Tarjeta con el resultado (aparece un momento al tirar en la máquina) ------------------------
+local function buildResultCard()
 	local holder, body = Theme.card({
-		Name = "MachineWidget",
+		Name = "RollResult",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -14),
-		Size = UDim2.fromOffset(500, 120),
+		Position = UDim2.new(0.5, 0, 1, -24),
+		Size = UDim2.fromOffset(330, 84),
 		Radius = 24,
+		Visible = false,
 		Parent = gui,
 	})
-	refs.widget = holder
-
-	-- Carrete.
+	refs.card = holder
 	local reel = Theme.new("Frame", {
-		Position = UDim2.fromOffset(12, 12),
-		Size = UDim2.fromOffset(96, 96),
+		Position = UDim2.fromOffset(10, 10),
+		Size = UDim2.fromOffset(64, 64),
 		BackgroundColor3 = C.White,
 		Parent = body,
-	}, { Theme.corner(22), Theme.gradient("dark", 90) })
+	}, { Theme.corner(18), Theme.gradient("dark", 90) })
 	refs.reelStroke = Theme.stroke(C.InkFaint, 3)
 	refs.reelStroke.Parent = reel
 	refs.swatch = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
-		Size = UDim2.fromOffset(66, 66),
+		Size = UDim2.fromOffset(44, 44),
 		BackgroundColor3 = Color3.fromRGB(90, 80, 120),
 		Parent = reel,
-	}, { Theme.round(), Theme.stroke(C.White, 3, 0.2) })
-	refs.swatchShine = Theme.new("Frame", {
+	}, { Theme.round(), Theme.stroke(C.White, 2.5, 0.2) })
+	Theme.new("Frame", {
 		Position = UDim2.fromScale(0.2, 0.14),
 		Size = UDim2.fromScale(0.28, 0.2),
 		BackgroundColor3 = C.White,
@@ -7528,30 +7561,18 @@ local function buildWidget()
 		Rotation = -25,
 		Parent = refs.swatch,
 	}, { Theme.round() })
-
-	-- Texto.
-	Theme.label({
-		Position = UDim2.fromOffset(122, 12),
-		Size = UDim2.new(1, -290, 0, 16),
-		Text = "MÁQUINA DE COLORES",
-		Font = Theme.Fonts.Heavy,
-		TextColor3 = C.InkFaint,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 13,
-		Parent = body,
-	})
 	refs.name = Theme.label({
-		Position = UDim2.fromOffset(122, 30),
-		Size = UDim2.new(1, -290, 0, 30),
+		Position = UDim2.fromOffset(86, 10),
+		Size = UDim2.new(1, -98, 0, 28),
 		Text = "",
 		Font = Theme.Fonts.Display,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 26,
+		MaxTextSize = 24,
 		Parent = body,
 	})
 	local chip, chipLabel = Theme.chip({
-		Position = UDim2.fromOffset(122, 64),
-		Size = UDim2.fromOffset(150, 24),
+		Position = UDim2.fromOffset(86, 44),
+		Size = UDim2.fromOffset(130, 24),
 		Color = C.PanelSoft,
 		Text = "",
 		MaxTextSize = 13,
@@ -7560,62 +7581,14 @@ local function buildWidget()
 	refs.rarityChip = chip
 	refs.rarityLabel = chipLabel
 	refs.count = Theme.label({
-		Position = UDim2.fromOffset(122, 92),
-		Size = UDim2.new(1, -290, 0, 18),
+		Position = UDim2.fromOffset(224, 46),
+		Size = UDim2.new(1, -234, 0, 20),
 		Text = "",
-		Font = Theme.Fonts.Medium,
+		Font = Theme.Fonts.Bold,
 		TextColor3 = C.InkSoft,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		MaxTextSize = 14,
 		Parent = body,
-	})
-
-	-- Botones.
-	refs.rollButton = Theme.button({
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -14, 0, 12),
-		Size = UDim2.fromOffset(148, 54),
-		Text = "🎲 TIRAR",
-		Variant = "primary",
-		Radius = 16,
-		MaxTextSize = 24,
-		Parent = body,
-		OnClick = function()
-			Machine.roll()
-		end,
-	})
-	refs.cooldown = Theme.progress({
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -14, 0, 72),
-		Size = UDim2.fromOffset(148, 6),
-		Gradient = "mint",
-		Parent = body,
-	})
-	refs.autoButton = Theme.button({
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -62, 0, 84),
-		Size = UDim2.fromOffset(100, 28),
-		Text = "🔒 Auto",
-		Variant = "ghost",
-		Radius = 14,
-		MaxTextSize = 14,
-		Parent = body,
-		OnClick = function()
-			Machine.toggleAuto()
-		end,
-	})
-	Theme.button({
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -14, 0, 84),
-		Size = UDim2.fromOffset(42, 28),
-		Text = "📚",
-		Variant = "ghost",
-		Radius = 14,
-		MaxTextSize = 16,
-		Parent = body,
-		OnClick = function()
-			Machine.openCollection()
-		end,
 	})
 end
 
@@ -7623,23 +7596,22 @@ end
 local function buildBoard()
 	board.gui = Theme.new("BillboardGui", {
 		Name = "MachineBoard",
-		Size = UDim2.fromOffset(240, 130),
+		Size = UDim2.fromOffset(230, 100),
 		StudsOffset = Vector3.new(0, 1.5, 0),
 		MaxDistance = 50,
 		LightInfluence = 0,
 		ResetOnSpawn = false,
-		Active = true,
 		Enabled = false,
 		Parent = player:WaitForChild("PlayerGui"),
 	})
 	local card = Theme.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 74),
+		Size = UDim2.new(1, 0, 0, 70),
 		BackgroundColor3 = C.White,
 		BackgroundTransparency = 0.05,
 		Parent = board.gui,
 	}, { Theme.corner(18), Theme.stroke(C.Border, 2) })
 	board.name = Theme.label({
-		Position = UDim2.fromOffset(10, 8),
+		Position = UDim2.fromOffset(10, 6),
 		Size = UDim2.new(1, -20, 0, 30),
 		Text = "",
 		Font = Theme.Fonts.Display,
@@ -7647,39 +7619,28 @@ local function buildBoard()
 		Parent = card,
 	})
 	board.rarity = Theme.label({
-		Position = UDim2.fromOffset(10, 40),
-		Size = UDim2.new(1, -20, 0, 24),
+		Position = UDim2.fromOffset(10, 38),
+		Size = UDim2.new(1, -20, 0, 22),
 		Text = "",
 		Font = Theme.Fonts.Heavy,
-		MaxTextSize = 17,
+		MaxTextSize = 16,
 		Parent = card,
 	})
-	board.auto = Theme.new("TextButton", {
-		Position = UDim2.fromOffset(0, 82),
-		Size = UDim2.new(0.56, -4, 0, 40),
+	board.auto = Theme.label({
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 76),
+		Size = UDim2.fromOffset(180, 24),
 		BackgroundColor3 = C.White,
+		BackgroundTransparency = 0.05,
+		Text = "",
 		Font = Theme.Fonts.Heavy,
-		Text = "🔒 Auto-Rolling",
-		TextScaled = true,
-		TextColor3 = C.InkSoft,
+		TextColor3 = C.MintDark,
+		MaxTextSize = 14,
+		Visible = false,
 		Parent = board.gui,
-	}, { Theme.round(), Theme.stroke(C.Border, 2), Theme.padding(9, 10) })
-	board.auto.Activated:Connect(function()
-		Machine.toggleAuto()
-	end)
-	local upgrade = Theme.new("TextButton", {
-		Position = UDim2.new(0.56, 4, 0, 82),
-		Size = UDim2.new(0.44, -4, 0, 40),
-		BackgroundColor3 = C.White,
-		Font = Theme.Fonts.Heavy,
-		Text = "⬆ Mejora",
-		TextScaled = true,
-		TextColor3 = C.White,
-		Parent = board.gui,
-	}, { Theme.round(), Theme.gradient("gold", 90), Theme.padding(9, 10) })
-	upgrade.Activated:Connect(function()
-		app.openShop()
-	end)
+	})
+	Theme.round().Parent = board.auto
+	Theme.padding(4, 10).Parent = board.auto
 end
 
 -- Aviso grande de color raro.
@@ -7699,7 +7660,6 @@ local function buildPopup()
 		ShadowTransparency = 0.6,
 		Parent = refs.popup,
 	})
-	refs.popupCard = card
 	refs.popupHolder = cardHolder
 	refs.popupStroke = card:FindFirstChildOfClass("UIStroke")
 	refs.popupStroke.Thickness = 5
@@ -7810,7 +7770,7 @@ local function buildCollection()
 		Size = UDim2.fromOffset(880, 600),
 		Gradient = "blue",
 		Title = "📚 Colección de pinturas",
-		Subtitle = "Descubre todos los colores. Cuanto más raros, más valen tus cuadros.",
+		Subtitle = "Consíguelas en la máquina del taller. Cuanto más raras, más valen tus cuadros.",
 	})
 	refs.collectionProgress = Theme.label({
 		Position = UDim2.new(1, -330, 0, 14),
@@ -7969,7 +7929,7 @@ function Machine.openCollection()
 	Machine.refreshCollection()
 end
 
--- Acciones -------------------------------------------------------------------------------------
+-- Tiradas ----------------------------------------------------------------------------------------
 local function jiggleBalls()
 	local machine = myMachine()
 	if not machine then
@@ -7995,7 +7955,7 @@ local function showColor(colorId)
 		DesignArt.swatch(refs.swatch, colorId)
 	end
 	local text, color = rarityText(colorId)
-	refs.name.Text = entry and entry.name or "Sin colores"
+	refs.name.Text = entry and entry.name or ""
 	refs.rarityLabel.Text = text
 	refs.rarityChip.BackgroundColor3 = entry and color or C.PanelSoft
 	refs.rarityLabel.TextColor3 = entry and C.White or C.InkSoft
@@ -8005,36 +7965,17 @@ local function showColor(colorId)
 	board.rarity.TextColor3 = color
 end
 
-function Machine.roll()
-	if rolling or spinning then
-		return
-	end
-	if os.clock() - lastRollAt < rollCooldown then
-		return
-	end
-	rolling = true
-	local ok, result = pcall(function()
-		return app.remotes.Roll:InvokeServer()
+local function hideCardLater()
+	cardToken += 1
+	local token = cardToken
+	task.delay(2.2, function()
+		if token == cardToken then
+			refs.card.Visible = false
+		end
 	end)
-	rolling = false
-	if ok and not result then
-		app.notify("La máquina se está recargando ⚙️", "info")
-	end
-end
-
-function Machine.toggleAuto()
-	local state = app.state
-	if not (state and state.autoUnlocked) then
-		app.notify("🔒 Compra «Auto-Rolling» en Mejoras para que la máquina tire sola", "info")
-		app.openShop()
-		return
-	end
-	app.remotes.SetAutoRoll:FireServer(not state.autoRoll)
-	Theme.playSound("click", state.autoRoll and 0.9 or 1.2)
 end
 
 function Machine.onRoll(colorId, auto)
-	lastRollAt = os.clock()
 	local entry = Colors.ById[colorId]
 	if not entry then
 		return
@@ -8043,19 +7984,39 @@ function Machine.onRoll(colorId, auto)
 	if knownPaints then
 		knownPaints[colorId] = true
 	end
+	local rarity = Colors.rarityOf(entry)
+	jiggleBalls()
+	if auto then
+		-- Las tiradas automáticas no interrumpen: solo avisan si sale algo bueno.
+		if not spinning then
+			showColor(colorId)
+		end
+		if rarity.index >= 3 or isNew then
+			app.notify(
+				"🤖 «" .. entry.name .. "» · " .. rarity.name .. " x" .. string.format("%.1f", rarity.mult),
+				rarity.index >= 4 and "gold" or "success"
+			)
+		end
+		return
+	end
 	spinToken += 1
 	local token = spinToken
 	spinning = true
-	jiggleBalls()
+	cardToken += 1
+	refs.card.Visible = true
+	Theme.popCard(refs.card, 0.85)
+	refs.name.Text = "Girando…"
+	refs.rarityLabel.Text = ""
+	refs.rarityChip.BackgroundColor3 = C.PanelSoft
+	refs.count.Text = ""
 	task.spawn(function()
-		local steps = auto and 7 or 14
 		local options = {}
 		for _, option in ipairs(Colors.List) do
 			if not option.basic then
 				table.insert(options, option.id)
 			end
 		end
-		for i = 1, steps do
+		for i = 1, 12 do
 			if token ~= spinToken then
 				return
 			end
@@ -8063,7 +8024,7 @@ function Machine.onRoll(colorId, auto)
 			if i % 2 == 0 then
 				Theme.playSound("click", 1.4 + i * 0.03)
 			end
-			task.wait(0.03 + i * (auto and 0.006 or 0.009))
+			task.wait(0.03 + i * 0.009)
 		end
 		if token ~= spinToken then
 			return
@@ -8071,15 +8032,15 @@ function Machine.onRoll(colorId, auto)
 		spinning = false
 		showColor(colorId)
 		Theme.pop(refs.swatch, 0.5)
-		local rarity = Colors.rarityOf(entry)
+		if app.state then
+			refs.count.Text = "Tienes x" .. (app.state.paints[colorId] or 0)
+		end
 		if rarity.index >= 3 or isNew then
 			showPopup(colorId, isNew)
 		else
 			Theme.playSound("success", 1.3)
 		end
-		if app.state then
-			refs.count.Text = "Tienes x" .. (app.state.paints[colorId] or 0) .. " de este color"
-		end
+		hideCardLater()
 	end)
 end
 
@@ -8092,29 +8053,12 @@ function Machine.applyState(state)
 			end
 		end
 	end
-	rollCooldown = state.rollInterval or rollCooldown
 	if not spinning then
 		showColor(state.lastRoll)
-		refs.count.Text = Colors.ById[state.lastRoll]
-				and ("Tienes x" .. (state.paints[state.lastRoll] or 0) .. " de este color")
-			or "Pulsa TIRAR o acércate a la máquina"
 	end
-	if not state.autoUnlocked then
-		refs.autoButton.SetText("🔒 Auto")
-		refs.autoButton.SetVariant("ghost")
-		board.auto.Text = "🔒 Auto-Rolling"
-		board.auto.TextColor3 = C.InkSoft
-	elseif state.autoRoll then
-		refs.autoButton.SetText("🔄 Auto: Sí")
-		refs.autoButton.SetVariant("mint")
-		board.auto.Text = "🔄 Auto-Rolling"
-		board.auto.TextColor3 = C.MintDark
-	else
-		refs.autoButton.SetText("⏸ Auto: No")
-		refs.autoButton.SetVariant("ghost")
-		board.auto.Text = "⏸ Auto-Rolling"
-		board.auto.TextColor3 = C.InkSoft
-	end
+	board.auto.Visible = state.autoUnlocked == true
+	board.auto.Text = state.autoRoll and "🤖 Auto-Rolling activo" or "⏸ Auto-Rolling en pausa"
+	board.auto.TextColor3 = state.autoRoll and C.MintDark or C.InkSoft
 	Machine.refreshCollection()
 end
 
@@ -8127,18 +8071,15 @@ function Machine.init(appRef)
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		Parent = player:WaitForChild("PlayerGui"),
 	})
-	buildWidget()
+	buildResultCard()
 	buildBoard()
 	buildPopup()
 	buildCollection()
 
-	-- Recarga del botón y cartel sobre la máquina.
+	-- Coloca el cartel sobre tu máquina cuando aparece tu terreno.
 	task.spawn(function()
 		while true do
-			task.wait(0.05)
-			local fraction = math.clamp((os.clock() - lastRollAt) / rollCooldown, 0, 1)
-			refs.cooldown.Set(fraction)
-			refs.rollButton.SetEnabled(fraction >= 1 and not spinning)
+			task.wait(0.25)
 			if app.state and not board.gui.Adornee then
 				local machine = myMachine()
 				local top = machine and machine:FindFirstChild("Top")
@@ -8151,28 +8092,20 @@ function Machine.init(appRef)
 		end
 	end)
 
+	local cardScale = Theme.new("UIScale", { Name = "ViewportScale", Parent = refs.card })
+	local popupScale = Theme.new("UIScale", { Name = "ViewportScale", Parent = refs.popup })
 	local function updateScale()
 		local camera = Workspace.CurrentCamera
 		if camera then
 			local viewport = camera.ViewportSize
-			local scale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 720), 0.6, 1)
-			local uiScale = refs.widget:FindFirstChild("ViewportScale")
-				or Theme.new("UIScale", { Name = "ViewportScale", Parent = refs.widget })
-			uiScale.Scale = scale
+			cardScale.Scale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 720), 0.6, 1)
+			popupScale.Scale = math.clamp(viewport.Y / 720, 0.6, 1)
 		end
 	end
 	updateScale()
 	if Workspace.CurrentCamera then
 		Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
 	end
-	local popupScale = Theme.new("UIScale", { Name = "ViewportScale", Parent = refs.popup })
-	local function updatePopupScale()
-		local camera = Workspace.CurrentCamera
-		if camera then
-			popupScale.Scale = math.clamp(camera.ViewportSize.Y / 720, 0.6, 1)
-		end
-	end
-	updatePopupScale()
 end
 
 function Machine.setVisible(visible)
@@ -8186,9 +8119,10 @@ return Machine
           <Item class="ModuleScript" referent="27">
             <Properties>
               <string name="Name">Painter</string>
-              <string name="Source"><![CDATA[-- Estudio de pintura: el diseño aparece en líneas y cada figura se rellena con
--- el color de su área mientras pasas el pincel. Cuanto más rápido terminas,
--- más estrellas (y más valor) consigue el cuadro.
+              <string name="Source"><![CDATA[-- Estudio de pintura: el dibujo aparece como un boceto con los colores en tono
+-- pálido y lo coloreas pasando el pincel. La pintura se queda justo donde
+-- pasas (recortada a cada figura) y, cuando cubres casi toda una figura, esta
+-- se completa con su color final. Cuanto más rápido terminas, más estrellas.
 
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
@@ -8206,16 +8140,20 @@ local DesignArt = require(script.Parent.DesignArt)
 local Painter = {}
 
 local C = Theme.Colors
-local SAMPLE_RING = 6
+local COMPLETE_AT = 0.9 -- fracción de la figura cubierta para completarla
+local DAB_SPACING = 0.5 -- distancia entre pinceladas (en radios)
+local MAX_DABS = 380 -- pinceladas por figura (la pintura sigue contando después)
+local WOOD = Color3.fromRGB(196, 140, 96)
+local WOOD_DARK = Color3.fromRGB(150, 98, 64)
 
 local app
-local gui, root, canvasFrame, catcher, cursor, particles
+local gui, canvasFrame, overlay, catcher, cursor, cursorIcon
 local refs = {}
 local current
 local stroking = false
 local pointer = nil
+local lastBrush = nil
 local tool = "brush"
-local particleClock = 0
 local soundClock = 0
 local confirmCancelUntil = 0
 local finishing = false
@@ -8234,12 +8172,57 @@ local function canvasPoint(position)
 	return (position.X - absPos.X) / absSize.X, (position.Y - absPos.Y) / absSize.Y
 end
 
+-- Puntos de muestra de cada figura (solo donde la figura se ve): la figura se
+-- completa cuando el pincel ha pasado cerca de casi todos.
+local function buildSamples(design, radius)
+	local spacing = radius * 1.2
+	local list = {}
+	for i, shape in ipairs(design.shapes) do
+		local info = {
+			points = {},
+			painted = 0,
+			total = 0,
+			complete = false,
+			dabs = 0,
+			cx = shape.x,
+			cy = shape.y,
+			bound = 0.5 * math.sqrt(shape.w * shape.w + shape.h * shape.h),
+		}
+		if shape.visible > 0 then
+			local nx = math.clamp(math.ceil(shape.w / spacing), 2, 40)
+			local ny = math.clamp(math.ceil(shape.h / spacing), 2, 40)
+			local rad = math.rad(shape.rot)
+			local c, s = math.cos(rad), math.sin(rad)
+			for gx = 1, nx do
+				for gy = 1, ny do
+					local lx = ((gx - 0.5) / nx - 0.5) * shape.w
+					local ly = ((gy - 0.5) / ny - 0.5) * shape.h
+					local x = shape.x + lx * c - ly * s
+					local y = shape.y + lx * s + ly * c
+					if x >= 0 and x <= 1 and y >= 0 and y <= 1 and Designs.shapeAt(design, x, y) == i then
+						table.insert(info.points, { x, y, false })
+					end
+				end
+			end
+			if #info.points == 0 then
+				-- Figura diminuta: basta con pasar por su centro.
+				table.insert(info.points, { shape.x, shape.y, false })
+			end
+		end
+		info.total = #info.points
+		list[i] = info
+	end
+	return list
+end
+
 local function areaPercent(areaId)
 	local total, done = 0, 0
 	for i, shape in ipairs(current.design.shapes) do
-		if shape.area == areaId then
+		if shape.area == areaId and shape.visible > 0 then
+			local info = current.samples[i]
+			local p = info.complete and 1 or info.painted / math.max(info.total, 1)
 			total += shape.visible
-			done += shape.visible * current.progress[i]
+			done += shape.visible * p
 		end
 	end
 	return total > 0 and done / total or 1
@@ -8248,15 +8231,19 @@ end
 local function totalPercent()
 	local total, done = 0, 0
 	for i, shape in ipairs(current.design.shapes) do
-		total += shape.visible
-		done += shape.visible * current.progress[i]
+		if shape.visible > 0 then
+			local info = current.samples[i]
+			local p = info.complete and 1 or info.painted / math.max(info.total, 1)
+			total += shape.visible
+			done += shape.visible * p
+		end
 	end
 	return total > 0 and done / total or 1
 end
 
 local function isComplete()
-	for i in ipairs(current.design.shapes) do
-		if current.progress[i] < 1 then
+	for _, info in ipairs(current.samples) do
+		if not info.complete then
 			return false
 		end
 	end
@@ -8267,21 +8254,11 @@ local function elapsed()
 	return os.clock() - current.started
 end
 
-local function currentStars()
-	return Config.starsFor(current.design, levels(), elapsed())
-end
-
 local function refreshLabels()
-	for areaId, row in pairs(current.areaRows) do
+	for areaId, slot in pairs(current.slots) do
 		local p = areaPercent(areaId)
-		row.bar.Set(p)
-		if p >= 0.999 then
-			row.percent.Text = "✔"
-			row.percent.TextColor3 = C.MintDark
-		else
-			row.percent.Text = math.floor(p * 100) .. "%"
-			row.percent.TextColor3 = C.InkSoft
-		end
+		slot.bar.Set(p)
+		slot.check.Visible = p >= 0.999
 	end
 	local total = totalPercent()
 	refs.percent.Text = math.floor(total * 100) .. "%"
@@ -8294,42 +8271,34 @@ local function refreshTimer()
 	end
 	local par = Config.parTime(current.design, levels())
 	local t = elapsed()
-	local limit = par * 2.5
-	refs.timerBar.Set(1 - math.clamp(t / limit, 0, 1))
-	local stars = currentStars()
+	local stars = Config.starsFor(current.design, levels(), t)
 	for i, star in ipairs(refs.stars) do
 		star.TextColor3 = i <= stars and C.Gold or C.Border
 	end
+	refs.timerBar.Set(1 - math.clamp(t / (par * 2.5), 0, 1))
 	refs.timerBar.SetGradient(stars >= 3 and "gold" or (stars == 2 and "orange" or "red"))
 	refs.timerText.Text = string.format("%d:%02d", math.floor(t / 60), math.floor(t % 60))
 end
 
--- Partículas -----------------------------------------------------------------------------------
 local function spawnParticle(x, y, color, burst)
 	local dot = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(x, y),
-		Size = UDim2.fromScale(0.02, 0.02),
+		Size = UDim2.fromScale(0.022, 0.022),
 		BackgroundColor3 = color,
 		ZIndex = 6,
-		Parent = particles,
-	}, { Theme.round() })
+		Parent = overlay,
+	}, { Theme.round(), Theme.stroke(C.White, 1.5, 0.3) })
 	local angle = math.random() * math.pi * 2
-	local distance = (burst and 0.09 or 0.035) * (0.4 + math.random())
-	Theme.tween(dot, 0.45, {
+	local distance = (burst and 0.1 or 0.04) * (0.4 + math.random())
+	Theme.tween(dot, 0.5, {
 		Position = UDim2.fromScale(x + math.cos(angle) * distance, y + math.sin(angle) * distance),
 		Size = UDim2.fromScale(0.004, 0.004),
 		BackgroundTransparency = 1,
 	})
-	task.delay(0.5, function()
+	task.delay(0.55, function()
 		dot:Destroy()
 	end)
-end
-
--- Pintar ---------------------------------------------------------------------------------------
-local function setShapeProgress(i, p)
-	current.progress[i] = p
-	current.art.setProgress(i, p)
 end
 
 local function areaColor(shapeIndex)
@@ -8337,88 +8306,123 @@ local function areaColor(shapeIndex)
 	return Colors.mainColor(current.colors[shape.area])
 end
 
--- El relleno empieza en el lado por el que entró el pincel.
-local function aimFill(index, x, y)
-	if current.progress[index] > 0 then
+-- Pintar ---------------------------------------------------------------------------------------
+local completeIfDone
+
+local function completeShape(i, animate)
+	local info = current.samples[i]
+	if info.complete then
 		return
 	end
-	local shape = current.design.shapes[index]
-	local dx, dy = shape.x - x, shape.y - y
-	if dx * dx + dy * dy > 0.0001 then
-		current.art.setFillDirection(index, math.deg(math.atan2(dy, dx)) - shape.rot)
+	info.complete = true
+	current.art.complete(i, animate)
+	if animate then
+		local shape = current.design.shapes[i]
+		for _ = 1, 6 do
+			spawnParticle(shape.x, shape.y, areaColor(i), true)
+		end
+		Theme.playSound("success", 1.5 + math.random() * 0.3)
 	end
+	refreshLabels()
+	completeIfDone()
 end
 
-local function completeIfDone()
+-- Una pincelada en (x, y): pinta los puntos cercanos y deja la marca.
+local function paintAt(x, y)
+	local radius = current.radius
+	local r2 = radius * radius
+	local reach = radius * 1.25
+	local reach2 = reach * reach
+	local dabGap2 = (radius * DAB_SPACING) ^ 2
+	local paintedAny = false
+	for i, info in ipairs(current.samples) do
+		if not info.complete and info.total > 0 then
+			local dx, dy = x - info.cx, y - info.cy
+			local limit = info.bound + reach
+			if dx * dx + dy * dy <= limit * limit then
+				local near, newly = false, 0
+				for _, point in ipairs(info.points) do
+					local px, py = point[1] - x, point[2] - y
+					local d2 = px * px + py * py
+					if d2 <= reach2 then
+						near = true
+						if d2 <= r2 and not point[3] then
+							point[3] = true
+							newly += 1
+						end
+					end
+				end
+				if near and info.dabs < MAX_DABS then
+					local lx, ly = info.dabX, info.dabY
+					if not lx or (lx - x) ^ 2 + (ly - y) ^ 2 >= dabGap2 then
+						current.art.addDab(i, x, y, radius * 1.12)
+						info.dabX, info.dabY = x, y
+						info.dabs += 1
+					end
+				end
+				if newly > 0 then
+					paintedAny = true
+					info.painted += newly
+					if info.painted / info.total >= COMPLETE_AT then
+						completeShape(i, true)
+					end
+				end
+			end
+		end
+	end
+	return paintedAny
+end
+
+-- Pinta a lo largo del trazo para que los movimientos rápidos no dejen huecos.
+local function strokeTo(x, y)
+	local step = current.radius * DAB_SPACING
+	local fromX, fromY = x, y
+	if lastBrush then
+		fromX, fromY = lastBrush[1], lastBrush[2]
+	end
+	local distance = math.sqrt((x - fromX) ^ 2 + (y - fromY) ^ 2)
+	local steps = math.clamp(math.ceil(distance / step), 1, 60)
+	local painted = false
+	for k = 1, steps do
+		local t = k / steps
+		if paintAt(fromX + (x - fromX) * t, fromY + (y - fromY) * t) then
+			painted = true
+		end
+	end
+	lastBrush = { x, y }
+	return painted
+end
+
+local function bucket(x, y)
+	local index = Designs.shapeAt(current.design, x, y)
+	local info = index and current.samples[index]
+	if not info or info.complete then
+		return
+	end
+	current.art.flood(index, x, y, 0.3)
+	info.painted = info.total
+	Theme.playSound("whoosh", 1.3)
+	for _ = 1, 8 do
+		spawnParticle(x, y, areaColor(index), true)
+	end
+	task.delay(0.28, function()
+		if current and current.samples[index] == info then
+			completeShape(index, true)
+		end
+	end)
+end
+
+function completeIfDone()
 	if not current.done and isComplete() then
 		current.done = true
 		current.finishedAt = elapsed()
 		stroking = false
 		refreshLabels()
-		task.delay(0.4, function()
+		task.delay(0.6, function()
 			if current and current.done then
 				Painter.showComplete()
 			end
 		end)
-	end
-end
-
-local function brush(x, y, dt)
-	local radius = Config.brushRadius(levels())
-	local speed = Config.brushSpeed(levels())
-	local hits = {}
-	local samples = { { x, y } }
-	for k = 0, SAMPLE_RING - 1 do
-		local angle = k / SAMPLE_RING * math.pi * 2
-		table.insert(samples, { x + math.cos(angle) * radius, y + math.sin(angle) * radius })
-	end
-	for _, point in ipairs(samples) do
-		local index = Designs.shapeAt(current.design, point[1], point[2])
-		if index and current.progress[index] < 1 then
-			hits[index] = (hits[index] or 0) + 1
-		end
-	end
-	local painted = nil
-	for index, count in pairs(hits) do
-		aimFill(index, x, y)
-		local time = Designs.shapeTime(current.design.shapes[index])
-		-- Basta con rozar una figura para pintarla; cubrirla entera va más rápido.
-		local coverage = 0.6 + 0.4 * count / #samples
-		local amount = dt * speed * coverage * 1.15 / math.max(time, 0.05)
-		setShapeProgress(index, math.min(1, current.progress[index] + amount))
-		if current.progress[index] >= 1 then
-			for _ = 1, 4 do
-				spawnParticle(x, y, areaColor(index), true)
-			end
-		end
-		painted = index
-	end
-	if painted then
-		particleClock += dt
-		if particleClock > 0.05 then
-			particleClock = 0
-			spawnParticle(x, y, areaColor(painted), false)
-		end
-		soundClock += dt
-		if soundClock > 0.18 then
-			soundClock = 0
-			Theme.playSound("paint", 0.9 + math.random() * 0.3)
-		end
-	end
-	return painted ~= nil
-end
-
-local function bucket(x, y)
-	local index = Designs.shapeAt(current.design, x, y)
-	if index and current.progress[index] < 1 then
-		aimFill(index, x, y)
-		setShapeProgress(index, 1)
-		for _ = 1, 10 do
-			spawnParticle(x, y, areaColor(index), true)
-		end
-		Theme.playSound("whoosh", 1.3)
-		refreshLabels()
-		completeIfDone()
 	end
 end
 
@@ -8430,14 +8434,25 @@ local function updateCursor()
 	local x, y = canvasPoint(pointer)
 	if not x or x < 0 or y < 0 or x > 1 or y > 1 then
 		cursor.Visible = false
+		for _, slot in pairs(current.slots) do
+			slot.stroke.Color = C.Border
+		end
 		return
 	end
-	local radius = tool == "bucket" and 0.025 or Config.brushRadius(levels())
+	local radius = tool == "bucket" and 0.03 or current.radius
 	cursor.Visible = true
 	cursor.Position = UDim2.fromScale(x, y)
-	cursor.Size = UDim2.fromScale(radius * 2.4, radius * 2.4)
+	cursor.Size = UDim2.fromScale(radius * 2, radius * 2)
+	cursorIcon.Text = tool == "bucket" and "🪣" or "🖌️"
 	local index = Designs.shapeAt(current.design, x, y)
-	cursor.BackgroundColor3 = index and areaColor(index) or C.White
+	local color = index and areaColor(index) or C.InkSoft
+	cursor.BackgroundColor3 = color
+	refs.cursorStroke.Color = color:Lerp(Color3.new(0, 0, 0), 0.3)
+	local areaId = index and current.design.shapes[index].area
+	for id, slot in pairs(current.slots) do
+		slot.stroke.Color = id == areaId and C.Primary or C.Border
+		slot.stroke.Thickness = id == areaId and 3 or 1.5
+	end
 end
 
 local function onStep(dt)
@@ -8452,15 +8467,21 @@ local function onStep(dt)
 	end
 	if stroking and pointer and not current.done and tool == "brush" then
 		local x, y = canvasPoint(pointer)
-		if x and x >= -0.05 and y >= -0.05 and x <= 1.05 and y <= 1.05 then
-			if brush(x, y, math.min(dt, 0.1)) then
+		if x and x >= -0.1 and y >= -0.1 and x <= 1.1 and y <= 1.1 then
+			if strokeTo(x, y) then
 				current.labelClock = (current.labelClock or 0) + dt
 				if current.labelClock > 0.1 then
 					current.labelClock = 0
 					refreshLabels()
 				end
-				completeIfDone()
+				soundClock += dt
+				if soundClock > 0.16 then
+					soundClock = 0
+					Theme.playSound("paint", 0.9 + math.random() * 0.3)
+				end
 			end
+		else
+			lastBrush = nil
 		end
 	end
 end
@@ -8474,12 +8495,13 @@ end
 
 local function buildTopBar(parent)
 	refs.exit = Theme.button({
-		Position = UDim2.fromOffset(18, 14),
-		Size = UDim2.fromOffset(130, 46),
+		Position = UDim2.fromOffset(16, 12),
+		Size = UDim2.fromOffset(118, 42),
 		Text = "✕ Salir",
 		Variant = "ghost",
 		Color = C.Red,
 		TextColor = C.Red,
+		MaxTextSize = 20,
 		Parent = parent,
 		OnClick = function()
 			Painter.requestCancel()
@@ -8487,143 +8509,155 @@ local function buildTopBar(parent)
 	})
 	refs.title = Theme.label({
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.new(0.44, 0, 0, 38),
+		Position = UDim2.new(0.5, 0, 0, 6),
+		Size = UDim2.new(0.5, 0, 0, 34),
 		Text = "",
 		Font = Theme.Fonts.Display,
-		MaxTextSize = 34,
+		MaxTextSize = 30,
+		Parent = parent,
+	})
+	local row = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 44),
+		Size = UDim2.fromOffset(300, 18),
+		BackgroundTransparency = 1,
 		Parent = parent,
 	})
 	refs.progress = Theme.progress({
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, -24, 0, 52),
-		Size = UDim2.new(0.28, 0, 0, 12),
+		Position = UDim2.fromOffset(0, 4),
+		Size = UDim2.new(1, -56, 0, 10),
 		Gradient = "mint",
-		Parent = parent,
+		Parent = row,
 	})
 	refs.percent = Theme.label({
-		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0.64, -16, 0, 46),
-		Size = UDim2.fromOffset(60, 24),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Size = UDim2.fromOffset(48, 18),
 		Text = "0%",
 		Font = Theme.Fonts.Heavy,
 		TextColor3 = C.MintDark,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 18,
-		Parent = parent,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		MaxTextSize = 16,
+		Parent = row,
 	})
-	refs.brushButton = Theme.button({
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -168, 0, 14),
-		Size = UDim2.fromOffset(140, 46),
-		Text = "🖌️ Pincel",
-		Parent = parent,
-		OnClick = function()
-			setTool("brush")
-		end,
-	})
-	refs.bucketButton = Theme.button({
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -18, 0, 14),
-		Size = UDim2.fromOffset(140, 46),
-		Text = "🪣 Cubeta",
-		Variant = "ghost",
-		Parent = parent,
-		OnClick = function()
-			if Config.hasBucket(levels()) then
-				setTool("bucket")
-			else
-				app.notify("🔒 Compra la mejora «Cubeta mágica» 🪣", "info")
-			end
-		end,
-	})
-end
 
-local function buildTimer(parent)
+	-- Estrellas y cronómetro.
 	local holder, body = Theme.card({
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 76),
-		Size = UDim2.fromOffset(330, 40),
-		Radius = 20,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -16, 0, 12),
+		Size = UDim2.fromOffset(176, 44),
+		Radius = 22,
 		Parent = parent,
 	})
 	refs.timerCard = holder
 	refs.stars = {}
 	for i = 1, 3 do
 		refs.stars[i] = Theme.label({
-			Position = UDim2.fromOffset(10 + (i - 1) * 26, 6),
-			Size = UDim2.fromOffset(26, 28),
+			Position = UDim2.fromOffset(12 + (i - 1) * 24, 6),
+			Size = UDim2.fromOffset(24, 26),
 			Text = "★",
 			Font = Theme.Fonts.Heavy,
 			TextColor3 = C.Gold,
-			MaxTextSize = 26,
+			MaxTextSize = 24,
 			Parent = body,
 		})
 	end
-	refs.timerBar = Theme.progress({
-		Position = UDim2.fromOffset(96, 15),
-		Size = UDim2.new(1, -170, 0, 10),
-		Gradient = "gold",
-		Parent = body,
-	})
 	refs.timerText = Theme.label({
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -12, 0, 8),
-		Size = UDim2.fromOffset(56, 24),
+		Position = UDim2.new(1, -14, 0, 7),
+		Size = UDim2.fromOffset(60, 24),
 		Text = "0:00",
 		Font = Theme.Fonts.Heavy,
 		TextColor3 = C.InkSoft,
 		TextXAlignment = Enum.TextXAlignment.Right,
-		MaxTextSize = 18,
+		MaxTextSize = 19,
+		Parent = body,
+	})
+	refs.timerBar = Theme.progress({
+		Position = UDim2.new(0, 14, 1, -9),
+		Size = UDim2.new(1, -28, 0, 4),
+		Gradient = "gold",
 		Parent = body,
 	})
 end
 
 local function buildCanvas(parent)
-	local canvasCard = Theme.new("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, 46),
-		Size = UDim2.new(0.56, 0, 1, -196),
+	local area = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 74),
+		Size = UDim2.new(1, -40, 1, -74 - 132),
 		BackgroundTransparency = 1,
 		Parent = parent,
-	}, { Theme.new("UIAspectRatioConstraint", { AspectRatio = 1 }) })
-	local _, canvasBody = Theme.card({
-		Size = UDim2.fromScale(1, 1),
-		Radius = 22,
-		ShadowOffset = 8,
-		ShadowTransparency = 0.8,
-		StrokeColor = C.White,
-		StrokeThickness = 6,
-		Parent = canvasCard,
 	})
+	-- Bastidor de madera con paspartú blanco.
+	local board = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Parent = area,
+	}, { Theme.new("UIAspectRatioConstraint", { AspectRatio = 1 }) })
+	refs.board = board
+	Theme.new("Frame", {
+		Position = UDim2.fromOffset(0, 8),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.Shadow,
+		BackgroundTransparency = 0.8,
+		Parent = board,
+	}, { Theme.corner(18) })
+	local frame = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.White,
+		Parent = board,
+	}, { Theme.corner(18), Theme.gradient(WOOD, WOOD_DARK, 90) })
+	local mat = Theme.new("Frame", {
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.new(1, -24, 1, -24),
+		BackgroundColor3 = Color3.fromRGB(253, 251, 246),
+		Parent = frame,
+	}, { Theme.corner(10) })
 	canvasFrame = Theme.new("Frame", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
+		Name = "Canvas",
+		Position = UDim2.fromOffset(10, 10),
+		Size = UDim2.new(1, -20, 1, -20),
+		BackgroundColor3 = C.White,
 		ClipsDescendants = true,
-		Parent = canvasBody,
-	}, { Theme.corner(22) })
-	particles = Theme.new("Frame", {
-		Size = UDim2.fromScale(1, 1),
+		Parent = mat,
+	}, { Theme.corner(6) })
+	overlay = Theme.new("Frame", {
+		Name = "Overlay",
+		Position = canvasFrame.Position,
+		Size = canvasFrame.Size,
 		BackgroundTransparency = 1,
-		ZIndex = 6,
-		Parent = canvasBody,
+		ZIndex = 8,
+		Parent = mat,
 	})
 	cursor = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Size = UDim2.fromScale(0.07, 0.07),
-		BackgroundTransparency = 0.3,
+		Size = UDim2.fromScale(0.1, 0.1),
+		BackgroundTransparency = 0.55,
 		Visible = false,
 		ZIndex = 8,
-		Parent = canvasBody,
-	}, { Theme.round(), Theme.stroke(C.Ink, 2.5) })
+		Parent = overlay,
+	}, { Theme.round() })
+	refs.cursorStroke = Theme.stroke(C.Ink, 2.5)
+	refs.cursorStroke.Parent = cursor
+	cursorIcon = Theme.label({
+		Position = UDim2.fromScale(0.75, -0.75),
+		Size = UDim2.fromOffset(26, 26),
+		Text = "🖌️",
+		MaxTextSize = 24,
+		ZIndex = 9,
+		Parent = cursor,
+	})
 	catcher = Theme.new("TextButton", {
 		Name = "PaintInput",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "",
 		AutoButtonColor = false,
-		ZIndex = 9,
-		Parent = canvasBody,
+		ZIndex = 10,
+		Parent = overlay,
 	})
 	catcher.InputBegan:Connect(function(input)
 		if not current or current.done then
@@ -8634,6 +8668,7 @@ local function buildCanvas(parent)
 			or input.UserInputType == Enum.UserInputType.Touch
 		then
 			pointer = input.Position
+			lastBrush = nil
 			if tool == "bucket" then
 				local x, y = canvasPoint(pointer)
 				if x then
@@ -8646,38 +8681,110 @@ local function buildCanvas(parent)
 	end)
 end
 
-local function buildColumns(parent)
-	for _, side in ipairs({ "left", "right" }) do
-		local column = Theme.new("Frame", {
-			Name = side,
-			AnchorPoint = Vector2.new(side == "left" and 0 or 1, 0.5),
-			Position = UDim2.new(side == "left" and 0 or 1, side == "left" and 18 or -18, 0.5, 46),
-			Size = UDim2.new(0.19, 0, 1, -200),
-			BackgroundTransparency = 1,
-			Parent = parent,
-		}, { Theme.list("v", 10, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center) })
-		refs[side] = column
-	end
-end
-
-local function buildValue(parent)
+-- Bandeja inferior con un bote de pintura por área.
+local function buildTray(parent)
 	local holder, body = Theme.card({
+		Name = "Tray",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -10),
-		Size = UDim2.fromOffset(420, 38),
-		Radius = 19,
+		Position = UDim2.new(0.5, 0, 1, -14),
+		Size = UDim2.fromOffset(500, 108),
+		Radius = 24,
 		Parent = parent,
 	})
-	refs.valueCard = holder
-	refs.value = Theme.label({
-		Size = UDim2.new(1, -20, 1, -8),
-		Position = UDim2.fromOffset(10, 4),
-		Text = "",
-		Font = Theme.Fonts.Heavy,
-		TextColor3 = C.MintDark,
-		MaxTextSize = 19,
+	refs.tray = holder
+	refs.slots = Theme.new("Frame", {
+		Position = UDim2.fromOffset(10, 8),
+		Size = UDim2.new(1, -20, 1, -16),
+		BackgroundTransparency = 1,
 		Parent = body,
+	}, { Theme.list("h", 8, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center) })
+	refs.tools = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.fromOffset(52, 92),
+		BackgroundTransparency = 1,
+		Parent = body,
+	}, { Theme.list("v", 8, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center) })
+	refs.brushButton = Theme.button({
+		Size = UDim2.fromOffset(48, 42),
+		Text = "🖌️",
+		LayoutOrder = 1,
+		Radius = 14,
+		MaxTextSize = 22,
+		Parent = refs.tools,
+		OnClick = function()
+			setTool("brush")
+		end,
 	})
+	refs.bucketButton = Theme.button({
+		Size = UDim2.fromOffset(48, 42),
+		Text = "🪣",
+		Variant = "ghost",
+		LayoutOrder = 2,
+		Radius = 14,
+		MaxTextSize = 22,
+		Parent = refs.tools,
+		OnClick = function()
+			setTool("bucket")
+		end,
+	})
+end
+
+local function fillTray(design, colors)
+	for _, child in ipairs(refs.slots:GetChildren()) do
+		if child:IsA("GuiObject") then
+			child:Destroy()
+		end
+	end
+	current.slots = {}
+	for i, areaDef in ipairs(design.areas) do
+		local slotHolder, slot = Theme.card({
+			Size = UDim2.fromOffset(84, 90),
+			Radius = 18,
+			Color = C.PanelSoft,
+			LayoutOrder = i,
+			Parent = refs.slots,
+		})
+		slotHolder:FindFirstChild("Shadow").Visible = false
+		local swatch = Theme.new("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 8),
+			Size = UDim2.fromOffset(42, 42),
+			Parent = slot,
+		}, { Theme.round(), Theme.stroke(C.White, 3) })
+		DesignArt.swatch(swatch, colors[areaDef.id])
+		local check = Theme.label({
+			Size = UDim2.fromScale(1, 1),
+			Text = "✔",
+			Font = Theme.Fonts.Heavy,
+			TextColor3 = C.White,
+			MaxTextSize = 22,
+			Visible = false,
+			Parent = swatch,
+		})
+		Theme.textStroke(C.Shadow, 1.5, 0.4).Parent = check
+		Theme.label({
+			Position = UDim2.fromOffset(4, 54),
+			Size = UDim2.new(1, -8, 0, 16),
+			Text = areaDef.name,
+			Font = Theme.Fonts.Bold,
+			TextColor3 = C.Ink,
+			MaxTextSize = 14,
+			Parent = slot,
+		})
+		local bar = Theme.progress({
+			Position = UDim2.new(0, 10, 0, 74),
+			Size = UDim2.new(1, -20, 0, 6),
+			Gradient = "mint",
+			Parent = slot,
+		})
+		current.slots[areaDef.id] = { bar = bar, check = check, stroke = slot:FindFirstChildOfClass("UIStroke") }
+	end
+	local hasBucket = Config.hasBucket(levels())
+	refs.tools.Visible = hasBucket
+	refs.slots.Size = UDim2.new(1, hasBucket and -86 or -20, 1, -16)
+	local width = 20 + #design.areas * 92 - 8 + (hasBucket and 66 or 0)
+	refs.tray.Size = UDim2.fromOffset(math.max(width, 200), 108)
 end
 
 -- Ventana de cuadro terminado.
@@ -8694,8 +8801,8 @@ local function buildComplete()
 	local wrapper = Theme.new("Frame", {
 		Name = "Wrapper",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, 16),
-		Size = UDim2.fromOffset(480, 610),
+		Position = UDim2.new(0.5, 0, 0.5, 40),
+		Size = UDim2.fromOffset(460, 590),
 		BackgroundTransparency = 1,
 		ZIndex = 20,
 		Parent = refs.done,
@@ -8710,20 +8817,19 @@ local function buildComplete()
 		StrokeThickness = 3,
 		Parent = wrapper,
 	})
-	refs.donePanel = panel
 	refs.donePanelCard = panelCard
 	local band = Theme.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 120),
+		Size = UDim2.new(1, 0, 0, 116),
 		BackgroundColor3 = C.White,
 		Parent = panel,
 	}, { Theme.corner(28), Theme.gradient("primary", 0) })
 	local title = Theme.label({
 		Position = UDim2.fromOffset(20, 12),
-		Size = UDim2.new(1, -40, 0, 44),
+		Size = UDim2.new(1, -40, 0, 42),
 		Text = "¡Cuadro terminado!",
 		Font = Theme.Fonts.Display,
 		TextColor3 = C.White,
-		MaxTextSize = 38,
+		MaxTextSize = 36,
 		Parent = band,
 	})
 	Theme.textStroke(C.Shadow, 2, 0.7).Parent = title
@@ -8731,12 +8837,12 @@ local function buildComplete()
 	for i = 1, 3 do
 		local star = Theme.label({
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, (i - 2) * 64, 0, i == 2 and 84 or 90),
-			Size = UDim2.fromOffset(i == 2 and 62 or 52, i == 2 and 62 or 52),
+			Position = UDim2.new(0.5, (i - 2) * 62, 0, i == 2 and 82 or 88),
+			Size = UDim2.fromOffset(i == 2 and 60 or 50, i == 2 and 60 or 50),
 			Text = "★",
 			Font = Theme.Fonts.Heavy,
 			TextColor3 = C.Gold,
-			MaxTextSize = 60,
+			MaxTextSize = 58,
 			Parent = band,
 		})
 		Theme.textStroke(C.GoldDark, 2.5).Parent = star
@@ -8744,8 +8850,8 @@ local function buildComplete()
 	end
 	local artBox = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 136),
-		Size = UDim2.fromOffset(220, 220),
+		Position = UDim2.new(0.5, 0, 0, 132),
+		Size = UDim2.fromOffset(212, 212),
 		BackgroundColor3 = C.White,
 		Parent = panel,
 	}, { Theme.corner(10), Theme.stroke(C.Gold, 8) })
@@ -8755,7 +8861,7 @@ local function buildComplete()
 		{ Theme.corner(10) }
 	)
 	refs.doneValue = Theme.label({
-		Position = UDim2.fromOffset(20, 366),
+		Position = UDim2.fromOffset(20, 356),
 		Size = UDim2.new(1, -40, 0, 36),
 		Text = "",
 		Font = Theme.Fonts.Display,
@@ -8764,7 +8870,7 @@ local function buildComplete()
 		Parent = panel,
 	})
 	refs.doneBreakdown = Theme.label({
-		Position = UDim2.fromOffset(20, 402),
+		Position = UDim2.fromOffset(20, 392),
 		Size = UDim2.new(1, -40, 0, 22),
 		Text = "",
 		Font = Theme.Fonts.Bold,
@@ -8773,7 +8879,7 @@ local function buildComplete()
 		Parent = panel,
 	})
 	refs.doneInfo = Theme.label({
-		Position = UDim2.fromOffset(20, 426),
+		Position = UDim2.fromOffset(20, 416),
 		Size = UDim2.new(1, -40, 0, 22),
 		Text = "",
 		Font = Theme.Fonts.Medium,
@@ -8783,8 +8889,8 @@ local function buildComplete()
 	})
 	refs.exhibit = Theme.button({
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 460),
-		Size = UDim2.new(1, -60, 0, 62),
+		Position = UDim2.new(0.5, 0, 0, 450),
+		Size = UDim2.new(1, -60, 0, 58),
 		Text = "",
 		Variant = "mint",
 		Radius = 18,
@@ -8795,8 +8901,8 @@ local function buildComplete()
 	})
 	refs.sell = Theme.button({
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 534),
-		Size = UDim2.new(1, -60, 0, 54),
+		Position = UDim2.new(0.5, 0, 0, 520),
+		Size = UDim2.new(1, -60, 0, 50),
 		Text = "",
 		Variant = "ghost",
 		Color = C.Gold,
@@ -8817,24 +8923,22 @@ local function buildUI()
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		Parent = Players.LocalPlayer:WaitForChild("PlayerGui"),
 	})
-	-- Fondo que tapa también la barra superior de Roblox.
+	-- Fondo de estudio que tapa también la barra superior de Roblox.
 	local background = Theme.new("Frame", {
 		Position = UDim2.fromOffset(0, -80),
 		Size = UDim2.new(1, 0, 1, 80),
 		BackgroundColor3 = C.White,
 		Parent = gui,
-	}, { Theme.gradient(Color3.fromRGB(250, 247, 255), Color3.fromRGB(236, 230, 252), 90) })
-	root = Theme.new("Frame", {
+	}, { Theme.gradient(Color3.fromRGB(252, 248, 242), Color3.fromRGB(238, 230, 250), 90) })
+	local root = Theme.new("Frame", {
 		Position = UDim2.fromOffset(0, 80),
 		Size = UDim2.new(1, 0, 1, -80),
 		BackgroundTransparency = 1,
 		Parent = background,
 	})
 	buildTopBar(root)
-	buildTimer(root)
 	buildCanvas(root)
-	buildColumns(root)
-	buildValue(root)
+	buildTray(root)
 	buildComplete()
 end
 
@@ -8844,12 +8948,12 @@ local function updateScales()
 		return
 	end
 	local viewport = camera.ViewportSize
-	local scale = math.clamp(math.min((viewport.X - 20) / 480, (viewport.Y - 70) / 610), 0.45, 1.1)
+	local scale = math.clamp(math.min((viewport.X - 20) / 460, (viewport.Y - 70) / 590), 0.45, 1.1)
 	local uiScale = refs.doneWrapper:FindFirstChild("ViewportScale")
 		or Theme.new("UIScale", { Name = "ViewportScale", Parent = refs.doneWrapper })
 	uiScale.Scale = scale
 	local hudScale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 720), 0.6, 1)
-	for _, frame in ipairs({ refs.timerCard, refs.valueCard }) do
+	for _, frame in ipairs({ refs.timerCard, refs.tray }) do
 		local s = frame:FindFirstChild("ViewportScale")
 			or Theme.new("UIScale", { Name = "ViewportScale", Parent = frame })
 		s.Scale = hudScale
@@ -8874,6 +8978,7 @@ local function bindInput()
 			or input.UserInputType == Enum.UserInputType.Touch
 		then
 			stroking = false
+			lastBrush = nil
 			if current then
 				refreshLabels()
 			end
@@ -8906,78 +9011,28 @@ end
 
 -- API --------------------------------------------------------------------------------------------
 function Painter.open(design, colors)
+	local radius = Config.brushRadius(levels())
 	current = {
 		design = design,
 		colors = colors,
-		progress = {},
-		areaRows = {},
+		radius = radius,
+		samples = buildSamples(design, radius),
+		slots = {},
 		done = false,
 		started = os.clock(),
 	}
-	current.art = DesignArt.render(canvasFrame, design, { mode = "lineart", colors = colors, stroke = 2.5 })
-	for i, shape in ipairs(design.shapes) do
+	stroking = false
+	lastBrush = nil
+	current.art = DesignArt.render(canvasFrame, design, { mode = "paint", colors = colors, stroke = 2 })
+	for i, info in ipairs(current.samples) do
 		-- Las figuras completamente tapadas ya cuentan como pintadas.
-		setShapeProgress(i, shape.visible <= 0 and 1 or 0)
-	end
-	for _, column in ipairs({ refs.left, refs.right }) do
-		for _, child in ipairs(column:GetChildren()) do
-			if child:IsA("GuiObject") then
-				child:Destroy()
-			end
+		if info.total == 0 then
+			info.complete = true
+			current.art.complete(i, false)
 		end
 	end
-	local half = math.ceil(#design.areas / 2)
-	for i, area in ipairs(design.areas) do
-		local column = i <= half and refs.left or refs.right
-		local _, body = Theme.card({
-			Size = UDim2.new(1, 0, 0, 62),
-			Radius = 16,
-			LayoutOrder = i,
-			Parent = column,
-		})
-		local swatch = Theme.new("Frame", {
-			Position = UDim2.fromOffset(10, 11),
-			Size = UDim2.fromOffset(40, 40),
-			Parent = body,
-		}, { Theme.round(), Theme.stroke(C.Border, 2.5) })
-		DesignArt.swatch(swatch, colors[area.id])
-		Theme.label({
-			Position = UDim2.fromOffset(58, 8),
-			Size = UDim2.new(1, -110, 0, 24),
-			Text = area.name,
-			Font = Theme.Fonts.Bold,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			MaxTextSize = 19,
-			Parent = body,
-		})
-		local percent = Theme.label({
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -10, 0, 8),
-			Size = UDim2.fromOffset(46, 24),
-			Text = "0%",
-			Font = Theme.Fonts.Heavy,
-			TextColor3 = C.InkSoft,
-			TextXAlignment = Enum.TextXAlignment.Right,
-			MaxTextSize = 17,
-			Parent = body,
-		})
-		local bar = Theme.progress({
-			Position = UDim2.fromOffset(58, 38),
-			Size = UDim2.new(1, -70, 0, 10),
-			Gradient = "mint",
-			Parent = body,
-		})
-		current.areaRows[area.id] = { percent = percent, bar = bar }
-	end
+	fillTray(design, colors)
 	refs.title.Text = design.name
-	local made = app.state and app.state.made[design.id] or 0
-	local base = Config.paintingValue(design, colors, levels(), made, 1)
-	refs.value.Text = string.format(
-		"💵 %s  ·  Colores x%.2f  ·  ⭐⭐⭐ +%d%%",
-		Theme.formatNumber(base),
-		Config.colorMultiplier(design, colors),
-		math.floor(Config.STAR_BONUS[3] * 100)
-	)
 	refs.done.Visible = false
 	setTool(tool == "bucket" and Config.hasBucket(levels()) and "bucket" or "brush")
 	refreshLabels()
@@ -9011,11 +9066,11 @@ function Painter.requestCancel()
 	end
 	if os.clock() > confirmCancelUntil then
 		confirmCancelUntil = os.clock() + 3
-		refs.exit.SetText("¿Salir? Toca otra vez")
+		refs.exit.SetText("¿Salir?")
 		task.delay(3, function()
 			refs.exit.SetText("✕ Salir")
 		end)
-		app.notify("Si sales pierdes este cuadro (te devolvemos las pinturas).", "info")
+		app.notify("Toca otra vez para salir (te devolvemos las pinturas).", "info")
 		return
 	end
 	confirmCancelUntil = 0
@@ -9178,7 +9233,12 @@ local function effectText(id, level)
 	elseif id == "auto" then
 		return "Tira sola cada " .. string.format("%.1f", Config.autoRollInterval({})) .. "s"
 	elseif id == "pincel" then
-		return string.format("Velocidad x%.1f → x%.1f", Config.brushSpeed(levels), Config.brushSpeed(nextLevels))
+		local base = Config.brushRadius({})
+		return string.format(
+			"Grosor %d%% → %d%%",
+			math.floor(Config.brushRadius(levels) / base * 100 + 0.5),
+			math.floor(Config.brushRadius(nextLevels) / base * 100 + 0.5)
+		)
 	elseif id == "cubeta" then
 		return "Un toque rellena una figura"
 	elseif id == "fama" then
@@ -9732,7 +9792,7 @@ function Theme.tile(props)
 		Position = UDim2.fromScale(0, 0.04),
 		Text = props.Icon,
 		Font = Theme.Fonts.Bold,
-		MaxTextSize = 34,
+		MaxTextSize = props.IconSize or 34,
 		Parent = face,
 	})
 	local caption = Theme.label({
@@ -10037,6 +10097,16 @@ function Theme.tween(instance, time, props, style, direction)
 	)
 	tween:Play()
 	return tween
+end
+
+-- Igual que pop pero para tarjetas (cuerpo y sombra crecen juntos).
+function Theme.popCard(holder, scale)
+	for _, name in ipairs({ "Body", "Shadow" }) do
+		local part = holder:FindFirstChild(name)
+		if part then
+			Theme.pop(part, scale)
+		end
+	end
 end
 
 function Theme.pop(guiObject, scale)

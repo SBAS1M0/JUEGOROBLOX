@@ -771,21 +771,6 @@ end
 
 -- Segundos de pincel que necesita una figura (las grandes tardan más).
 -- Las figuras tapadas del todo no hace falta pintarlas.
-function Designs.shapeTime(shape)
-	if shape.visible <= 0 then
-		return 0
-	end
-	return 0.25 + 3 * math.sqrt(shape.visible)
-end
-
-function Designs.totalTime(design)
-	local total = 0
-	for _, shape in ipairs(design.shapes) do
-		total += Designs.shapeTime(shape)
-	end
-	return total
-end
-
 -- ¿Está abierto el nivel? (todos los diseños del nivel anterior pintados).
 function Designs.isLevelOpen(level, made)
 	if level <= 1 then

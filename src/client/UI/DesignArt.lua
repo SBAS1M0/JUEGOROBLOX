@@ -1,6 +1,10 @@
 -- Dibuja un diseño (figuras) dentro de un Frame cuadrado.
--- mode = "color": cuadro terminado. mode = "lineart": líneas para colorear,
--- cada figura se va rellenando de abajo arriba con setProgress.
+-- mode = "color": cuadro terminado.
+-- mode = "paint": boceto para colorear. Cada figura se ve en un tono pálido de
+-- su color con línea de lápiz; las pinceladas (addDab) se recortan a la forma
+-- de la figura con un CanvasGroup y, al completarla, el color final aparece.
+
+local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Colors = require(Shared.Colors)
@@ -8,40 +12,38 @@ local Designs = require(Shared.Designs)
 
 local DesignArt = {}
 
-local LINE_COLOR = Color3.fromRGB(236, 150, 186)
+local WHITE = Color3.new(1, 1, 1)
+local SKETCH_LINE = Color3.fromRGB(150, 140, 172)
+local UNPAINTED_LIGHT = Color3.fromRGB(196, 190, 214)
+local FADE = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local function applyColor(frame, gradient, colorId)
 	local entry = Colors.ById[colorId]
 	if entry and entry.gradient then
-		frame.BackgroundColor3 = Color3.new(1, 1, 1)
+		frame.BackgroundColor3 = WHITE
 		gradient.Color = Colors.sequence(colorId)
 	else
-		frame.BackgroundColor3 = entry and entry.color or Color3.new(1, 1, 1)
-		gradient.Color = ColorSequence.new(Color3.new(1, 1, 1))
+		frame.BackgroundColor3 = entry and entry.color or WHITE
+		gradient.Color = ColorSequence.new(WHITE)
 	end
 end
 
-local function revealSequence(p)
-	if p >= 1 then
-		return NumberSequence.new(0)
+local function addCorner(frame, shape)
+	if shape.r > 0 then
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(shape.r, 0)
+		corner.Parent = frame
 	end
-	if p <= 0 then
-		return NumberSequence.new(1)
-	end
-	local edge = math.min(p + 0.05, 1)
-	if edge >= 1 then
-		return NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0),
-			NumberSequenceKeypoint.new(p, 0),
-			NumberSequenceKeypoint.new(1, 1),
-		})
-	end
-	return NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(p, 0),
-		NumberSequenceKeypoint.new(edge, 1),
-		NumberSequenceKeypoint.new(1, 1),
-	})
+end
+
+-- Punto del lienzo (0..1) en coordenadas locales de la figura (0..1).
+function DesignArt.toLocal(shape, x, y)
+	local dx, dy = x - shape.x, y - shape.y
+	local rad = math.rad(shape.rot)
+	local c, s = math.cos(rad), math.sin(rad)
+	local lx = dx * c + dy * s
+	local ly = -dx * s + dy * c
+	return lx / shape.w + 0.5, ly / shape.h + 0.5
 end
 
 function DesignArt.render(container, design, opts)
@@ -73,40 +75,37 @@ function DesignArt.render(container, design, opts)
 		base.Rotation = shape.rot
 		base.BorderSizePixel = 0
 		base.ZIndex = zindex
-		if shape.r > 0 then
-			local corner = Instance.new("UICorner")
-			corner.CornerRadius = UDim.new(shape.r, 0)
-			corner.Parent = base
-		end
+		addCorner(base, shape)
 
-		local entry = { shape = shape, base = base }
-		if mode == "lineart" then
-			base.BackgroundColor3 = Color3.new(1, 1, 1)
+		local entry = { shape = shape, base = base, done = false }
+		if mode == "paint" then
+			local main = Colors.mainColor(colors[shape.area])
+			entry.main = main
+			-- Tono pálido del color final; los colores muy claros se ven en gris
+			-- para que se note qué falta por pintar.
+			local light = 0.299 * main.R + 0.587 * main.G + 0.114 * main.B
+			base.BackgroundColor3 = light > 0.8 and main:Lerp(UNPAINTED_LIGHT, 0.6) or main:Lerp(WHITE, 0.78)
 			local line = Instance.new("UIStroke")
-			line.Color = LINE_COLOR
+			line.Color = SKETCH_LINE
 			line.Thickness = stroke
-			line.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+			line.Transparency = 0.1
 			line.Parent = base
+			entry.line = line
 
 			local fill = Instance.new("Frame")
 			fill.Name = "Fill"
 			fill.Size = UDim2.fromScale(1, 1)
 			fill.BorderSizePixel = 0
-			fill.ZIndex = zindex
-			if shape.r > 0 then
-				local corner = Instance.new("UICorner")
-				corner.CornerRadius = UDim.new(shape.r, 0)
-				corner.Parent = fill
-			end
+			fill.BackgroundTransparency = 1
+			fill.ZIndex = zindex + 2
+			addCorner(fill, shape)
 			local gradient = Instance.new("UIGradient")
-			gradient.Rotation = -90
-			gradient.Transparency = revealSequence(0)
+			gradient.Rotation = 35
 			gradient.Parent = fill
 			applyColor(fill, gradient, colors[shape.area])
 			fill.Parent = base
 			entry.fill = fill
 			entry.gradient = gradient
-			entry.progress = 0
 		else
 			local gradient = Instance.new("UIGradient")
 			gradient.Rotation = 35
@@ -125,20 +124,99 @@ function DesignArt.render(container, design, opts)
 		handle.shapes[i] = entry
 	end
 
-	function handle.setProgress(i, p)
-		local entry = handle.shapes[i]
-		if entry and entry.gradient and entry.fill then
-			entry.progress = p
-			entry.gradient.Transparency = revealSequence(p)
+	-- Capa de pintura recortada a la forma de la figura.
+	local function paintLayer(entry)
+		if entry.group then
+			return entry.group
 		end
+		local group = Instance.new("CanvasGroup")
+		group.Name = "Paint"
+		group.Size = UDim2.fromScale(1, 1)
+		group.BackgroundTransparency = 1
+		group.ZIndex = zindex + 1
+		addCorner(group, entry.shape)
+		group.Parent = entry.base
+		entry.group = group
+		return group
 	end
 
-	-- Dirección del relleno (en grados): el color "entra" desde donde pasó el pincel.
-	function handle.setFillDirection(i, rotation)
+	-- Pincelada redonda de radio `radius` (en fracción del lienzo) en (x, y).
+	function handle.addDab(i, x, y, radius)
 		local entry = handle.shapes[i]
-		if entry and entry.fill and entry.progress <= 0 then
-			entry.gradient.Rotation = rotation
+		if not entry or entry.done or mode ~= "paint" then
+			return
 		end
+		local shape = entry.shape
+		local u, v = DesignArt.toLocal(shape, x, y)
+		local dab = Instance.new("Frame")
+		dab.AnchorPoint = Vector2.new(0.5, 0.5)
+		dab.Position = UDim2.fromScale(u, v)
+		dab.Size = UDim2.fromScale(2 * radius / shape.w, 2 * radius / shape.h)
+		dab.BackgroundColor3 = entry.main
+		dab.BorderSizePixel = 0
+		dab.ZIndex = zindex + 1
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = dab
+		dab.Parent = paintLayer(entry)
+	end
+
+	-- Relleno de cubeta: una mancha que crece desde (x, y) hasta cubrir la figura.
+	function handle.flood(i, x, y, duration)
+		local entry = handle.shapes[i]
+		if not entry or entry.done or mode ~= "paint" then
+			return
+		end
+		local shape = entry.shape
+		local u, v = DesignArt.toLocal(shape, x, y)
+		local dab = Instance.new("Frame")
+		dab.AnchorPoint = Vector2.new(0.5, 0.5)
+		dab.Position = UDim2.fromScale(u, v)
+		dab.Size = UDim2.fromScale(0, 0)
+		dab.BackgroundColor3 = entry.main
+		dab.BorderSizePixel = 0
+		dab.ZIndex = zindex + 1
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0.5, 0)
+		corner.Parent = dab
+		dab.Parent = paintLayer(entry)
+		local reach = 2.2 * math.sqrt(shape.w * shape.w + shape.h * shape.h)
+		TweenService:Create(
+			dab,
+			TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = UDim2.fromScale(reach / shape.w, reach / shape.h) }
+		):Play()
+	end
+
+	-- La figura queda pintada con su color final (con o sin animación).
+	function handle.complete(i, animate)
+		local entry = handle.shapes[i]
+		if not entry or entry.done then
+			return
+		end
+		entry.done = true
+		if mode ~= "paint" then
+			return
+		end
+		local finalLine = entry.main:Lerp(Color3.new(0, 0, 0), 0.25)
+		if animate then
+			TweenService:Create(entry.fill, FADE, { BackgroundTransparency = 0 }):Play()
+			TweenService:Create(entry.line, FADE, { Color = finalLine, Transparency = 0.55 }):Play()
+			local group = entry.group
+			if group then
+				task.delay(0.3, function()
+					group:Destroy()
+				end)
+			end
+		else
+			entry.fill.BackgroundTransparency = 0
+			entry.line.Color = finalLine
+			entry.line.Transparency = 0.55
+			if entry.group then
+				entry.group:Destroy()
+			end
+		end
+		entry.group = nil
 	end
 
 	function handle.setColors(newColors)

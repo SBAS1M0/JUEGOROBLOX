@@ -25,8 +25,6 @@ for _, name in ipairs({
 	"GetState",
 	"StateChanged",
 	"Notify",
-	"Roll",
-	"SetAutoRoll",
 	"RollResult",
 	"OpenDesigns",
 	"UnlockDesign",

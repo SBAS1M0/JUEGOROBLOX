@@ -85,53 +85,105 @@ local function totalPaints(data)
 	return total
 end
 local data = DataService.get(player)
+local machinePrompt = lot.Workshop.Machine.Body.ProximityPrompt
+local autoPrompt = lot.Workshop.Machine.Dispenser.ProximityPrompt
+local drawPrompt = lot.Workshop.DrawPrompt.ProximityPrompt
 
-print("== Fresh start: manual machine, tutorial")
+-- Tira en la máquina (espera a que el aviso vuelva a estar disponible).
+local function rollAtMachine()
+	for _ = 1, 200 do
+		if machinePrompt.Enabled then
+			break
+		end
+		R.run(0.1)
+	end
+	machinePrompt.Triggered:Fire(player)
+	R.run(0.1)
+end
+
+local function openDesigns()
+	drawPrompt.Triggered:Fire(player)
+	R.run(0.2)
+end
+
+-- Barre el lienzo con el pincel en filas, como haría una persona.
+local function sweepPaint(onHalf)
+	local catcher = T.findAll(pg.Painter, function(d)
+		return d.Name == "PaintInput"
+	end)[1]
+	local r = Config.brushRadius(data.upgrades)
+	local step = r * 1.1
+	local rows = math.ceil(1 / (r * 1.4))
+	local function move(x, y)
+		UIS.InputChanged:Fire({ UserInputType = Enum.UserInputType.MouseMovement, Position = R.v2(x * 512, y * 512) })
+		R.step(1 / 30)
+	end
+	catcher.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1, Position = R.v2(0, 0) })
+	for row = 0, rows do
+		if onHalf and row == math.floor(rows / 2) then
+			onHalf()
+		end
+		local y = math.min(1, row * r * 1.4 + r * 0.5)
+		local forward = row % 2 == 0
+		local x = forward and 0 or 1
+		while (forward and x <= 1) or (not forward and x >= 0) do
+			move(x, y)
+			x = x + (forward and step or -step)
+		end
+	end
+	UIS.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 }, false)
+	R.run(1)
+end
+
+print("== Fresh start: rolling only at the machine, tutorial")
 check(data.autoRoll == false and not Config.hasAutoRoll(data.upgrades), "no auto-roll at start")
+check(S.ReplicatedStorage.Remotes:FindFirstChild("Roll") == nil, "no remote to roll from anywhere")
+check(pg.MachineHud:FindFirstChild("MachineWidget") == nil, "no machine panel on screen")
+check(not pg.MachineHud.RollResult.Visible, "roll result card hidden")
+check(autoPrompt.Enabled == false, "auto-roll prompt hidden without the upgrade")
 check(data.tutorial == 1, "tutorial starts at step 1")
 check(pg.HUD.Tutorial.Visible, "tutorial banner visible")
+check(not pg.HUD.Quests.Visible, "quests start folded")
 check(pg:FindFirstChild("TutorialArrow") ~= nil, "tutorial arrow exists")
 local highlight = T.findAll(R.workspace, function(d)
 	return d.ClassName == "Highlight"
 end)[1]
 check(highlight ~= nil and highlight.Adornee == lot.Workshop.Machine, "machine highlighted for step 1")
+local spawnDistance = (player.Character.HumanoidRootPart.Position - lot.Workshop.Machine.Body.Position).Magnitude
+check(spawnDistance < 25, "player spawns in the workshop next to the machine (" .. math.floor(spawnDistance) .. ")")
 dumpGui("hud", pg.HUD)
 R.run(10)
 check(totalPaints(data) == 0, "machine does not roll by itself")
-check(buttonStarting(pg.MachineHud, "🔒 Auto") ~= nil, "auto button locked")
 
-print("== Manual rolls")
-click(pg.MachineHud, "🎲 TIRAR")
+print("== Rolls at the machine")
+machinePrompt.Triggered:Fire(player)
 R.run(0.2)
-check(totalPaints(data) == 1, "button roll gives a paint")
-click(pg.MachineHud, "🎲 TIRAR")
+check(totalPaints(data) == 1, "machine prompt gives a paint")
+check(machinePrompt.Enabled == false, "prompt hidden while the machine spins")
+check(pg.MachineHud.RollResult.Visible, "result card shown")
+machinePrompt.Triggered:Fire(player)
 R.run(0.2)
 check(totalPaints(data) == 1, "cooldown respected")
-R.run(3)
-lot.Workshop.Machine.Body.ProximityPrompt.Triggered:Fire(player)
-R.run(3)
-click(pg.MachineHud, "🎲 TIRAR")
+R.run(1)
+dumpGui("machine", pg.MachineHud)
+R.run(2.5)
+check(machinePrompt.Enabled, "prompt back after cooldown")
+check(not pg.MachineHud.RollResult.Visible, "result card hides by itself")
+rollAtMachine()
+rollAtMachine()
 R.run(2)
 check(totalPaints(data) == 3, "three rolls (" .. totalPaints(data) .. ")")
 check(data.tutorial == 2, "tutorial advanced to step 2")
 check(highlight.Parent == nil or highlight.Adornee ~= lot.Workshop.Machine, "highlight moved")
 check(lot.Workshop.Machine.Top:GetAttribute("ColorId") ~= "", "machine shows last color")
 check(pg.MachineBoard.Enabled, "machine billboard attached")
--- Gana un par de colores más para la prueba.
 for _ = 1, 6 do
-	R.run(3)
-	click(pg.MachineHud, "🎲 TIRAR")
+	rollAtMachine()
 end
-R.run(2)
-dumpGui("machine", pg.MachineHud)
-click(pg.MachineHud, "🔒 Auto")
-R.run(0.3)
-check(pg.Shop.Window.Visible, "locked auto button opens the shop")
-closeWindow(pg.Shop)
+R.run(3)
 
 print("== Pick design at the easel")
-lot.Workshop.DrawPrompt.ProximityPrompt.Triggered:Fire(player)
-R.run(0.3)
+openDesigns()
 check(pg.DesignPicker.Window.Visible, "design picker open")
 dumpGui("picker", pg.DesignPicker)
 T.fireClick(namedButton(pg.DesignPicker, "globo"))
@@ -158,50 +210,34 @@ check((data.paints[best] or 0) == before - 1, "paint consumed")
 check(R.controlsEnabled == false, "controls disabled while painting")
 check(not pg.HUD.Enabled, "hud hidden while painting")
 check(data.tutorial == 3, "tutorial step 3 (paint)")
+local sketch = T.findAll(pg.Painter, function(d)
+	return d.ClassName == "UIStroke" and d.Parent.Name == "S1"
+end)[1]
+check(sketch ~= nil, "design shown as a sketch")
+dumpGui("painter_start", pg.Painter)
 
-local function paintAll(design, useBucket, onHalf)
-	local catcher = T.findAll(pg.Painter, function(d)
-		return d.Name == "PaintInput"
-	end)[1]
-	for i, shape in ipairs(design.shapes) do
-		if onHalf and i == math.floor(#design.shapes * 0.6) then
-			onHalf()
-		end
-		if shape.visible > 0 then
-			-- Busca un punto donde esta figura sea la visible.
-			local px, py
-			for gx = 0, 39 do
-				for gy = 0, 39 do
-					local x, y = (gx + 0.5) / 40, (gy + 0.5) / 40
-					if not px and Designs.shapeAt(design, x, y) == i then
-						px, py = x, y
-					end
-				end
-			end
-			local input = { UserInputType = Enum.UserInputType.MouseButton1, Position = R.v2(px * 512, py * 512) }
-			catcher.InputBegan:Fire(input)
-			if not useBucket then
-				R.run(Designs.shapeTime(shape) / Config.brushSpeed(data.upgrades) + 0.2)
-				UIS.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 }, false)
-			end
-		end
-	end
-	R.run(0.6)
-end
-
-print("== Paint")
-paintAll(Designs.get("globo"), false, function()
+print("== Paint with the brush")
+local sawDabs = false
+sweepPaint(function()
+	local groups = T.findAll(pg.Painter, function(d)
+		return d.ClassName == "CanvasGroup"
+	end)
+	sawDabs = #groups > 0 and #groups[1]:GetChildren() > 3
 	dumpGui("painter_mid", pg.Painter)
 end)
-R.run(2)
+check(sawDabs, "brush leaves paint strokes clipped to the shapes")
+R.run(1.5)
 dumpGui("painter", pg.Painter)
 local exhibit = buttonStarting(pg.Painter, "🖼️ Exponer")
 check(exhibit ~= nil and isShown(exhibit), "completion window shown")
+check(#T.findAll(pg.Painter, function(d)
+	return d.ClassName == "CanvasGroup"
+end) == 0, "paint layers cleaned up once shapes are complete")
 T.fireClick(exhibit)
 R.run(0.5)
 check(not pg.Painter.Enabled and R.controlsEnabled, "painter closed")
 check(#data.gallery == 1, "painting exhibited")
-check(data.gallery[1].st == 3, "fast painting earns 3 stars (" .. tostring(data.gallery[1].st) .. ")")
+check(data.gallery[1].st == 3, "a good sweep earns 3 stars (" .. tostring(data.gallery[1].st) .. ")")
 local canvas = lot.Gallery.Frame1.Canvas
 check(canvas:GetAttribute("Design") == "globo", "canvas shows design")
 check(canvas:GetAttribute("Stars") == 3, "canvas shows stars")
@@ -235,13 +271,12 @@ R.run(30)
 check(#lot.Visitors:GetChildren() == 0, "visitor left")
 
 print("== Quick sell")
-T.fireClick(tile("paint"))
-R.run(0.2)
+openDesigns()
 click(pg.DesignPicker, "🎨 Empezar")
 click(pg.ColorPicker, "Empezar a pintar")
 R.run(0.2)
-paintAll(Designs.get("globo"), false)
-R.run(2)
+sweepPaint()
+R.run(1.5)
 local coins1 = data.coins
 click(pg.Painter, "💰 Vender ya")
 R.run(0.3)
@@ -249,19 +284,16 @@ check(data.coins > coins1 and data.sold == 2, "quick sold")
 
 print("== Quests")
 check(#data.quests == Config.QUESTS_PER_DAY, "daily quests generated")
-dumpGui("hud2", pg.HUD)
-for i, quest in ipairs(data.quests) do
+for _, quest in ipairs(data.quests) do
 	quest.progress = quest.goal
 end
 local coins2 = data.coins
--- Fuerza un push de estado haciendo una tirada.
-R.run(3)
-click(pg.MachineHud, "🎲 TIRAR")
+rollAtMachine()
 R.run(2)
-if not pg.HUD.Quests.Visible then
-	T.fireClick(tile("quests"))
-	R.run(0.2)
-end
+T.fireClick(tile("quests"))
+R.run(0.3)
+check(pg.HUD.Quests.Visible, "quests unfold from the menu")
+dumpGui("hud2", pg.HUD)
 for _ = 1, Config.QUESTS_PER_DAY do
 	local claim = T.findAll(pg.HUD.Quests, function(d)
 		return d.ClassName == "TextButton" and d.Text:sub(1, 4) == "💵" and d.Active
@@ -276,6 +308,9 @@ for _, quest in ipairs(data.quests) do
 	check(quest.claimed, "quest " .. quest.id .. " claimed")
 end
 check(R.services.ReplicatedStorage.Remotes.ClaimQuest:InvokeServer(1) == false, "cannot claim twice")
+T.fireClick(tile("quests"))
+R.run(0.1)
+check(not pg.HUD.Quests.Visible, "quests fold again")
 
 print("== Daily gift")
 T.fireClick(tile("daily"))
@@ -295,13 +330,13 @@ closeWindow(pg.Daily)
 print("== Unlock designs & levels")
 data.coins = 10000000
 for _, id in ipairs({ "sol", "taza", "gatito" }) do
-	T.fireClick(tile("paint"))
+	openDesigns()
 	T.fireClick(namedButton(pg.DesignPicker, id))
 	click(pg.DesignPicker, "🔓 Desbloquear")
 	check(data.unlocked[id], "unlocked " .. id)
 	closeWindow(pg.DesignPicker)
 end
-T.fireClick(tile("paint"))
+openDesigns()
 T.fireClick(namedButton(pg.DesignPicker, "hongo"))
 check(buttonStarting(pg.DesignPicker, "🔒 Pinta") ~= nil, "level 2 locked")
 closeWindow(pg.DesignPicker)
@@ -328,35 +363,57 @@ closeWindow(pg.Shop)
 
 print("== Auto-Rolling after buying it")
 check(data.autoRoll == true, "auto-roll enabled on purchase")
+check(autoPrompt.Enabled and autoPrompt.ActionText == "Pausar Auto-Rolling", "auto prompt appears on the machine")
 local p0 = totalPaints(data)
 R.run(6)
 check(totalPaints(data) > p0, "machine rolls by itself now (" .. p0 .. " -> " .. totalPaints(data) .. ")")
-click(pg.MachineHud, "🔄 Auto")
+check(not pg.MachineHud.RollResult.Visible, "auto rolls don't pop the result card")
+autoPrompt.Triggered:Fire(player)
 R.run(0.3)
-check(data.autoRoll == false, "auto-roll toggled off")
+check(data.autoRoll == false and autoPrompt.ActionText == "Activar Auto-Rolling", "auto-roll paused at the machine")
 p0 = totalPaints(data)
 R.run(5)
 check(totalPaints(data) == p0, "no rolls while paused")
-click(pg.MachineHud, "⏸ Auto")
+autoPrompt.Triggered:Fire(player)
 R.run(0.3)
-check(data.autoRoll == true, "auto-roll toggled on again")
+check(data.autoRoll == true, "auto-roll on again")
 
 print("== Paint level 1 with bucket")
 for _, id in ipairs({ "sol", "taza", "gatito" }) do
-	T.fireClick(tile("paint"))
+	openDesigns()
 	T.fireClick(namedButton(pg.DesignPicker, id))
 	click(pg.DesignPicker, "🎨 Empezar")
 	click(pg.ColorPicker, "✨ Mejores")
 	click(pg.ColorPicker, "Empezar a pintar")
 	R.run(0.2)
 	click(pg.Painter, "🪣")
-	paintAll(Designs.get(id), true)
+	local design = Designs.get(id)
+	local catcher = T.findAll(pg.Painter, function(d)
+		return d.Name == "PaintInput"
+	end)[1]
+	for i = 1, #design.shapes do
+		for gx = 0, 39 do
+			local found = false
+			for gy = 0, 39 do
+				local x, y = (gx + 0.5) / 40, (gy + 0.5) / 40
+				if Designs.shapeAt(design, x, y) == i then
+					catcher.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1, Position = R.v2(x * 512, y * 512) })
+					found = true
+					break
+				end
+			end
+			if found then
+				break
+			end
+		end
+		R.run(0.1)
+	end
 	R.run(3)
 	click(pg.Painter, "🖼️ Exponer")
 	R.run(0.3)
-	check(data.made[id] == 1, "painted " .. id)
+	check(data.made[id] == 1, "painted " .. id .. " with the bucket")
 end
-T.fireClick(tile("paint"))
+openDesigns()
 T.fireClick(namedButton(pg.DesignPicker, "hongo"))
 click(pg.DesignPicker, "🔓 Desbloquear")
 check(data.unlocked.hongo, "level 2 design unlocked")
@@ -365,7 +422,7 @@ closeWindow(pg.DesignPicker)
 print("== Cancel refunds paints")
 data.autoRoll = false
 local paintsBefore = totalPaints(data)
-T.fireClick(tile("paint"))
+openDesigns()
 T.fireClick(namedButton(pg.DesignPicker, "hongo"))
 click(pg.DesignPicker, "🎨 Empezar")
 click(pg.ColorPicker, "✨ Mejores")
@@ -389,8 +446,8 @@ local character = player.Character
 character:PivotTo(G.CFrame.new(lot:GetPivot().Position + G.Vector3.new(150, 5, 150)))
 T.fireClick(tile("home"))
 R.run(0.5)
-local distance = (character.HumanoidRootPart.Position - lot:GetPivot().Position).Magnitude
-check(distance < 80, "home button brings you back (" .. math.floor(distance) .. ")")
+local distance = (character.HumanoidRootPart.Position - lot.Workshop.Machine.Body.Position).Magnitude
+check(distance < 25, "home button brings you back to the workshop (" .. math.floor(distance) .. ")")
 
 print("== Visitors buy exhibited paintings")
 data.autoRoll = true
@@ -417,13 +474,7 @@ check(d2.made.gatito == 1 and d2.unlocked.hongo and d2.upgrades.auto == 1, "prog
 check(d2.tutorial == 0, "tutorial stays completed")
 local lot2 = R.workspace.Plots:FindFirstChild("Lot1")
 check(lot2 and lot2:GetAttribute("OwnerUserId") == 101, "new lot built on rejoin")
-local shown = 0
-for _, frame in ipairs(lot2.Gallery:GetChildren()) do
-	if frame.Canvas:GetAttribute("Design") ~= "" then
-		shown = shown + 1
-	end
-end
-check(shown == saved.gallery, "gallery restored on walls (" .. shown .. ")")
+check(lot2.Workshop.Machine.Dispenser.ProximityPrompt.Enabled, "auto prompt restored with the upgrade")
 for _, f in ipairs(R.closeCallbacks) do
 	R.task.spawn(f)
 end

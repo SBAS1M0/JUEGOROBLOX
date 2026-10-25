@@ -15,7 +15,7 @@ def kids(n): return n.get("k", [])
 def child_of(n, cls): 
     for k in kids(n):
         if k["c"] == cls: return k
-def is_gui(n): return n["c"] in ("Frame","TextLabel","TextButton","ScrollingFrame","ImageLabel","ImageButton","TextBox")
+def is_gui(n): return n["c"] in ("Frame","TextLabel","TextButton","ScrollingFrame","ImageLabel","ImageButton","TextBox","CanvasGroup")
 def size_of(n, pw, ph):
     s = n.get("Size", [0,0,0,0]); w = pw*s[0]+s[1]; h = ph*s[2]+s[3]
     sc = child_of(n, "UISizeConstraint")
@@ -45,7 +45,7 @@ def draw(n, x, y, w, h, clip, scale=1, origin=(0,0)):
     if cor:
         r = cor.get("CornerRadius",[0,8]); style.append(f"border-radius:{min(w,h)*r[0]+r[1]:.1f}px")
     for st in kids(n):
-        if st["c"] == "UIStroke" and st.get("ApplyStrokeMode","Border") == "Border" and n["c"] != "TextLabel":
+        if st["c"] == "UIStroke" and (st.get("ApplyStrokeMode","Contextual") == "Border" or n["c"] not in ("TextLabel","TextButton")):
             if st.get("Thickness",1) > 0:
                 style.append(f"box-shadow:0 0 0 {st.get('Thickness',1)}px {rgb(st.get('Color',[0,0,0]),1-st.get('Transparency',0))}")
     if n.get("Rotation"): style.append(f"transform:rotate({n['Rotation']}deg)")
@@ -119,7 +119,7 @@ def place(k, x, y, w, h, clip):
     sc = None
     for c in kids(k):
         if c["c"] == "UIScale": sc = (sc or 1)*c.get("Scale",1)
-    draw(k, x, y, w, h, k.get("ClipsDescendants", False) or k["c"]=="ScrollingFrame", sc or 1, k.get("AnchorPoint",[0,0]))
+    draw(k, x, y, w, h, k.get("ClipsDescendants", False) or k["c"] in ("ScrollingFrame", "CanvasGroup"), sc or 1, k.get("AnchorPoint",[0,0]))
 for path in sys.argv[1].split(","):
     root = json.load(open(path))
     if root.get("Enabled", True) is False: continue

@@ -43,7 +43,12 @@ local function effectText(id, level)
 	elseif id == "auto" then
 		return "Tira sola cada " .. string.format("%.1f", Config.autoRollInterval({})) .. "s"
 	elseif id == "pincel" then
-		return string.format("Velocidad x%.1f → x%.1f", Config.brushSpeed(levels), Config.brushSpeed(nextLevels))
+		local base = Config.brushRadius({})
+		return string.format(
+			"Grosor %d%% → %d%%",
+			math.floor(Config.brushRadius(levels) / base * 100 + 0.5),
+			math.floor(Config.brushRadius(nextLevels) / base * 100 + 0.5)
+		)
 	elseif id == "cubeta" then
 		return "Un toque rellena una figura"
 	elseif id == "fama" then

@@ -1500,7 +1500,8 @@ local function buildWorkshop(model, L)
 		Material = Enum.Material.Metal,
 		Parent = machine,
 	})
-	part({
+	local dispenser = part({
+		Name = "Dispenser",
 		Size = Vector3.new(2, 1.4, 1.4),
 		CFrame = mc * CFrame.new(0, 1.5, -3),
 		Color = rgb(60, 50, 80),
@@ -1525,6 +1526,11 @@ local function buildWorkshop(model, L)
 	})
 	addLight(glow, "PointLight", { Range = 12, Brightness = 1.2, Color = rgb(255, 255, 255) })
 	local machinePrompt = prompt(body, "Tirar color", "Máquina de colores", 12)
+	-- Segundo aviso (tecla F) para encender o pausar el Auto-Rolling.
+	local autoPrompt = prompt(dispenser, "Activar Auto-Rolling", "Máquina de colores", 12)
+	autoPrompt.KeyboardKeyCode = Enum.KeyCode.F
+	autoPrompt.GamepadKeyCode = Enum.KeyCode.ButtonY
+	autoPrompt.Enabled = false
 	machine.Parent = workshop
 	part({
 		Shape = Enum.PartType.Cylinder,
@@ -1726,6 +1732,7 @@ local function buildWorkshop(model, L)
 		easelCanvas = easelCanvas,
 		drawPrompt = drawPrompt,
 		machinePrompt = machinePrompt,
+		autoPrompt = autoPrompt,
 		machineTop = top,
 		machineCan = can,
 		machineGlow = glow,
@@ -2114,7 +2121,11 @@ function WorldBuilder.buildLot(slot)
 			L(-22, 0.3, -110),
 			L(90, 0.3, -110),
 		},
-		ownerSpawn = CFrame.lookAt(origin + Vector3.new(-2, 3.5, -44), origin + Vector3.new(-2, 3.5, 0)),
+		-- Apareces dentro del taller, entre la máquina y el caballete.
+		ownerSpawn = CFrame.lookAt(
+			origin + Vector3.new(15, FLOOR + 3.5, -3),
+			origin + Vector3.new(15, FLOOR + 3.5, 10)
+		),
 		decorFolder = decor,
 		visitorsFolder = visitors,
 		workshop = workshop,

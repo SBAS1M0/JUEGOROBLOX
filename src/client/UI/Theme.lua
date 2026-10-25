@@ -337,7 +337,7 @@ function Theme.tile(props)
 		Position = UDim2.fromScale(0, 0.04),
 		Text = props.Icon,
 		Font = Theme.Fonts.Bold,
-		MaxTextSize = 34,
+		MaxTextSize = props.IconSize or 34,
 		Parent = face,
 	})
 	local caption = Theme.label({
@@ -642,6 +642,16 @@ function Theme.tween(instance, time, props, style, direction)
 	)
 	tween:Play()
 	return tween
+end
+
+-- Igual que pop pero para tarjetas (cuerpo y sombra crecen juntos).
+function Theme.popCard(holder, scale)
+	for _, name in ipairs({ "Body", "Shadow" }) do
+		local part = holder:FindFirstChild(name)
+		if part then
+			Theme.pop(part, scale)
+		end
+	end
 end
 
 function Theme.pop(guiObject, scale)

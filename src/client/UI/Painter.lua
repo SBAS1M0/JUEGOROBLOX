@@ -1,6 +1,7 @@
--- Estudio de pintura: el diseño aparece en líneas y cada figura se rellena con
--- el color de su área mientras pasas el pincel. Cuanto más rápido terminas,
--- más estrellas (y más valor) consigue el cuadro.
+-- Estudio de pintura: el dibujo aparece como un boceto con los colores en tono
+-- pálido y lo coloreas pasando el pincel. La pintura se queda justo donde
+-- pasas (recortada a cada figura) y, cuando cubres casi toda una figura, esta
+-- se completa con su color final. Cuanto más rápido terminas, más estrellas.
 
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
@@ -18,16 +19,20 @@ local DesignArt = require(script.Parent.DesignArt)
 local Painter = {}
 
 local C = Theme.Colors
-local SAMPLE_RING = 6
+local COMPLETE_AT = 0.9 -- fracción de la figura cubierta para completarla
+local DAB_SPACING = 0.5 -- distancia entre pinceladas (en radios)
+local MAX_DABS = 380 -- pinceladas por figura (la pintura sigue contando después)
+local WOOD = Color3.fromRGB(196, 140, 96)
+local WOOD_DARK = Color3.fromRGB(150, 98, 64)
 
 local app
-local gui, root, canvasFrame, catcher, cursor, particles
+local gui, canvasFrame, overlay, catcher, cursor, cursorIcon
 local refs = {}
 local current
 local stroking = false
 local pointer = nil
+local lastBrush = nil
 local tool = "brush"
-local particleClock = 0
 local soundClock = 0
 local confirmCancelUntil = 0
 local finishing = false
@@ -46,12 +51,57 @@ local function canvasPoint(position)
 	return (position.X - absPos.X) / absSize.X, (position.Y - absPos.Y) / absSize.Y
 end
 
+-- Puntos de muestra de cada figura (solo donde la figura se ve): la figura se
+-- completa cuando el pincel ha pasado cerca de casi todos.
+local function buildSamples(design, radius)
+	local spacing = radius * 1.2
+	local list = {}
+	for i, shape in ipairs(design.shapes) do
+		local info = {
+			points = {},
+			painted = 0,
+			total = 0,
+			complete = false,
+			dabs = 0,
+			cx = shape.x,
+			cy = shape.y,
+			bound = 0.5 * math.sqrt(shape.w * shape.w + shape.h * shape.h),
+		}
+		if shape.visible > 0 then
+			local nx = math.clamp(math.ceil(shape.w / spacing), 2, 40)
+			local ny = math.clamp(math.ceil(shape.h / spacing), 2, 40)
+			local rad = math.rad(shape.rot)
+			local c, s = math.cos(rad), math.sin(rad)
+			for gx = 1, nx do
+				for gy = 1, ny do
+					local lx = ((gx - 0.5) / nx - 0.5) * shape.w
+					local ly = ((gy - 0.5) / ny - 0.5) * shape.h
+					local x = shape.x + lx * c - ly * s
+					local y = shape.y + lx * s + ly * c
+					if x >= 0 and x <= 1 and y >= 0 and y <= 1 and Designs.shapeAt(design, x, y) == i then
+						table.insert(info.points, { x, y, false })
+					end
+				end
+			end
+			if #info.points == 0 then
+				-- Figura diminuta: basta con pasar por su centro.
+				table.insert(info.points, { shape.x, shape.y, false })
+			end
+		end
+		info.total = #info.points
+		list[i] = info
+	end
+	return list
+end
+
 local function areaPercent(areaId)
 	local total, done = 0, 0
 	for i, shape in ipairs(current.design.shapes) do
-		if shape.area == areaId then
+		if shape.area == areaId and shape.visible > 0 then
+			local info = current.samples[i]
+			local p = info.complete and 1 or info.painted / math.max(info.total, 1)
 			total += shape.visible
-			done += shape.visible * current.progress[i]
+			done += shape.visible * p
 		end
 	end
 	return total > 0 and done / total or 1
@@ -60,15 +110,19 @@ end
 local function totalPercent()
 	local total, done = 0, 0
 	for i, shape in ipairs(current.design.shapes) do
-		total += shape.visible
-		done += shape.visible * current.progress[i]
+		if shape.visible > 0 then
+			local info = current.samples[i]
+			local p = info.complete and 1 or info.painted / math.max(info.total, 1)
+			total += shape.visible
+			done += shape.visible * p
+		end
 	end
 	return total > 0 and done / total or 1
 end
 
 local function isComplete()
-	for i in ipairs(current.design.shapes) do
-		if current.progress[i] < 1 then
+	for _, info in ipairs(current.samples) do
+		if not info.complete then
 			return false
 		end
 	end
@@ -79,21 +133,11 @@ local function elapsed()
 	return os.clock() - current.started
 end
 
-local function currentStars()
-	return Config.starsFor(current.design, levels(), elapsed())
-end
-
 local function refreshLabels()
-	for areaId, row in pairs(current.areaRows) do
+	for areaId, slot in pairs(current.slots) do
 		local p = areaPercent(areaId)
-		row.bar.Set(p)
-		if p >= 0.999 then
-			row.percent.Text = "✔"
-			row.percent.TextColor3 = C.MintDark
-		else
-			row.percent.Text = math.floor(p * 100) .. "%"
-			row.percent.TextColor3 = C.InkSoft
-		end
+		slot.bar.Set(p)
+		slot.check.Visible = p >= 0.999
 	end
 	local total = totalPercent()
 	refs.percent.Text = math.floor(total * 100) .. "%"
@@ -106,42 +150,34 @@ local function refreshTimer()
 	end
 	local par = Config.parTime(current.design, levels())
 	local t = elapsed()
-	local limit = par * 2.5
-	refs.timerBar.Set(1 - math.clamp(t / limit, 0, 1))
-	local stars = currentStars()
+	local stars = Config.starsFor(current.design, levels(), t)
 	for i, star in ipairs(refs.stars) do
 		star.TextColor3 = i <= stars and C.Gold or C.Border
 	end
+	refs.timerBar.Set(1 - math.clamp(t / (par * 2.5), 0, 1))
 	refs.timerBar.SetGradient(stars >= 3 and "gold" or (stars == 2 and "orange" or "red"))
 	refs.timerText.Text = string.format("%d:%02d", math.floor(t / 60), math.floor(t % 60))
 end
 
--- Partículas -----------------------------------------------------------------------------------
 local function spawnParticle(x, y, color, burst)
 	local dot = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(x, y),
-		Size = UDim2.fromScale(0.02, 0.02),
+		Size = UDim2.fromScale(0.022, 0.022),
 		BackgroundColor3 = color,
 		ZIndex = 6,
-		Parent = particles,
-	}, { Theme.round() })
+		Parent = overlay,
+	}, { Theme.round(), Theme.stroke(C.White, 1.5, 0.3) })
 	local angle = math.random() * math.pi * 2
-	local distance = (burst and 0.09 or 0.035) * (0.4 + math.random())
-	Theme.tween(dot, 0.45, {
+	local distance = (burst and 0.1 or 0.04) * (0.4 + math.random())
+	Theme.tween(dot, 0.5, {
 		Position = UDim2.fromScale(x + math.cos(angle) * distance, y + math.sin(angle) * distance),
 		Size = UDim2.fromScale(0.004, 0.004),
 		BackgroundTransparency = 1,
 	})
-	task.delay(0.5, function()
+	task.delay(0.55, function()
 		dot:Destroy()
 	end)
-end
-
--- Pintar ---------------------------------------------------------------------------------------
-local function setShapeProgress(i, p)
-	current.progress[i] = p
-	current.art.setProgress(i, p)
 end
 
 local function areaColor(shapeIndex)
@@ -149,88 +185,123 @@ local function areaColor(shapeIndex)
 	return Colors.mainColor(current.colors[shape.area])
 end
 
--- El relleno empieza en el lado por el que entró el pincel.
-local function aimFill(index, x, y)
-	if current.progress[index] > 0 then
+-- Pintar ---------------------------------------------------------------------------------------
+local completeIfDone
+
+local function completeShape(i, animate)
+	local info = current.samples[i]
+	if info.complete then
 		return
 	end
-	local shape = current.design.shapes[index]
-	local dx, dy = shape.x - x, shape.y - y
-	if dx * dx + dy * dy > 0.0001 then
-		current.art.setFillDirection(index, math.deg(math.atan2(dy, dx)) - shape.rot)
+	info.complete = true
+	current.art.complete(i, animate)
+	if animate then
+		local shape = current.design.shapes[i]
+		for _ = 1, 6 do
+			spawnParticle(shape.x, shape.y, areaColor(i), true)
+		end
+		Theme.playSound("success", 1.5 + math.random() * 0.3)
 	end
+	refreshLabels()
+	completeIfDone()
 end
 
-local function completeIfDone()
+-- Una pincelada en (x, y): pinta los puntos cercanos y deja la marca.
+local function paintAt(x, y)
+	local radius = current.radius
+	local r2 = radius * radius
+	local reach = radius * 1.25
+	local reach2 = reach * reach
+	local dabGap2 = (radius * DAB_SPACING) ^ 2
+	local paintedAny = false
+	for i, info in ipairs(current.samples) do
+		if not info.complete and info.total > 0 then
+			local dx, dy = x - info.cx, y - info.cy
+			local limit = info.bound + reach
+			if dx * dx + dy * dy <= limit * limit then
+				local near, newly = false, 0
+				for _, point in ipairs(info.points) do
+					local px, py = point[1] - x, point[2] - y
+					local d2 = px * px + py * py
+					if d2 <= reach2 then
+						near = true
+						if d2 <= r2 and not point[3] then
+							point[3] = true
+							newly += 1
+						end
+					end
+				end
+				if near and info.dabs < MAX_DABS then
+					local lx, ly = info.dabX, info.dabY
+					if not lx or (lx - x) ^ 2 + (ly - y) ^ 2 >= dabGap2 then
+						current.art.addDab(i, x, y, radius * 1.12)
+						info.dabX, info.dabY = x, y
+						info.dabs += 1
+					end
+				end
+				if newly > 0 then
+					paintedAny = true
+					info.painted += newly
+					if info.painted / info.total >= COMPLETE_AT then
+						completeShape(i, true)
+					end
+				end
+			end
+		end
+	end
+	return paintedAny
+end
+
+-- Pinta a lo largo del trazo para que los movimientos rápidos no dejen huecos.
+local function strokeTo(x, y)
+	local step = current.radius * DAB_SPACING
+	local fromX, fromY = x, y
+	if lastBrush then
+		fromX, fromY = lastBrush[1], lastBrush[2]
+	end
+	local distance = math.sqrt((x - fromX) ^ 2 + (y - fromY) ^ 2)
+	local steps = math.clamp(math.ceil(distance / step), 1, 60)
+	local painted = false
+	for k = 1, steps do
+		local t = k / steps
+		if paintAt(fromX + (x - fromX) * t, fromY + (y - fromY) * t) then
+			painted = true
+		end
+	end
+	lastBrush = { x, y }
+	return painted
+end
+
+local function bucket(x, y)
+	local index = Designs.shapeAt(current.design, x, y)
+	local info = index and current.samples[index]
+	if not info or info.complete then
+		return
+	end
+	current.art.flood(index, x, y, 0.3)
+	info.painted = info.total
+	Theme.playSound("whoosh", 1.3)
+	for _ = 1, 8 do
+		spawnParticle(x, y, areaColor(index), true)
+	end
+	task.delay(0.28, function()
+		if current and current.samples[index] == info then
+			completeShape(index, true)
+		end
+	end)
+end
+
+function completeIfDone()
 	if not current.done and isComplete() then
 		current.done = true
 		current.finishedAt = elapsed()
 		stroking = false
 		refreshLabels()
-		task.delay(0.4, function()
+		task.delay(0.6, function()
 			if current and current.done then
 				Painter.showComplete()
 			end
 		end)
-	end
-end
-
-local function brush(x, y, dt)
-	local radius = Config.brushRadius(levels())
-	local speed = Config.brushSpeed(levels())
-	local hits = {}
-	local samples = { { x, y } }
-	for k = 0, SAMPLE_RING - 1 do
-		local angle = k / SAMPLE_RING * math.pi * 2
-		table.insert(samples, { x + math.cos(angle) * radius, y + math.sin(angle) * radius })
-	end
-	for _, point in ipairs(samples) do
-		local index = Designs.shapeAt(current.design, point[1], point[2])
-		if index and current.progress[index] < 1 then
-			hits[index] = (hits[index] or 0) + 1
-		end
-	end
-	local painted = nil
-	for index, count in pairs(hits) do
-		aimFill(index, x, y)
-		local time = Designs.shapeTime(current.design.shapes[index])
-		-- Basta con rozar una figura para pintarla; cubrirla entera va más rápido.
-		local coverage = 0.6 + 0.4 * count / #samples
-		local amount = dt * speed * coverage * 1.15 / math.max(time, 0.05)
-		setShapeProgress(index, math.min(1, current.progress[index] + amount))
-		if current.progress[index] >= 1 then
-			for _ = 1, 4 do
-				spawnParticle(x, y, areaColor(index), true)
-			end
-		end
-		painted = index
-	end
-	if painted then
-		particleClock += dt
-		if particleClock > 0.05 then
-			particleClock = 0
-			spawnParticle(x, y, areaColor(painted), false)
-		end
-		soundClock += dt
-		if soundClock > 0.18 then
-			soundClock = 0
-			Theme.playSound("paint", 0.9 + math.random() * 0.3)
-		end
-	end
-	return painted ~= nil
-end
-
-local function bucket(x, y)
-	local index = Designs.shapeAt(current.design, x, y)
-	if index and current.progress[index] < 1 then
-		aimFill(index, x, y)
-		setShapeProgress(index, 1)
-		for _ = 1, 10 do
-			spawnParticle(x, y, areaColor(index), true)
-		end
-		Theme.playSound("whoosh", 1.3)
-		refreshLabels()
-		completeIfDone()
 	end
 end
 
@@ -242,14 +313,25 @@ local function updateCursor()
 	local x, y = canvasPoint(pointer)
 	if not x or x < 0 or y < 0 or x > 1 or y > 1 then
 		cursor.Visible = false
+		for _, slot in pairs(current.slots) do
+			slot.stroke.Color = C.Border
+		end
 		return
 	end
-	local radius = tool == "bucket" and 0.025 or Config.brushRadius(levels())
+	local radius = tool == "bucket" and 0.03 or current.radius
 	cursor.Visible = true
 	cursor.Position = UDim2.fromScale(x, y)
-	cursor.Size = UDim2.fromScale(radius * 2.4, radius * 2.4)
+	cursor.Size = UDim2.fromScale(radius * 2, radius * 2)
+	cursorIcon.Text = tool == "bucket" and "🪣" or "🖌️"
 	local index = Designs.shapeAt(current.design, x, y)
-	cursor.BackgroundColor3 = index and areaColor(index) or C.White
+	local color = index and areaColor(index) or C.InkSoft
+	cursor.BackgroundColor3 = color
+	refs.cursorStroke.Color = color:Lerp(Color3.new(0, 0, 0), 0.3)
+	local areaId = index and current.design.shapes[index].area
+	for id, slot in pairs(current.slots) do
+		slot.stroke.Color = id == areaId and C.Primary or C.Border
+		slot.stroke.Thickness = id == areaId and 3 or 1.5
+	end
 end
 
 local function onStep(dt)
@@ -264,15 +346,21 @@ local function onStep(dt)
 	end
 	if stroking and pointer and not current.done and tool == "brush" then
 		local x, y = canvasPoint(pointer)
-		if x and x >= -0.05 and y >= -0.05 and x <= 1.05 and y <= 1.05 then
-			if brush(x, y, math.min(dt, 0.1)) then
+		if x and x >= -0.1 and y >= -0.1 and x <= 1.1 and y <= 1.1 then
+			if strokeTo(x, y) then
 				current.labelClock = (current.labelClock or 0) + dt
 				if current.labelClock > 0.1 then
 					current.labelClock = 0
 					refreshLabels()
 				end
-				completeIfDone()
+				soundClock += dt
+				if soundClock > 0.16 then
+					soundClock = 0
+					Theme.playSound("paint", 0.9 + math.random() * 0.3)
+				end
 			end
+		else
+			lastBrush = nil
 		end
 	end
 end
@@ -286,12 +374,13 @@ end
 
 local function buildTopBar(parent)
 	refs.exit = Theme.button({
-		Position = UDim2.fromOffset(18, 14),
-		Size = UDim2.fromOffset(130, 46),
+		Position = UDim2.fromOffset(16, 12),
+		Size = UDim2.fromOffset(118, 42),
 		Text = "✕ Salir",
 		Variant = "ghost",
 		Color = C.Red,
 		TextColor = C.Red,
+		MaxTextSize = 20,
 		Parent = parent,
 		OnClick = function()
 			Painter.requestCancel()
@@ -299,143 +388,155 @@ local function buildTopBar(parent)
 	})
 	refs.title = Theme.label({
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.new(0.44, 0, 0, 38),
+		Position = UDim2.new(0.5, 0, 0, 6),
+		Size = UDim2.new(0.5, 0, 0, 34),
 		Text = "",
 		Font = Theme.Fonts.Display,
-		MaxTextSize = 34,
+		MaxTextSize = 30,
+		Parent = parent,
+	})
+	local row = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 44),
+		Size = UDim2.fromOffset(300, 18),
+		BackgroundTransparency = 1,
 		Parent = parent,
 	})
 	refs.progress = Theme.progress({
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, -24, 0, 52),
-		Size = UDim2.new(0.28, 0, 0, 12),
+		Position = UDim2.fromOffset(0, 4),
+		Size = UDim2.new(1, -56, 0, 10),
 		Gradient = "mint",
-		Parent = parent,
+		Parent = row,
 	})
 	refs.percent = Theme.label({
-		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0.64, -16, 0, 46),
-		Size = UDim2.fromOffset(60, 24),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Size = UDim2.fromOffset(48, 18),
 		Text = "0%",
 		Font = Theme.Fonts.Heavy,
 		TextColor3 = C.MintDark,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 18,
-		Parent = parent,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		MaxTextSize = 16,
+		Parent = row,
 	})
-	refs.brushButton = Theme.button({
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -168, 0, 14),
-		Size = UDim2.fromOffset(140, 46),
-		Text = "🖌️ Pincel",
-		Parent = parent,
-		OnClick = function()
-			setTool("brush")
-		end,
-	})
-	refs.bucketButton = Theme.button({
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -18, 0, 14),
-		Size = UDim2.fromOffset(140, 46),
-		Text = "🪣 Cubeta",
-		Variant = "ghost",
-		Parent = parent,
-		OnClick = function()
-			if Config.hasBucket(levels()) then
-				setTool("bucket")
-			else
-				app.notify("🔒 Compra la mejora «Cubeta mágica» 🪣", "info")
-			end
-		end,
-	})
-end
 
-local function buildTimer(parent)
+	-- Estrellas y cronómetro.
 	local holder, body = Theme.card({
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 76),
-		Size = UDim2.fromOffset(330, 40),
-		Radius = 20,
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -16, 0, 12),
+		Size = UDim2.fromOffset(176, 44),
+		Radius = 22,
 		Parent = parent,
 	})
 	refs.timerCard = holder
 	refs.stars = {}
 	for i = 1, 3 do
 		refs.stars[i] = Theme.label({
-			Position = UDim2.fromOffset(10 + (i - 1) * 26, 6),
-			Size = UDim2.fromOffset(26, 28),
+			Position = UDim2.fromOffset(12 + (i - 1) * 24, 6),
+			Size = UDim2.fromOffset(24, 26),
 			Text = "★",
 			Font = Theme.Fonts.Heavy,
 			TextColor3 = C.Gold,
-			MaxTextSize = 26,
+			MaxTextSize = 24,
 			Parent = body,
 		})
 	end
-	refs.timerBar = Theme.progress({
-		Position = UDim2.fromOffset(96, 15),
-		Size = UDim2.new(1, -170, 0, 10),
-		Gradient = "gold",
-		Parent = body,
-	})
 	refs.timerText = Theme.label({
 		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -12, 0, 8),
-		Size = UDim2.fromOffset(56, 24),
+		Position = UDim2.new(1, -14, 0, 7),
+		Size = UDim2.fromOffset(60, 24),
 		Text = "0:00",
 		Font = Theme.Fonts.Heavy,
 		TextColor3 = C.InkSoft,
 		TextXAlignment = Enum.TextXAlignment.Right,
-		MaxTextSize = 18,
+		MaxTextSize = 19,
+		Parent = body,
+	})
+	refs.timerBar = Theme.progress({
+		Position = UDim2.new(0, 14, 1, -9),
+		Size = UDim2.new(1, -28, 0, 4),
+		Gradient = "gold",
 		Parent = body,
 	})
 end
 
 local function buildCanvas(parent)
-	local canvasCard = Theme.new("Frame", {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, 46),
-		Size = UDim2.new(0.56, 0, 1, -196),
+	local area = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 74),
+		Size = UDim2.new(1, -40, 1, -74 - 132),
 		BackgroundTransparency = 1,
 		Parent = parent,
-	}, { Theme.new("UIAspectRatioConstraint", { AspectRatio = 1 }) })
-	local _, canvasBody = Theme.card({
-		Size = UDim2.fromScale(1, 1),
-		Radius = 22,
-		ShadowOffset = 8,
-		ShadowTransparency = 0.8,
-		StrokeColor = C.White,
-		StrokeThickness = 6,
-		Parent = canvasCard,
 	})
+	-- Bastidor de madera con paspartú blanco.
+	local board = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Parent = area,
+	}, { Theme.new("UIAspectRatioConstraint", { AspectRatio = 1 }) })
+	refs.board = board
+	Theme.new("Frame", {
+		Position = UDim2.fromOffset(0, 8),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.Shadow,
+		BackgroundTransparency = 0.8,
+		Parent = board,
+	}, { Theme.corner(18) })
+	local frame = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.White,
+		Parent = board,
+	}, { Theme.corner(18), Theme.gradient(WOOD, WOOD_DARK, 90) })
+	local mat = Theme.new("Frame", {
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.new(1, -24, 1, -24),
+		BackgroundColor3 = Color3.fromRGB(253, 251, 246),
+		Parent = frame,
+	}, { Theme.corner(10) })
 	canvasFrame = Theme.new("Frame", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundTransparency = 1,
+		Name = "Canvas",
+		Position = UDim2.fromOffset(10, 10),
+		Size = UDim2.new(1, -20, 1, -20),
+		BackgroundColor3 = C.White,
 		ClipsDescendants = true,
-		Parent = canvasBody,
-	}, { Theme.corner(22) })
-	particles = Theme.new("Frame", {
-		Size = UDim2.fromScale(1, 1),
+		Parent = mat,
+	}, { Theme.corner(6) })
+	overlay = Theme.new("Frame", {
+		Name = "Overlay",
+		Position = canvasFrame.Position,
+		Size = canvasFrame.Size,
 		BackgroundTransparency = 1,
-		ZIndex = 6,
-		Parent = canvasBody,
+		ZIndex = 8,
+		Parent = mat,
 	})
 	cursor = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Size = UDim2.fromScale(0.07, 0.07),
-		BackgroundTransparency = 0.3,
+		Size = UDim2.fromScale(0.1, 0.1),
+		BackgroundTransparency = 0.55,
 		Visible = false,
 		ZIndex = 8,
-		Parent = canvasBody,
-	}, { Theme.round(), Theme.stroke(C.Ink, 2.5) })
+		Parent = overlay,
+	}, { Theme.round() })
+	refs.cursorStroke = Theme.stroke(C.Ink, 2.5)
+	refs.cursorStroke.Parent = cursor
+	cursorIcon = Theme.label({
+		Position = UDim2.fromScale(0.75, -0.75),
+		Size = UDim2.fromOffset(26, 26),
+		Text = "🖌️",
+		MaxTextSize = 24,
+		ZIndex = 9,
+		Parent = cursor,
+	})
 	catcher = Theme.new("TextButton", {
 		Name = "PaintInput",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "",
 		AutoButtonColor = false,
-		ZIndex = 9,
-		Parent = canvasBody,
+		ZIndex = 10,
+		Parent = overlay,
 	})
 	catcher.InputBegan:Connect(function(input)
 		if not current or current.done then
@@ -446,6 +547,7 @@ local function buildCanvas(parent)
 			or input.UserInputType == Enum.UserInputType.Touch
 		then
 			pointer = input.Position
+			lastBrush = nil
 			if tool == "bucket" then
 				local x, y = canvasPoint(pointer)
 				if x then
@@ -458,38 +560,110 @@ local function buildCanvas(parent)
 	end)
 end
 
-local function buildColumns(parent)
-	for _, side in ipairs({ "left", "right" }) do
-		local column = Theme.new("Frame", {
-			Name = side,
-			AnchorPoint = Vector2.new(side == "left" and 0 or 1, 0.5),
-			Position = UDim2.new(side == "left" and 0 or 1, side == "left" and 18 or -18, 0.5, 46),
-			Size = UDim2.new(0.19, 0, 1, -200),
-			BackgroundTransparency = 1,
-			Parent = parent,
-		}, { Theme.list("v", 10, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center) })
-		refs[side] = column
-	end
-end
-
-local function buildValue(parent)
+-- Bandeja inferior con un bote de pintura por área.
+local function buildTray(parent)
 	local holder, body = Theme.card({
+		Name = "Tray",
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -10),
-		Size = UDim2.fromOffset(420, 38),
-		Radius = 19,
+		Position = UDim2.new(0.5, 0, 1, -14),
+		Size = UDim2.fromOffset(500, 108),
+		Radius = 24,
 		Parent = parent,
 	})
-	refs.valueCard = holder
-	refs.value = Theme.label({
-		Size = UDim2.new(1, -20, 1, -8),
-		Position = UDim2.fromOffset(10, 4),
-		Text = "",
-		Font = Theme.Fonts.Heavy,
-		TextColor3 = C.MintDark,
-		MaxTextSize = 19,
+	refs.tray = holder
+	refs.slots = Theme.new("Frame", {
+		Position = UDim2.fromOffset(10, 8),
+		Size = UDim2.new(1, -20, 1, -16),
+		BackgroundTransparency = 1,
 		Parent = body,
+	}, { Theme.list("h", 8, Enum.HorizontalAlignment.Left, Enum.VerticalAlignment.Center) })
+	refs.tools = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.fromOffset(52, 92),
+		BackgroundTransparency = 1,
+		Parent = body,
+	}, { Theme.list("v", 8, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center) })
+	refs.brushButton = Theme.button({
+		Size = UDim2.fromOffset(48, 42),
+		Text = "🖌️",
+		LayoutOrder = 1,
+		Radius = 14,
+		MaxTextSize = 22,
+		Parent = refs.tools,
+		OnClick = function()
+			setTool("brush")
+		end,
 	})
+	refs.bucketButton = Theme.button({
+		Size = UDim2.fromOffset(48, 42),
+		Text = "🪣",
+		Variant = "ghost",
+		LayoutOrder = 2,
+		Radius = 14,
+		MaxTextSize = 22,
+		Parent = refs.tools,
+		OnClick = function()
+			setTool("bucket")
+		end,
+	})
+end
+
+local function fillTray(design, colors)
+	for _, child in ipairs(refs.slots:GetChildren()) do
+		if child:IsA("GuiObject") then
+			child:Destroy()
+		end
+	end
+	current.slots = {}
+	for i, areaDef in ipairs(design.areas) do
+		local slotHolder, slot = Theme.card({
+			Size = UDim2.fromOffset(84, 90),
+			Radius = 18,
+			Color = C.PanelSoft,
+			LayoutOrder = i,
+			Parent = refs.slots,
+		})
+		slotHolder:FindFirstChild("Shadow").Visible = false
+		local swatch = Theme.new("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 8),
+			Size = UDim2.fromOffset(42, 42),
+			Parent = slot,
+		}, { Theme.round(), Theme.stroke(C.White, 3) })
+		DesignArt.swatch(swatch, colors[areaDef.id])
+		local check = Theme.label({
+			Size = UDim2.fromScale(1, 1),
+			Text = "✔",
+			Font = Theme.Fonts.Heavy,
+			TextColor3 = C.White,
+			MaxTextSize = 22,
+			Visible = false,
+			Parent = swatch,
+		})
+		Theme.textStroke(C.Shadow, 1.5, 0.4).Parent = check
+		Theme.label({
+			Position = UDim2.fromOffset(4, 54),
+			Size = UDim2.new(1, -8, 0, 16),
+			Text = areaDef.name,
+			Font = Theme.Fonts.Bold,
+			TextColor3 = C.Ink,
+			MaxTextSize = 14,
+			Parent = slot,
+		})
+		local bar = Theme.progress({
+			Position = UDim2.new(0, 10, 0, 74),
+			Size = UDim2.new(1, -20, 0, 6),
+			Gradient = "mint",
+			Parent = slot,
+		})
+		current.slots[areaDef.id] = { bar = bar, check = check, stroke = slot:FindFirstChildOfClass("UIStroke") }
+	end
+	local hasBucket = Config.hasBucket(levels())
+	refs.tools.Visible = hasBucket
+	refs.slots.Size = UDim2.new(1, hasBucket and -86 or -20, 1, -16)
+	local width = 20 + #design.areas * 92 - 8 + (hasBucket and 66 or 0)
+	refs.tray.Size = UDim2.fromOffset(math.max(width, 200), 108)
 end
 
 -- Ventana de cuadro terminado.
@@ -506,8 +680,8 @@ local function buildComplete()
 	local wrapper = Theme.new("Frame", {
 		Name = "Wrapper",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.5, 16),
-		Size = UDim2.fromOffset(480, 610),
+		Position = UDim2.new(0.5, 0, 0.5, 40),
+		Size = UDim2.fromOffset(460, 590),
 		BackgroundTransparency = 1,
 		ZIndex = 20,
 		Parent = refs.done,
@@ -522,20 +696,19 @@ local function buildComplete()
 		StrokeThickness = 3,
 		Parent = wrapper,
 	})
-	refs.donePanel = panel
 	refs.donePanelCard = panelCard
 	local band = Theme.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 120),
+		Size = UDim2.new(1, 0, 0, 116),
 		BackgroundColor3 = C.White,
 		Parent = panel,
 	}, { Theme.corner(28), Theme.gradient("primary", 0) })
 	local title = Theme.label({
 		Position = UDim2.fromOffset(20, 12),
-		Size = UDim2.new(1, -40, 0, 44),
+		Size = UDim2.new(1, -40, 0, 42),
 		Text = "¡Cuadro terminado!",
 		Font = Theme.Fonts.Display,
 		TextColor3 = C.White,
-		MaxTextSize = 38,
+		MaxTextSize = 36,
 		Parent = band,
 	})
 	Theme.textStroke(C.Shadow, 2, 0.7).Parent = title
@@ -543,12 +716,12 @@ local function buildComplete()
 	for i = 1, 3 do
 		local star = Theme.label({
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, (i - 2) * 64, 0, i == 2 and 84 or 90),
-			Size = UDim2.fromOffset(i == 2 and 62 or 52, i == 2 and 62 or 52),
+			Position = UDim2.new(0.5, (i - 2) * 62, 0, i == 2 and 82 or 88),
+			Size = UDim2.fromOffset(i == 2 and 60 or 50, i == 2 and 60 or 50),
 			Text = "★",
 			Font = Theme.Fonts.Heavy,
 			TextColor3 = C.Gold,
-			MaxTextSize = 60,
+			MaxTextSize = 58,
 			Parent = band,
 		})
 		Theme.textStroke(C.GoldDark, 2.5).Parent = star
@@ -556,8 +729,8 @@ local function buildComplete()
 	end
 	local artBox = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 136),
-		Size = UDim2.fromOffset(220, 220),
+		Position = UDim2.new(0.5, 0, 0, 132),
+		Size = UDim2.fromOffset(212, 212),
 		BackgroundColor3 = C.White,
 		Parent = panel,
 	}, { Theme.corner(10), Theme.stroke(C.Gold, 8) })
@@ -567,7 +740,7 @@ local function buildComplete()
 		{ Theme.corner(10) }
 	)
 	refs.doneValue = Theme.label({
-		Position = UDim2.fromOffset(20, 366),
+		Position = UDim2.fromOffset(20, 356),
 		Size = UDim2.new(1, -40, 0, 36),
 		Text = "",
 		Font = Theme.Fonts.Display,
@@ -576,7 +749,7 @@ local function buildComplete()
 		Parent = panel,
 	})
 	refs.doneBreakdown = Theme.label({
-		Position = UDim2.fromOffset(20, 402),
+		Position = UDim2.fromOffset(20, 392),
 		Size = UDim2.new(1, -40, 0, 22),
 		Text = "",
 		Font = Theme.Fonts.Bold,
@@ -585,7 +758,7 @@ local function buildComplete()
 		Parent = panel,
 	})
 	refs.doneInfo = Theme.label({
-		Position = UDim2.fromOffset(20, 426),
+		Position = UDim2.fromOffset(20, 416),
 		Size = UDim2.new(1, -40, 0, 22),
 		Text = "",
 		Font = Theme.Fonts.Medium,
@@ -595,8 +768,8 @@ local function buildComplete()
 	})
 	refs.exhibit = Theme.button({
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 460),
-		Size = UDim2.new(1, -60, 0, 62),
+		Position = UDim2.new(0.5, 0, 0, 450),
+		Size = UDim2.new(1, -60, 0, 58),
 		Text = "",
 		Variant = "mint",
 		Radius = 18,
@@ -607,8 +780,8 @@ local function buildComplete()
 	})
 	refs.sell = Theme.button({
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 534),
-		Size = UDim2.new(1, -60, 0, 54),
+		Position = UDim2.new(0.5, 0, 0, 520),
+		Size = UDim2.new(1, -60, 0, 50),
 		Text = "",
 		Variant = "ghost",
 		Color = C.Gold,
@@ -629,24 +802,22 @@ local function buildUI()
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		Parent = Players.LocalPlayer:WaitForChild("PlayerGui"),
 	})
-	-- Fondo que tapa también la barra superior de Roblox.
+	-- Fondo de estudio que tapa también la barra superior de Roblox.
 	local background = Theme.new("Frame", {
 		Position = UDim2.fromOffset(0, -80),
 		Size = UDim2.new(1, 0, 1, 80),
 		BackgroundColor3 = C.White,
 		Parent = gui,
-	}, { Theme.gradient(Color3.fromRGB(250, 247, 255), Color3.fromRGB(236, 230, 252), 90) })
-	root = Theme.new("Frame", {
+	}, { Theme.gradient(Color3.fromRGB(252, 248, 242), Color3.fromRGB(238, 230, 250), 90) })
+	local root = Theme.new("Frame", {
 		Position = UDim2.fromOffset(0, 80),
 		Size = UDim2.new(1, 0, 1, -80),
 		BackgroundTransparency = 1,
 		Parent = background,
 	})
 	buildTopBar(root)
-	buildTimer(root)
 	buildCanvas(root)
-	buildColumns(root)
-	buildValue(root)
+	buildTray(root)
 	buildComplete()
 end
 
@@ -656,12 +827,12 @@ local function updateScales()
 		return
 	end
 	local viewport = camera.ViewportSize
-	local scale = math.clamp(math.min((viewport.X - 20) / 480, (viewport.Y - 70) / 610), 0.45, 1.1)
+	local scale = math.clamp(math.min((viewport.X - 20) / 460, (viewport.Y - 70) / 590), 0.45, 1.1)
 	local uiScale = refs.doneWrapper:FindFirstChild("ViewportScale")
 		or Theme.new("UIScale", { Name = "ViewportScale", Parent = refs.doneWrapper })
 	uiScale.Scale = scale
 	local hudScale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 720), 0.6, 1)
-	for _, frame in ipairs({ refs.timerCard, refs.valueCard }) do
+	for _, frame in ipairs({ refs.timerCard, refs.tray }) do
 		local s = frame:FindFirstChild("ViewportScale")
 			or Theme.new("UIScale", { Name = "ViewportScale", Parent = frame })
 		s.Scale = hudScale
@@ -686,6 +857,7 @@ local function bindInput()
 			or input.UserInputType == Enum.UserInputType.Touch
 		then
 			stroking = false
+			lastBrush = nil
 			if current then
 				refreshLabels()
 			end
@@ -718,78 +890,28 @@ end
 
 -- API --------------------------------------------------------------------------------------------
 function Painter.open(design, colors)
+	local radius = Config.brushRadius(levels())
 	current = {
 		design = design,
 		colors = colors,
-		progress = {},
-		areaRows = {},
+		radius = radius,
+		samples = buildSamples(design, radius),
+		slots = {},
 		done = false,
 		started = os.clock(),
 	}
-	current.art = DesignArt.render(canvasFrame, design, { mode = "lineart", colors = colors, stroke = 2.5 })
-	for i, shape in ipairs(design.shapes) do
+	stroking = false
+	lastBrush = nil
+	current.art = DesignArt.render(canvasFrame, design, { mode = "paint", colors = colors, stroke = 2 })
+	for i, info in ipairs(current.samples) do
 		-- Las figuras completamente tapadas ya cuentan como pintadas.
-		setShapeProgress(i, shape.visible <= 0 and 1 or 0)
-	end
-	for _, column in ipairs({ refs.left, refs.right }) do
-		for _, child in ipairs(column:GetChildren()) do
-			if child:IsA("GuiObject") then
-				child:Destroy()
-			end
+		if info.total == 0 then
+			info.complete = true
+			current.art.complete(i, false)
 		end
 	end
-	local half = math.ceil(#design.areas / 2)
-	for i, area in ipairs(design.areas) do
-		local column = i <= half and refs.left or refs.right
-		local _, body = Theme.card({
-			Size = UDim2.new(1, 0, 0, 62),
-			Radius = 16,
-			LayoutOrder = i,
-			Parent = column,
-		})
-		local swatch = Theme.new("Frame", {
-			Position = UDim2.fromOffset(10, 11),
-			Size = UDim2.fromOffset(40, 40),
-			Parent = body,
-		}, { Theme.round(), Theme.stroke(C.Border, 2.5) })
-		DesignArt.swatch(swatch, colors[area.id])
-		Theme.label({
-			Position = UDim2.fromOffset(58, 8),
-			Size = UDim2.new(1, -110, 0, 24),
-			Text = area.name,
-			Font = Theme.Fonts.Bold,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			MaxTextSize = 19,
-			Parent = body,
-		})
-		local percent = Theme.label({
-			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -10, 0, 8),
-			Size = UDim2.fromOffset(46, 24),
-			Text = "0%",
-			Font = Theme.Fonts.Heavy,
-			TextColor3 = C.InkSoft,
-			TextXAlignment = Enum.TextXAlignment.Right,
-			MaxTextSize = 17,
-			Parent = body,
-		})
-		local bar = Theme.progress({
-			Position = UDim2.fromOffset(58, 38),
-			Size = UDim2.new(1, -70, 0, 10),
-			Gradient = "mint",
-			Parent = body,
-		})
-		current.areaRows[area.id] = { percent = percent, bar = bar }
-	end
+	fillTray(design, colors)
 	refs.title.Text = design.name
-	local made = app.state and app.state.made[design.id] or 0
-	local base = Config.paintingValue(design, colors, levels(), made, 1)
-	refs.value.Text = string.format(
-		"💵 %s  ·  Colores x%.2f  ·  ⭐⭐⭐ +%d%%",
-		Theme.formatNumber(base),
-		Config.colorMultiplier(design, colors),
-		math.floor(Config.STAR_BONUS[3] * 100)
-	)
 	refs.done.Visible = false
 	setTool(tool == "bucket" and Config.hasBucket(levels()) and "bucket" or "brush")
 	refreshLabels()
@@ -823,11 +945,11 @@ function Painter.requestCancel()
 	end
 	if os.clock() > confirmCancelUntil then
 		confirmCancelUntil = os.clock() + 3
-		refs.exit.SetText("¿Salir? Toca otra vez")
+		refs.exit.SetText("¿Salir?")
 		task.delay(3, function()
 			refs.exit.SetText("✕ Salir")
 		end)
-		app.notify("Si sales pierdes este cuadro (te devolvemos las pinturas).", "info")
+		app.notify("Toca otra vez para salir (te devolvemos las pinturas).", "info")
 		return
 	end
 	confirmCancelUntil = 0

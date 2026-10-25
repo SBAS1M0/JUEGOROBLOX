@@ -1,6 +1,5 @@
 -- Ajustes generales: economía, mejoras, maestría y visitantes.
 
-local Designs = require(script.Parent.Designs)
 local Colors = require(script.Parent.Colors)
 
 local Config = {}
@@ -67,7 +66,7 @@ Config.Upgrades = {
 		id = "pincel",
 		name = "Pincel grande",
 		icon = "🖌️",
-		desc = "Pintas más rápido y con trazo más ancho.",
+		desc = "Trazo más ancho: coloreas mucho más rápido.",
 		max = 8,
 		cost = 90,
 		growth = 1.6,
@@ -145,12 +144,9 @@ function Config.luck(levels)
 	return 1 + 0.1 * (levels.suerte or 0)
 end
 
-function Config.brushSpeed(levels)
-	return 1 + 0.3 * (levels.pincel or 0)
-end
-
+-- Radio del pincel (en fracción del lienzo).
 function Config.brushRadius(levels)
-	return 0.035 + 0.008 * (levels.pincel or 0)
+	return 0.05 + 0.009 * (levels.pincel or 0)
 end
 
 function Config.hasBucket(levels)
@@ -189,11 +185,21 @@ end
 Config.STAR_BONUS = { [1] = 0, [2] = 0.1, [3] = 0.25 }
 
 -- Tiempo "ideal" para pintar un diseño con tus mejoras.
+-- Tiempo de referencia para las estrellas: lo que tarda alguien que pasa el
+-- pincel a buen ritmo por toda la superficie visible del dibujo.
+local SWEEP_SPEED = 0.9
 function Config.parTime(design, levels)
 	if Config.hasBucket(levels) then
 		return 3 + #design.shapes * 0.45
 	end
-	return 3 + Designs.totalTime(design) / Config.brushSpeed(levels)
+	local width = 2 * Config.brushRadius(levels)
+	local total = 2
+	for _, shape in ipairs(design.shapes) do
+		if shape.visible > 0 then
+			total += 0.3 + shape.visible / (width * SWEEP_SPEED)
+		end
+	end
+	return total
 end
 
 function Config.starsFor(design, levels, elapsed)
@@ -216,11 +222,17 @@ function Config.paintingValue(design, colors, levels, made, stars)
 end
 
 -- Tiempo mínimo que el servidor exige para aceptar un cuadro (anti-trampas).
+-- Mínimo humanamente posible (antitrampas): barrer muy rápido y sin repasar.
 function Config.minPaintTime(design, levels)
 	if Config.hasBucket(levels) then
 		return #design.shapes * 0.08
 	end
-	return Designs.totalTime(design) / Config.brushSpeed(levels) * 0.45
+	local width = 2 * Config.brushRadius(levels)
+	local area = 0
+	for _, shape in ipairs(design.shapes) do
+		area += shape.visible
+	end
+	return area * 0.85 / (width * 3.5)
 end
 
 -- Coleccionistas VIP: a veces llega uno que paga el doble.
@@ -280,9 +292,9 @@ end
 
 -- Tutorial ---------------------------------------------------------------------------------
 Config.Tutorial = {
-	{ text = "Tira la máquina de colores 3 veces", target = "machine", goal = 3 },
+	{ text = "Ve a la máquina de colores y tira 3 veces", target = "machine", goal = 3 },
 	{ text = "Ve a la mesa de dibujo y empieza un cuadro", target = "easel", goal = 1 },
-	{ text = "Pasa el pincel por todas las figuras del dibujo", target = nil, goal = 1 },
+	{ text = "Colorea el dibujo pasando el pincel", target = nil, goal = 1 },
 	{ text = "Expón tu cuadro en la galería", target = nil, goal = 1 },
 	{ text = "Espera a que un visitante compre tu cuadro", target = "gallery", goal = 1 },
 }

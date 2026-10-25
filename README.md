@@ -15,15 +15,20 @@ Roblox, por ejemplo tus amigos) a comprarlo.
 
 ## Cómo se juega
 
-Al entrar, un **tutorial de 5 pasos** te guía con flechas y resaltados:
-tirar la máquina, empezar un cuadro, pintarlo, exponerlo y venderlo.
+Apareces **dentro de tu taller**, con la máquina de colores a un lado y el
+caballete al otro. Un **tutorial de 5 pasos** te guía con flechas y resaltados:
+tirar la máquina, empezar un cuadro, colorearlo, exponerlo y venderlo. La
+interfaz es mínima: tus monedas y cuadros en venta arriba y una columna de
+botones a la izquierda (las misiones se despliegan solo cuando las abres).
 
 ![Inicio](docs/inicio.jpg)
 
-1. **Máquina de colores**: pulsa **🎲 TIRAR** (o acércate a la máquina) para
-   conseguir pinturas. Al principio se tira **a mano**; el **Auto-Rolling** es
-   una mejora que se compra en la tienda. Cada color tiene una rareza que
-   **multiplica** el valor del cuadro:
+1. **Máquina de colores**: los colores **solo se tiran en la máquina** del
+   taller. Acércate y pulsa **E** (o toca el aviso en el móvil). Mientras la
+   máquina gira el aviso desaparece y aparece una tarjeta con el color que te
+   tocó. El **Auto-Rolling** es una mejora de la tienda; una vez comprada, se
+   enciende o se pausa con **F** en la propia máquina. Cada color tiene una
+   rareza que **multiplica** el valor del cuadro:
 
    | Rareza | Multiplicador |
    | --- | --- |
@@ -35,16 +40,20 @@ tirar la máquina, empezar un cuadro, pintarlo, exponerlo y venderlo.
    | Legendario (degradado) | x3.5 |
    | Mítico (arcoíris, galaxia) | x6.0 |
 
-2. **Elige un diseño**: hay **20 diseños en 5 niveles** (globo, gatito, koi,
-   castillo, ballena, faro…). Los niveles altos se venden más caros. Para abrir
-   un nivel tienes que pintar todos los diseños del anterior y luego
-   desbloquear cada uno con dinero.
+2. **Elige un diseño** en el caballete: hay **20 diseños en 5 niveles**
+   (globo, gatito, koi, castillo, ballena, faro…). Los niveles altos se venden
+   más caros. Para abrir un nivel tienes que pintar todos los diseños del
+   anterior y luego desbloquear cada uno con dinero.
 3. **Elige tus colores**: cada área del dibujo (cielo, globo, nubes…) toma el
    color que elijas, con el **valor del cuadro en vivo**. El botón
    ✨ *Mejores colores* elige automáticamente los que más rinden.
-4. **Pinta**: el dibujo aparece en líneas y cada figura se rellena mientras
-   pasas el pincel, con el % de cada área. Hay un **cronómetro con estrellas**:
-   cuanto más rápido terminas, más vale el cuadro (⭐⭐ +10%, ⭐⭐⭐ +25%).
+4. **Colorea**: el dibujo aparece como un **boceto a lápiz** con cada zona en
+   un tono pálido de su color. La pintura se queda **justo donde pasas el
+   pincel** y nunca se sale de la figura; cuando cubres casi toda una figura,
+   se completa con su color final. Abajo tienes los botes de pintura de cada
+   área con su progreso. El **cronómetro con estrellas** premia la rapidez
+   (⭐⭐ +10%, ⭐⭐⭐ +25%). Con la mejora 🖌️ *Pincel grande* el trazo es más
+   ancho y con 🪣 *Cubeta mágica* rellenas una figura de un toque.
 5. **Vende**:
    - 🖼️ **Expón** el cuadro en tu galería: un visitante entra caminando, lo
      mira y lo compra por un **25% más**. A veces llega un **coleccionista VIP
@@ -54,8 +63,10 @@ tirar la máquina, empezar un cuadro, pintarlo, exponerlo y venderlo.
 | Elige un diseño | Elige tus colores |
 | --- | --- |
 | ![Diseños](docs/disenos.jpg) | ![Colores](docs/colores.jpg) |
-| **Pintando contra el reloj** | **¡Terminado!** |
-| ![Pintando](docs/pintando.jpg) | ![Terminado](docs/terminado.jpg) |
+| **Boceto listo para colorear** | **Coloreando** |
+| ![Boceto](docs/boceto.jpg) | ![Coloreando](docs/pintando.jpg) |
+
+![Terminado](docs/terminado.jpg)
 
 ### Lo que te engancha
 
@@ -70,7 +81,8 @@ tirar la máquina, empezar un cuadro, pintarlo, exponerlo y venderlo.
   🥇 Oro (20, +20%).
 - **9 mejoras**:
   - Máquina: suerte, velocidad y **Auto-Rolling** (tira sola mientras pintas).
-  - Pintura: pincel grande y cubeta mágica (rellena una figura de un toque).
+  - Pintura: pincel grande (trazo más ancho) y cubeta mágica (rellena una
+    figura de un toque).
   - Galería: precios, fama (más visitantes y más VIP), más paredes (hasta 7
     cuadros en venta) y decoración (plantas, alfombra roja, estatua,
     guirnalda de luces, candelabro y arco de globos).

@@ -30,8 +30,6 @@ end
 local GetState = remote("RemoteFunction", "GetState")
 local StateChanged = remote("RemoteEvent", "StateChanged")
 local Notify = remote("RemoteEvent", "Notify")
-local Roll = remote("RemoteFunction", "Roll")
-local SetAutoRoll = remote("RemoteEvent", "SetAutoRoll")
 local RollResult = remote("RemoteEvent", "RollResult")
 local OpenDesigns = remote("RemoteEvent", "OpenDesigns")
 local UnlockDesign = remote("RemoteFunction", "UnlockDesign")
@@ -54,6 +52,8 @@ pcall(function()
 end)
 
 local tryRoll
+local renderAutoPrompt
+local toggleAutoRoll
 
 -- Estado de la sesión --------------------------------------------------------------------
 local plotOf = {}
@@ -276,6 +276,15 @@ local function renderMachine(plot, colorId)
 	end
 end
 
+renderAutoPrompt = function(plot, data)
+	if not (plot and data) then
+		return
+	end
+	local autoPrompt = plot.workshop.autoPrompt
+	autoPrompt.Enabled = Config.hasAutoRoll(data.upgrades)
+	autoPrompt.ActionText = data.autoRoll and "Pausar Auto-Rolling" or "Activar Auto-Rolling"
+end
+
 local function slotEntry(data, slot)
 	for i, entry in ipairs(data.gallery) do
 		if entry.s == slot then
@@ -359,6 +368,12 @@ local function createPlot(player, data)
 			tryRoll(player)
 		end
 	end)
+	plot.workshop.autoPrompt.Triggered:Connect(function(who)
+		if who == player then
+			toggleAutoRoll(player)
+		end
+	end)
+	renderAutoPrompt(plot, data)
 	return plot
 end
 
@@ -426,26 +441,32 @@ function tryRoll(player)
 	if now < session.nextRoll then
 		return nil
 	end
-	session.nextRoll = now + Config.rollInterval(data.upgrades)
+	local interval = Config.rollInterval(data.upgrades)
+	session.nextRoll = now + interval
+	-- El aviso de la máquina desaparece mientras gira.
+	local plot = plotOf[player]
+	if plot then
+		local machinePrompt = plot.workshop.machinePrompt
+		machinePrompt.Enabled = false
+		task.delay(interval, function()
+			if plotOf[player] == plot then
+				machinePrompt.Enabled = true
+			end
+		end)
+	end
 	return doRoll(player, false)
 end
 
-Roll.OnServerInvoke = function(player)
-	return tryRoll(player)
-end
-
-SetAutoRoll.OnServerEvent:Connect(function(player, enabled)
+toggleAutoRoll = function(player)
 	local data = DataService.get(player)
-	if not (data and type(enabled) == "boolean") then
+	if not (data and Config.hasAutoRoll(data.upgrades)) then
 		return
 	end
-	if enabled and not Config.hasAutoRoll(data.upgrades) then
-		notify(player, "🔒 Desbloquea «Auto-Rolling» en Mejoras", "error")
-		return
-	end
-	data.autoRoll = enabled
+	data.autoRoll = not data.autoRoll
+	renderAutoPrompt(plotOf[player], data)
+	notify(player, data.autoRoll and "🤖 Auto-Rolling activado" or "⏸ Auto-Rolling en pausa", "info")
 	pushState(player)
-end)
+end
 
 -- Diseños y pintura -------------------------------------------------------------------------------
 UnlockDesign.OnServerInvoke = function(player, designId)
@@ -689,6 +710,7 @@ BuyUpgrade.OnServerInvoke = function(player, id)
 	end
 	if id == "auto" then
 		data.autoRoll = true
+		renderAutoPrompt(plotOf[player], data)
 	end
 	pushState(player)
 	return true, upgrade.name .. " subió a nivel " .. (level + 1) .. "!"
