@@ -173,29 +173,41 @@ local function alive(visitor)
 	return visitor.model.Parent ~= nil and visitor.humanoid.Parent ~= nil
 end
 
+-- Camina hasta el punto. Roblox corta MoveTo a los 8 s, así que se repite
+-- mientras siga avanzando; si se atasca, se le acerca al destino.
 local function walkTo(visitor, target)
-	if not alive(visitor) then
-		return false
+	for _ = 1, 4 do
+		if not alive(visitor) then
+			return false
+		end
+		play(visitor, "walk")
+		local finished = false
+		local connection = visitor.humanoid.MoveToFinished:Connect(function()
+			finished = true
+		end)
+		visitor.humanoid:MoveTo(target.Position)
+		local started = os.clock()
+		while not finished and alive(visitor) and os.clock() - started < 9 do
+			task.wait(0.1)
+		end
+		connection:Disconnect()
+		if not alive(visitor) then
+			return false
+		end
+		local offset = visitor.root.Position - target.Position
+		if Vector3.new(offset.X, 0, offset.Z).Magnitude <= 3 then
+			return true
+		end
 	end
-	play(visitor, "walk")
-	local reached = false
-	local connection = visitor.humanoid.MoveToFinished:Connect(function()
-		reached = true
-	end)
-	visitor.humanoid:MoveTo(target.Position)
-	local started = os.clock()
-	while not reached and alive(visitor) and os.clock() - started < 9 do
-		task.wait(0.1)
-	end
-	connection:Disconnect()
-	if not alive(visitor) then
-		return false
-	end
-	-- Si se atascó, lo acercamos al destino para que nunca se quede trabado.
-	local root = visitor.root
-	local offset = root.Position - target.Position
-	if Vector3.new(offset.X, 0, offset.Z).Magnitude > 3 then
-		visitor.model:PivotTo(target * CFrame.new(0, 3, 0))
+	visitor.model:PivotTo(target * CFrame.new(0, 3, 0))
+	return true
+end
+
+local function walkRoute(visitor, points)
+	for _, point in ipairs(points) do
+		if not walkTo(visitor, point) then
+			return false
+		end
 	end
 	return true
 end
@@ -219,18 +231,27 @@ local function runVisitor(state, slot)
 		model:Destroy()
 		return
 	end
-	model.Name = "Visitante"
+	local profile = VisitorService.getProfile(owner)
+	local vip = profile ~= nil and rng:NextNumber() < Config.vipChance(profile.upgrades)
+	model.Name = vip and "Coleccionista" or "Visitante"
 	humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-	humanoid.WalkSpeed = 11
+	humanoid.WalkSpeed = 13
 	model:SetAttribute("VisitorName", name)
+	model:SetAttribute("VIP", vip)
 	model:SetAttribute("Owner", owner.UserId)
 	model:SetAttribute("Reaction", "")
 	setCollisionGroup(model)
-	model:PivotTo(plot.street * CFrame.new(0, 3, 0) * CFrame.Angles(0, math.pi, 0))
+	local start = plot.route[1]
+	model:PivotTo(CFrame.lookAt(start.Position, plot.route[2].Position) * CFrame.new(0, 3, 0))
 	model.Parent = plot.visitorsFolder
 	pcall(function()
 		root:SetNetworkOwner(nil)
 	end)
+	if vip then
+		local sparkles = Instance.new("Sparkles")
+		sparkles.SparkleColor = Color3.fromRGB(255, 210, 80)
+		sparkles.Parent = root
+	end
 
 	local visitor = { model = model, humanoid = humanoid, root = root, tracks = loadTracks(humanoid) }
 	state.visitors[visitor] = true
@@ -243,40 +264,56 @@ local function runVisitor(state, slot)
 		end
 	end
 
-	local stand = plot.standPoints[slot]
-	for _, point in ipairs({ plot.entrance, plot.inside, stand }) do
-		if not walkTo(visitor, point) then
-			finish()
-			return
+	if not walkRoute(visitor, plot.route) then
+		finish()
+		return
+	end
+
+	-- Mira otro cuadro antes de decidirse (si hay más de uno).
+	local others = {}
+	for _, other in ipairs(VisitorService.availableSlots(owner)) do
+		if other ~= slot then
+			table.insert(others, other)
+		end
+	end
+	if #others > 0 and rng:NextNumber() < 0.6 then
+		local browse = plot.standPoints[pick(others)]
+		if walkTo(visitor, browse) then
+			model:PivotTo(browse * CFrame.new(0, 3, 0))
+			play(visitor, "idle")
+			model:SetAttribute("Reaction", "👀")
+			task.wait(rng:NextNumber(1.5, 2.5))
 		end
 	end
 
-	-- Admira el cuadro.
+	-- Se planta frente al cuadro elegido y lo admira.
+	local stand = plot.standPoints[slot]
+	if not walkTo(visitor, stand) then
+		finish()
+		return
+	end
 	model:PivotTo(stand * CFrame.new(0, 3, 0))
 	play(visitor, "idle")
-	model:SetAttribute("Reaction", "🤔")
+	model:SetAttribute("Reaction", vip and "🧐✨" or "🤔")
 	task.wait(rng:NextNumber(2.5, 4))
 	if not alive(visitor) or states[plot.index] ~= state then
 		finish()
 		return
 	end
 
-	local price = VisitorService.onPurchase and VisitorService.onPurchase(owner, slot, name)
+	local price = VisitorService.onPurchase and VisitorService.onPurchase(owner, slot, name, vip)
 	if price then
-		model:SetAttribute("Reaction", pick(Config.BuyerLines) .. "\n💰 " .. price)
+		local line = vip and "¡Una joya para mi colección! 👑" or pick(Config.BuyerLines)
+		model:SetAttribute("Reaction", line .. "\n💰 " .. price)
 		play(visitor, "cheer")
 	else
 		model:SetAttribute("Reaction", "Oh... ya no está 😢")
 		play(visitor, "wave")
 	end
 	state.reserved[slot] = nil
-	task.wait(2.5)
+	task.wait(2.6)
 
-	for _, point in ipairs({ plot.inside, plot.entrance, plot.street }) do
-		if not walkTo(visitor, point) then
-			break
-		end
-	end
+	walkRoute(visitor, plot.exitRoute)
 	finish()
 end
 

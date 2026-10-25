@@ -11,6 +11,8 @@ local DesignPicker = require(UI.DesignPicker)
 local ColorPicker = require(UI.ColorPicker)
 local Painter = require(UI.Painter)
 local Shop = require(UI.Shop)
+local Daily = require(UI.Daily)
+local Tutorial = require(UI.Tutorial)
 local World = require(script.Parent:WaitForChild("World"))
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -33,6 +35,7 @@ for _, name in ipairs({
 	"FinishPainting",
 	"BuyUpgrade",
 	"ClaimDaily",
+	"ClaimQuest",
 	"GoHome",
 }) do
 	app.remotes[name] = remotes:WaitForChild(name)
@@ -55,6 +58,10 @@ end
 
 function app.openCollection()
 	Machine.openCollection()
+end
+
+function app.openDaily()
+	Daily.open()
 end
 
 function app.openDesigns()
@@ -84,38 +91,34 @@ function app.resumePainting()
 	end
 end
 
+-- ¿Hay alguna ventana grande abierta? (oculta el tutorial mientras tanto)
+function app.isBusy()
+	return Painter.isOpen() or DesignPicker.isOpen()
+end
+
 function app.setHudVisible(visible)
 	HUD.setVisible(visible)
 	Machine.setVisible(visible)
 end
 
-local claiming = false
-function app.claimDaily()
-	if claiming then
+local claimingQuest = false
+function app.claimQuest(index)
+	if claimingQuest then
 		return
 	end
-	if not (app.state and app.state.dailyReady) then
-		app.notify(
-			"Tu próximo regalo llega en " .. Theme.formatTime(app.state and app.state.dailyWait or 0) .. " ⏰",
-			"info"
-		)
-		return
-	end
-	claiming = true
-	local ok, success, amount, colorId = pcall(function()
-		return app.remotes.ClaimDaily:InvokeServer()
+	claimingQuest = true
+	local ok, success, result = pcall(function()
+		return app.remotes.ClaimQuest:InvokeServer(index)
 	end)
-	claiming = false
-	if ok and success then
-		Theme.playSound("success", 1.1)
-		local entry = Colors.ById[colorId]
-		app.notify(
-			"🎁 ¡Regalo diario! +💵"
-				.. Theme.formatNumber(amount)
-				.. (entry and (" y «" .. entry.name .. "»") or ""),
-			"gold"
-		)
-		app.celebrate()
+	claimingQuest = false
+	if ok and success and type(result) == "table" then
+		Theme.playSound("success", 1.15)
+		app.notify("📜 ¡Misión completada! +💵" .. Theme.formatNumber(result.reward), "gold")
+		local bonus = Colors.ById[result.bonusColor or ""]
+		if bonus then
+			app.notify("🎉 ¡Bonus del día! Ganaste «" .. bonus.name .. "»", "gold")
+			app.celebrate()
+		end
 	end
 end
 
@@ -129,6 +132,7 @@ local function applyState(state)
 	Shop.refresh()
 	DesignPicker.refresh()
 	ColorPicker.refresh()
+	Daily.refresh()
 end
 
 pcall(function()
@@ -141,14 +145,16 @@ DesignPicker.init(app)
 ColorPicker.init(app)
 Painter.init(app)
 Shop.init(app)
+Daily.init(app)
+Tutorial.init(app)
 World.start()
 
 app.remotes.StateChanged.OnClientEvent:Connect(applyState)
 app.remotes.Notify.OnClientEvent:Connect(function(text, kind)
 	app.notify(text, kind)
 end)
-app.remotes.RollResult.OnClientEvent:Connect(function(colorId)
-	Machine.onRoll(colorId)
+app.remotes.RollResult.OnClientEvent:Connect(function(colorId, auto)
+	Machine.onRoll(colorId, auto)
 end)
 app.remotes.OpenDesigns.OnClientEvent:Connect(function()
 	app.openDesigns()

@@ -46,8 +46,24 @@ local function setupCanvas(canvas)
 		MaxTextSize = 60,
 		Parent = art,
 	})
+	local stars = Theme.label({
+		Name = "Stars",
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -8, 1, -6),
+		Size = UDim2.fromOffset(110, 34),
+		Text = "",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.Gold,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		MaxTextSize = 30,
+		ZIndex = 5,
+		Parent = art,
+	})
+	Theme.textStroke(C.Shadow, 2, 0.3).Parent = stars
 	local function refresh()
 		local design = Designs.get(canvas:GetAttribute("Design") or "")
+		local starCount = canvas:GetAttribute("Stars") or 0
+		stars.Text = design and string.rep("★", starCount) or ""
 		if design then
 			placeholder.Visible = false
 			DesignArt.render(art, design, {
@@ -67,6 +83,7 @@ local function setupCanvas(canvas)
 	canvas:GetAttributeChangedSignal("Design"):Connect(refresh)
 	canvas:GetAttributeChangedSignal("Colors"):Connect(refresh)
 	canvas:GetAttributeChangedSignal("Locked"):Connect(refresh)
+	canvas:GetAttributeChangedSignal("Stars"):Connect(refresh)
 	refresh()
 end
 
@@ -92,7 +109,7 @@ local function setupVisitor(model)
 		BackgroundColor3 = C.Panel,
 		Visible = false,
 		Parent = billboard,
-	}, { Theme.corner(18), Theme.stroke(C.Pink, 2.5) })
+	}, { Theme.corner(18), Theme.stroke(model:GetAttribute("VIP") and C.Gold or C.Pink, 2.5) })
 	local reaction = Theme.label({
 		Size = UDim2.new(1, -16, 1, -8),
 		Position = UDim2.fromOffset(8, 4),
@@ -104,8 +121,9 @@ local function setupVisitor(model)
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, 0),
 		Size = UDim2.fromOffset(220, 26),
-		Text = tostring(model:GetAttribute("VisitorName") or ""),
-		TextColor3 = Color3.new(1, 1, 1),
+		Text = (model:GetAttribute("VIP") and "👑 " or "") .. tostring(model:GetAttribute("VisitorName") or ""),
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = model:GetAttribute("VIP") and C.Gold or Color3.new(1, 1, 1),
 		MaxTextSize = 22,
 		Parent = billboard,
 	})

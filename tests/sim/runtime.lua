@@ -38,6 +38,7 @@ for _, cls in ipairs({
 	"GuiService",
 	"TextService",
 	"PhysicsService",
+	"ReplicatedFirst",
 }) do
 	addService(cls)
 end
@@ -47,6 +48,62 @@ camera.Parent = workspace
 workspace.allowWrite = true
 workspace.CurrentCamera = camera
 workspace.allowWrite = nil
+
+-- Terrain: records fills so the world renderer can draw them.
+local terrain = new("Terrain", true)
+terrain.props.Name = "Terrain"
+terrain.Parent = workspace
+workspace.allowWrite = true
+workspace.Terrain = terrain
+workspace.allowWrite = nil
+M.terrain = terrain
+M.terrainFills = {}
+local function checkMaterial(material)
+	if G.typeof(material) ~= "EnumItem" or material.EnumType ~= "Material" then
+		error("Terrain fill expects Enum.Material", 3)
+	end
+end
+M.method("Terrain", "FillBlock", function(self, cframe, size, material)
+	if G.typeof(cframe) ~= "CFrame" or G.typeof(size) ~= "Vector3" then
+		error("FillBlock(CFrame, Vector3, Material)", 2)
+	end
+	checkMaterial(material)
+	table.insert(M.terrainFills, { kind = "block", cframe = cframe, size = size, material = material.Name })
+end)
+M.method("Terrain", "FillBall", function(self, center, radius, material)
+	if G.typeof(center) ~= "Vector3" or type(radius) ~= "number" then
+		error("FillBall(Vector3, number, Material)", 2)
+	end
+	checkMaterial(material)
+	table.insert(M.terrainFills, { kind = "ball", center = center, radius = radius, material = material.Name })
+end)
+M.method("Terrain", "FillCylinder", function(self, cframe, height, radius, material)
+	if G.typeof(cframe) ~= "CFrame" or type(height) ~= "number" or type(radius) ~= "number" then
+		error("FillCylinder(CFrame, number, number, Material)", 2)
+	end
+	checkMaterial(material)
+	table.insert(
+		M.terrainFills,
+		{ kind = "cylinder", cframe = cframe, height = height, radius = radius, material = material.Name }
+	)
+end)
+M.method("ReplicatedFirst", "RemoveDefaultLoadingScreen", function() end)
+M.method("DataModel", "IsLoaded", function()
+	return true
+end)
+M.persistentPlayers = {}
+M.method("Model", "AddPersistentPlayer", function(self, player)
+	if G.typeof(player) ~= "Instance" or player.ClassName ~= "Player" then
+		error("AddPersistentPlayer expects Player", 2)
+	end
+	M.persistentPlayers[self] = player
+end)
+M.method("Player", "RequestStreamAroundAsync", function(self, position, timeout)
+	if G.typeof(position) ~= "Vector3" then
+		error("RequestStreamAroundAsync expects Vector3", 2)
+	end
+	task.wait(0.05)
+end)
 
 M.method("DataModel", "GetService", function(self, name)
 	local s = services[name]
@@ -406,6 +463,9 @@ mathx.clamp = function(x, a, b)
 end
 mathx.sign = function(x)
 	return x > 0 and 1 or (x < 0 and -1 or 0)
+end
+mathx.atan2 = function(y, x)
+	return math.atan(y, x)
 end
 mathx.round = function(x)
 	return math.floor(x + 0.5)

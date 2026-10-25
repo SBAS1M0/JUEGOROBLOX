@@ -20,6 +20,7 @@ local sps = R.newInstance("StarterPlayerScripts", true)
 sps.props.Name = "StarterPlayerScripts"
 sps.Parent = S.StarterPlayer
 local client = R.mount(sps, "Client", FILES.client)
+local first = R.mount(S.ReplicatedFirst, "First", FILES.first)
 
 -- helpers
 local function findAll(root, pred)
@@ -57,8 +58,9 @@ print("== Server start")
 R.runScript(server.Main)
 R.run(0.5)
 check(#R.errors == 0, "server boots without errors")
+check(R.workspace:FindFirstChild("Llegada") ~= nil, "spawn platform built")
 local plots = R.workspace:FindFirstChild("Plots")
-check(plots and #plots:GetChildren() == 6, "6 plots built")
+check(plots == nil or #plots:GetChildren() == 0, "no lots before anyone joins")
 check(S.ReplicatedStorage:FindFirstChild("Remotes") ~= nil, "remotes created")
 
 print("== Player joins")
@@ -69,19 +71,37 @@ S.Players.LocalPlayer = player
 S.Players.allowWrite = nil
 player.Parent = S.Players
 S.Players.PlayerAdded:Fire(player)
-R.makeCharacter(player)
+local character = R.makeCharacter(player)
+R.runScript(first.Loading)
 R.run(1)
 check(#R.errors == 0, "player join without errors")
-check(plots.Plot1:GetAttribute("OwnerUserId") == 101, "plot assigned")
+plots = R.workspace:FindFirstChild("Plots")
+check(plots and #plots:GetChildren() == 1, "exactly one lot: the player's own")
+check(plots.Lot1:GetAttribute("OwnerUserId") == 101, "lot assigned to player")
+check(R.persistentPlayers[plots.Lot1] == player, "lot streams persistently to its owner")
+local distance = (character.HumanoidRootPart.Position - plots.Lot1:GetPivot().Position).Magnitude
+check(distance < 80, "character teleported to own lot (" .. math.floor(distance) .. " studs)")
+check(player.PlayerGui:FindFirstChild("Loading") ~= nil, "loading screen visible while joining")
 
 print("== Client start")
 R.runScript(client.Main)
-R.run(3)
+R.run(4)
 check(#R.errors == 0, "client boots")
 local pg = player.PlayerGui
-for _, n in ipairs({ "HUD", "MachineHud", "DesignPicker", "ColorPicker", "Painter", "Shop", "Collection", "Notifications" }) do
+for _, n in ipairs({
+	"HUD",
+	"MachineHud",
+	"DesignPicker",
+	"ColorPicker",
+	"Painter",
+	"Shop",
+	"Collection",
+	"Daily",
+	"Notifications",
+}) do
 	check(pg:FindFirstChild(n) ~= nil, "gui " .. n .. " exists")
 end
+check(pg:FindFirstChild("Loading") == nil, "loading screen removed once ready")
 
 local Designs = R.require(S.ReplicatedStorage.Shared.Designs)
 local Colors = R.require(S.ReplicatedStorage.Shared.Colors)
@@ -94,7 +114,12 @@ return {
 	Config = Config,
 	DataService = DataService,
 	R = R,
+	S = S,
+	server = server,
+	client = client,
+	makeCharacter = R.makeCharacter,
 	player = player,
+	character = character,
 	plots = plots,
 	fireClick = fireClick,
 	buttonWithText = buttonWithText,

@@ -133,6 +133,14 @@ function DesignArt.render(container, design, opts)
 		end
 	end
 
+	-- Dirección del relleno (en grados): el color "entra" desde donde pasó el pincel.
+	function handle.setFillDirection(i, rotation)
+		local entry = handle.shapes[i]
+		if entry and entry.fill and entry.progress <= 0 then
+			entry.gradient.Rotation = rotation
+		end
+	end
+
 	function handle.setColors(newColors)
 		colors = newColors
 		for _, entry in ipairs(handle.shapes) do

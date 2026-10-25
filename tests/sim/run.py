@@ -14,7 +14,7 @@ lua=lua54.LuaRuntime(unpack_returned_tuples=True)
 g=lua.globals()
 g.SIM_DIR=SIM
 tbl=lua.eval('{}')
-for k in ('shared','server','client'):
+for k in ('shared','server','client','first'):
     t=lua.eval('{}')
     for i,(rel,ab) in enumerate(files(k)):
         t[i+1]=lua.table(rel,ab)

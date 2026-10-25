@@ -9,8 +9,8 @@ Studio.
 pip install lupa msgpack
 cargo install rojo          # descarga la base de datos de la API de Roblox
 python3 tests/sim/gen_db.py # genera rbxdb.lua y defaults.lua
-python3 tests/sim/run.py scenario.lua   # partida completa: pedidos, mejoras, guardado...
-python3 tests/sim/run.py multi.lua      # 7 jugadores y DataStore no disponible
+python3 tests/sim/run.py scenario.lua   # partida completa: tutorial, pintar, vender, misiones...
+python3 tests/sim/run.py multi.lua      # 13 jugadores (cada uno su terreno) sin DataStore
 python3 tests/sim/run.py studio.lua     # Studio sin acceso a las APIs
 ```
 

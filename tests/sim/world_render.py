@@ -1,9 +1,22 @@
 import json, sys
-parts = json.load(open('out_world.json'))
 views = json.loads(sys.argv[1])
+src = sys.argv[3] if len(sys.argv) > 3 else 'out_world.json'
+parts = json.load(open(src))
+try:
+    terrain = json.load(open(src.replace('.json', '_terrain.json')))
+except FileNotFoundError:
+    terrain = []
+# Desplaza todo para que el terreno del jugador quede en el origen.
+off = json.loads(sys.argv[4]) if len(sys.argv) > 4 else [0, 0, 0]
+for p in parts:
+    p['cf'][0] -= off[0]; p['cf'][1] -= off[1]; p['cf'][2] -= off[2]
+for t in terrain:
+    t['p'][0] -= off[0]; t['p'][1] -= off[1]; t['p'][2] -= off[2]
+parts = [p for p in parts if abs(p['cf'][0]) < 600 and abs(p['cf'][2]) < 600 and p['cf'][1] < 150]
+terrain = [t for t in terrain if abs(t['p'][0]) < 600 and abs(t['p'][2]) < 600]
 html = """<html><body style="margin:0;background:#000"><canvas id=c width=1280 height=720></canvas>
 <script src="node_modules/three/build/three.min.js"></script><script>
-const parts = %s; const view = %s;
+const parts = %s; const view = %s; const terrain = %s;
 const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true});
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
@@ -34,8 +47,19 @@ for (const p of parts) {
   mesh.matrixAutoUpdate = false; mesh.matrix.copy(m);
   mesh.castShadow = p.t < .5; mesh.receiveShadow = true; scene.add(mesh);
 }
+const TCOL = {Grass: 0x7cbf5a, Water: 0x58b4d8, Rock: 0x9a948c, Sand: 0xe8d4a0, Mud: 0x8a6a4a, Ground: 0x9a7a5a, LeafyGrass: 0x6aae4a};
+for (const t of terrain) {
+  if (t.m === 'Air') continue;
+  const water = t.m === 'Water';
+  const mat = new THREE.MeshStandardMaterial({color: TCOL[t.m] || 0x88aa66, roughness: water ? .15 : .95, metalness: 0, transparent: water, opacity: water ? .85 : 1});
+  let mesh;
+  if (t.k === 'block') { mesh = new THREE.Mesh(box, mat); mesh.scale.set(...t.s); mesh.position.set(...t.p); }
+  else if (t.k === 'ball') { mesh = new THREE.Mesh(sph, mat); mesh.scale.setScalar(t.r * 2); mesh.position.set(...t.p); }
+  else { mesh = new THREE.Mesh(cyl, mat); mesh.scale.set(t.r * 2, water ? 0.1 : t.h, t.r * 2); mesh.position.set(t.p[0], water ? 0.06 : t.p[1], t.p[2]); }
+  mesh.receiveShadow = true; scene.add(mesh);
+}
 const cam = new THREE.PerspectiveCamera(view.fov || 60, 1280/720, .5, 2000);
 cam.position.set(...view.pos); cam.lookAt(new THREE.Vector3(...view.at));
 renderer.render(scene, cam); window.done = true;
-</script></body></html>""" % (json.dumps(parts), json.dumps(views))
+</script></body></html>""" % (json.dumps(parts), json.dumps(views), json.dumps(terrain))
 open(sys.argv[2], 'w').write(html)

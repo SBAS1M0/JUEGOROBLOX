@@ -37,8 +37,14 @@ local function defaultData()
 		made = {}, -- diseñoId -> veces pintado
 		upgrades = {},
 		gallery = {}, -- { s = hueco, d = diseño, c = colores, v = valor }
-		autoRoll = true,
+		autoRoll = false,
 		lastRoll = "",
+		rolls = 0,
+		quests = {},
+		questDay = 0,
+		questBonus = false,
+		tutorial = 1,
+		tutorialProgress = 0,
 		sold = 0,
 		earned = 0,
 		lastDaily = 0,

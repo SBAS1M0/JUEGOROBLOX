@@ -2,8 +2,14 @@ import json, sys, html
 W, H = int(sys.argv[2]), int(sys.argv[3])
 INSET = 58
 def rgb(c, a=1.0): return f"rgba({c[0]},{c[1]},{c[2]},{a:.3f})"
-FONTS = {"FredokaOne": "'Fredoka','DejaVu Sans',sans-serif;font-weight:800", "GothamBold": "'DejaVu Sans',sans-serif;font-weight:700",
-         "GothamMedium": "'DejaVu Sans',sans-serif;font-weight:500"}
+FONTS = {"FredokaOne": "'FredokaOne','Noto Color Emoji',sans-serif;font-weight:400",
+         "BuilderSansExtraBold": "'Inter','Noto Color Emoji',sans-serif;font-weight:800",
+         "BuilderSansBold": "'Inter','Noto Color Emoji',sans-serif;font-weight:700",
+         "BuilderSansMedium": "'Inter','Noto Color Emoji',sans-serif;font-weight:500",
+         "BuilderSans": "'Inter','Noto Color Emoji',sans-serif;font-weight:400",
+         "GothamBold": "'Inter',sans-serif;font-weight:700", "GothamMedium": "'Inter',sans-serif;font-weight:500"}
+import os
+FREDOKA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "node_modules/@fontsource/fredoka-one/files/fredoka-one-latin-400-normal.woff2")
 out = []
 def kids(n): return n.get("k", [])
 def child_of(n, cls): 
@@ -47,7 +53,7 @@ def draw(n, x, y, w, h, clip, scale=1, origin=(0,0)):
     inner = ""
     text = n.get("Text")
     if n["c"] in ("TextLabel","TextButton") and text:
-        tc = n.get("TextColor3",[0,0,0]); font = FONTS.get(n.get("Font",""), "'DejaVu Sans',sans-serif")
+        tc = n.get("TextColor3",[0,0,0]); font = FONTS.get(n.get("Font",""), "'Inter','Noto Color Emoji',sans-serif")
         pad = child_of(n, "UIPadding")
         pt=pb=pl=pr=0
         if pad:
@@ -122,7 +128,8 @@ for path in sys.argv[1].split(","):
     layout(root, W, H-top)
     out.append("</div>")
 bgimg = sys.argv[4] if len(sys.argv) > 4 else ""
-page = f"""<html><head><style>body{{margin:0;width:{W}px;height:{H}px;position:relative;overflow:hidden;
+page = f"""<html><head><style>@font-face{{font-family:'FredokaOne';src:url('file://{FREDOKA}')}}
+body{{margin:0;width:{W}px;height:{H}px;position:relative;overflow:hidden;
 background:{'url('+bgimg+') center/cover' if bgimg else 'linear-gradient(#9fd7ff,#b8e6a8)'};font-family:'DejaVu Sans','Noto Color Emoji'}}
 div{{box-sizing:border-box}}</style></head><body>
 <div style="position:absolute;left:0;top:0;width:{W}px;height:{INSET}px;background:rgba(0,0,0,.25)"></div>

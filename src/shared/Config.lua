@@ -5,7 +5,7 @@ local Colors = require(script.Parent.Colors)
 
 local Config = {}
 
-Config.MAX_PLOTS = 6
+Config.MAX_PLOTS = 12
 Config.GALLERY_SIZE = 7
 Config.START_COINS = 25
 Config.AUTOSAVE_SECONDS = 90
@@ -53,6 +53,15 @@ Config.Upgrades = {
 		max = 10,
 		cost = 60,
 		growth = 1.5,
+	},
+	{
+		id = "auto",
+		name = "Auto-Rolling",
+		icon = "🤖",
+		desc = "La máquina tira colores sola mientras pintas.",
+		max = 1,
+		cost = 1200,
+		growth = 1,
 	},
 	{
 		id = "pincel",
@@ -120,7 +129,16 @@ function Config.upgradeCost(id, currentLevel)
 end
 
 function Config.rollInterval(levels)
-	return math.max(0.8, 4 * 0.86 ^ (levels.velocidad or 0))
+	return math.max(0.6, 2.5 * 0.86 ^ (levels.velocidad or 0))
+end
+
+-- Las tiradas automáticas van algo más lentas que las manuales.
+function Config.autoRollInterval(levels)
+	return Config.rollInterval(levels) * 1.6
+end
+
+function Config.hasAutoRoll(levels)
+	return (levels.auto or 0) >= 1
 end
 
 function Config.luck(levels)
@@ -167,10 +185,34 @@ function Config.colorMultiplier(design, colors)
 	return total > 0 and weighted / total or 1
 end
 
-function Config.paintingValue(design, colors, levels, made)
+-- Estrellas por rapidez ---------------------------------------------------------------------
+Config.STAR_BONUS = { [1] = 0, [2] = 0.1, [3] = 0.25 }
+
+-- Tiempo "ideal" para pintar un diseño con tus mejoras.
+function Config.parTime(design, levels)
+	if Config.hasBucket(levels) then
+		return 3 + #design.shapes * 0.45
+	end
+	return 3 + Designs.totalTime(design) / Config.brushSpeed(levels)
+end
+
+function Config.starsFor(design, levels, elapsed)
+	local par = Config.parTime(design, levels)
+	if elapsed <= par * 1.5 then
+		return 3
+	elseif elapsed <= par * 2.5 then
+		return 2
+	end
+	return 1
+end
+
+function Config.paintingValue(design, colors, levels, made, stars)
 	local tier = Config.masteryFor(made)
 	local mastery = 1 + (tier and tier.bonus or 0)
-	return math.floor(design.value * Config.colorMultiplier(design, colors) * mastery * Config.payMultiplier(levels))
+	local starBonus = 1 + (Config.STAR_BONUS[stars or 1] or 0)
+	return math.floor(
+		design.value * Config.colorMultiplier(design, colors) * mastery * Config.payMultiplier(levels) * starBonus
+	)
 end
 
 -- Tiempo mínimo que el servidor exige para aceptar un cuadro (anti-trampas).
@@ -180,6 +222,71 @@ function Config.minPaintTime(design, levels)
 	end
 	return Designs.totalTime(design) / Config.brushSpeed(levels) * 0.45
 end
+
+-- Coleccionistas VIP: a veces llega uno que paga el doble.
+Config.VIP_MULTIPLIER = 2
+function Config.vipChance(levels)
+	return 0.06 + 0.02 * (levels.fama or 0)
+end
+
+-- Misiones diarias -------------------------------------------------------------------------
+Config.QuestTypes = {
+	{ id = "pintar", text = "Pinta %d cuadros", one = "Pinta 1 cuadro", icon = "🎨", goals = { 2, 3, 5 } },
+	{
+		id = "vender",
+		text = "Vende %d cuadros a visitantes",
+		one = "Vende 1 cuadro a un visitante",
+		icon = "🖼️",
+		goals = { 1, 2, 4 },
+	},
+	{ id = "tirar", text = "Tira %d colores en la máquina", icon = "🎲", goals = { 15, 30, 50 } },
+	{
+		id = "raro",
+		text = "Consigue %d colores Raros o mejores",
+		one = "Consigue 1 color Raro o mejor",
+		icon = "💎",
+		goals = { 1, 3, 5 },
+	},
+	{
+		id = "estrellas",
+		text = "Termina %d cuadros con 3 estrellas",
+		one = "Termina 1 cuadro con 3 estrellas",
+		icon = "⭐",
+		goals = { 1, 2, 3 },
+	},
+	{ id = "ganar", text = "Gana %d monedas", icon = "💵", goals = { 150, 400, 900 }, scale = true },
+}
+Config.QuestById = {}
+for _, quest in ipairs(Config.QuestTypes) do
+	Config.QuestById[quest.id] = quest
+end
+Config.QUESTS_PER_DAY = 3
+
+-- Las metas de monedas y las recompensas crecen con tu nivel de diseños.
+function Config.questScale(openLevel)
+	return 1.8 ^ ((openLevel or 1) - 1)
+end
+
+function Config.questText(quest)
+	local def = Config.QuestById[quest.id]
+	if not def then
+		return "?"
+	end
+	if quest.goal == 1 and def.one then
+		return def.one
+	end
+	return string.format(def.text, quest.goal)
+end
+
+-- Tutorial ---------------------------------------------------------------------------------
+Config.Tutorial = {
+	{ text = "Tira la máquina de colores 3 veces", target = "machine", goal = 3 },
+	{ text = "Ve a la mesa de dibujo y empieza un cuadro", target = "easel", goal = 1 },
+	{ text = "Pasa el pincel por todas las figuras del dibujo", target = nil, goal = 1 },
+	{ text = "Expón tu cuadro en la galería", target = nil, goal = 1 },
+	{ text = "Espera a que un visitante compre tu cuadro", target = "gallery", goal = 1 },
+}
+Config.TUTORIAL_REWARD = 150
 
 -- Visitantes -----------------------------------------------------------------------------
 -- Si no se pueden cargar avatares de amigos se usan estos usuarios conocidos.

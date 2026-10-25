@@ -1149,6 +1149,9 @@ method("Model", "GetPivot", function(self)
 	if primary then
 		return primary.CFrame
 	end
+	if self.props.WorldPivot then
+		return self.props.WorldPivot
+	end
 	local parts = modelParts(self)
 	return parts[1] and parts[1].CFrame or cf(v3())
 end)
@@ -1160,6 +1163,9 @@ method("Model", "PivotTo", function(self, target)
 	local inv = pivot:Inverse()
 	for _, part in ipairs(modelParts(self)) do
 		part.CFrame = target * (inv * part.CFrame)
+	end
+	if self.props.WorldPivot and not self.props.PrimaryPart then
+		self.props.WorldPivot = target
 	end
 end)
 method("BasePart", "PivotTo", function(self, target)
