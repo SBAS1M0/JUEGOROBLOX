@@ -1,0 +1,6414 @@
+<roblox version="4">
+  <Item class="Lighting" referent="0">
+    <Properties>
+      <string name="Name">Lighting</string>
+      <token name="Technology">4</token>
+    </Properties>
+  </Item>
+  <Item class="ReplicatedStorage" referent="1">
+    <Properties>
+      <string name="Name">ReplicatedStorage</string>
+    </Properties>
+    <Item class="Folder" referent="2">
+      <Properties>
+        <string name="Name">Shared</string>
+      </Properties>
+      <Item class="ModuleScript" referent="3">
+        <Properties>
+          <string name="Name">Config</string>
+          <string name="Source"><![CDATA[-- Ajustes generales del juego: economía, mejoras, clientes y modos de pedido.
+
+local Config = {}
+
+Config.GRID = 16
+Config.CELLS = Config.GRID * Config.GRID
+Config.MAX_PLOTS = 6
+Config.GALLERY_SIZE = 7
+
+Config.START_COINS = 50
+Config.AUTOSAVE_SECONDS = 90
+Config.DAILY_COOLDOWN = 20 * 60 * 60
+
+-- Paciencia: mientras pintas el pedido el cliente espera mucho más tranquilo.
+Config.PAINTING_PATIENCE_RATE = 0.3
+Config.BASE_SPAWN_INTERVAL = 13
+Config.MIN_SPAWN_INTERVAL = 4
+Config.BASE_QUEUE = 3
+Config.MAX_QUEUE = 5
+
+Config.VIP_MULTIPLIER = 2.5
+Config.STREAK_BONUS = 0.05
+Config.MAX_STREAK_BONUS = 0.5
+
+-- Calidad mínima para cada estrella (0 a 1).
+Config.STAR_THRESHOLDS = { 0.5, 0.8, 0.97 }
+Config.STAR_PAY = { [0] = 0.25, [1] = 0.6, [2] = 0.85, [3] = 1.15 }
+
+function Config.xpToNext(level)
+	return math.floor(40 * level ^ 1.3)
+end
+
+-- Modos de pedido -------------------------------------------------------------
+Config.Modes = {
+	original = {
+		name = "Original",
+		icon = "🖼️",
+		color = Color3.fromRGB(124, 92, 255),
+		pay = 1,
+		level = 1,
+		weight = 5,
+	},
+	remix = {
+		name = "Remix",
+		icon = "🔀",
+		color = Color3.fromRGB(255, 105, 180),
+		pay = 1.25,
+		level = 2,
+		weight = 3,
+	},
+	tema = {
+		name = "Temática",
+		icon = "🎨",
+		color = Color3.fromRGB(255, 160, 40),
+		pay = 1.2,
+		level = 3,
+		weight = 3,
+	},
+	libre = {
+		name = "Libre",
+		icon = "✨",
+		color = Color3.fromRGB(40, 190, 140),
+		pay = 0.95,
+		level = 1,
+		weight = 2,
+	},
+}
+Config.ModeOrder = { "original", "remix", "tema", "libre" }
+
+Config.Themes = {
+	{ id = "calidos", name = "colores cálidos", keys = "roytulmw" },
+	{ id = "frios", name = "colores fríos", keys = "cbnpvdgsw" },
+	{ id = "pastel", name = "tonos pastel", keys = "lstwcvy" },
+	{ id = "noche", name = "una noche mágica", keys = "nbpsyaw" },
+	{ id = "bosque", name = "tonos de bosque", keys = "gdvuyto" },
+}
+Config.ThemeById = {}
+for _, theme in ipairs(Config.Themes) do
+	Config.ThemeById[theme.id] = theme
+end
+
+-- Mejoras ---------------------------------------------------------------------
+Config.Upgrades = {
+	{
+		id = "precio",
+		name = "Precios de Artista",
+		icon = "💰",
+		desc = "Cada obra se vende más cara.",
+		max = 15,
+		cost = 60,
+		growth = 1.42,
+	},
+	{
+		id = "paciencia",
+		name = "Sillones Cómodos",
+		icon = "🛋️",
+		desc = "Los clientes esperan más tiempo.",
+		max = 10,
+		cost = 80,
+		growth = 1.5,
+	},
+	{
+		id = "fama",
+		name = "Fama de la Galería",
+		icon = "⭐",
+		desc = "Llegan clientes más rápido y caben más en la fila.",
+		max = 10,
+		cost = 120,
+		growth = 1.55,
+	},
+	{
+		id = "propinas",
+		name = "Servicio Veloz",
+		icon = "⚡",
+		desc = "Propinas más grandes si entregas rápido.",
+		max = 10,
+		cost = 100,
+		growth = 1.5,
+	},
+	{
+		id = "vip",
+		name = "Alfombra Roja",
+		icon = "👑",
+		desc = "Más clientes VIP que pagan x2.5.",
+		max = 10,
+		cost = 220,
+		growth = 1.6,
+	},
+	{
+		id = "pincel",
+		name = "Pinceles Gruesos",
+		icon = "🖌️",
+		desc = "Desbloquea pinceles de 2x2 y 3x3.",
+		max = 2,
+		cost = 300,
+		growth = 3,
+	},
+	{
+		id = "decoracion",
+		name = "Decoración",
+		icon = "🪴",
+		desc = "Embellece tu galería: +6% de pago por nivel.",
+		max = 6,
+		cost = 180,
+		growth = 1.9,
+	},
+}
+Config.UpgradeById = {}
+for _, upgrade in ipairs(Config.Upgrades) do
+	Config.UpgradeById[upgrade.id] = upgrade
+end
+
+function Config.upgradeCost(id, currentLevel)
+	local upgrade = Config.UpgradeById[id]
+	return math.floor(upgrade.cost * upgrade.growth ^ currentLevel)
+end
+
+-- Efectos de las mejoras (usados por servidor y cliente).
+function Config.payMultiplier(levels)
+	return (1 + 0.12 * (levels.precio or 0)) * (1 + 0.06 * (levels.decoracion or 0))
+end
+
+function Config.patienceMultiplier(levels)
+	return 1 + 0.12 * (levels.paciencia or 0)
+end
+
+function Config.spawnInterval(levels)
+	return math.max(Config.MIN_SPAWN_INTERVAL, Config.BASE_SPAWN_INTERVAL * 0.9 ^ (levels.fama or 0))
+end
+
+function Config.maxQueue(levels)
+	return math.min(Config.MAX_QUEUE, Config.BASE_QUEUE + math.floor((levels.fama or 0) / 4))
+end
+
+function Config.tipMultiplier(levels)
+	return 0.25 + 0.15 * (levels.propinas or 0)
+end
+
+function Config.vipChance(levels)
+	return 0.04 + 0.03 * (levels.vip or 0)
+end
+
+function Config.brushSizes(levels)
+	local sizes = { 1 }
+	for i = 1, levels.pincel or 0 do
+		table.insert(sizes, i + 1)
+	end
+	return sizes
+end
+
+-- Clientes ----------------------------------------------------------------------
+Config.CustomerNames = {
+	"Lucía",
+	"Mateo",
+	"Sofía",
+	"Diego",
+	"Valentina",
+	"Leo",
+	"Camila",
+	"Hugo",
+	"Martina",
+	"Bruno",
+	"Isabella",
+	"Thiago",
+	"Emma",
+	"Gael",
+	"Olivia",
+	"Nico",
+	"Abril",
+	"Tomás",
+	"Zoe",
+	"Iker",
+	"Renata",
+	"Dante",
+	"Mía",
+	"Lautaro",
+}
+
+Config.CustomerColors = {
+	Color3.fromRGB(255, 170, 170),
+	Color3.fromRGB(255, 205, 140),
+	Color3.fromRGB(255, 236, 140),
+	Color3.fromRGB(170, 230, 160),
+	Color3.fromRGB(150, 210, 255),
+	Color3.fromRGB(200, 170, 255),
+	Color3.fromRGB(255, 170, 220),
+	Color3.fromRGB(160, 235, 220),
+}
+
+Config.HappyLines = {
+	"¡Es una obra maestra! 😍",
+	"¡Me encanta! ❤️",
+	"¡Wow, qué talento! ✨",
+	"¡Perfecto, volveré pronto! 😄",
+	"¡La colgaré en mi sala! 🖼️",
+}
+Config.OkLines = { "Está bonito 🙂", "No está mal 👍", "Gracias, me sirve 😊" }
+Config.SadLines = { "Mmm... no es lo que pedí 😕", "Esperaba algo mejor 😐" }
+Config.AngryLines = { "¡Me cansé de esperar! 😤", "¡Qué lento! 😠", "Me voy a otra galería 🙄" }
+
+return Config
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="4">
+        <Properties>
+          <string name="Name">Palette</string>
+          <string name="Source"><![CDATA[-- Paleta de colores del estudio. El orden define el número que se ve en el lienzo.
+
+local Palette = {}
+
+Palette.OUTLINE = "k"
+Palette.EMPTY = "."
+Palette.OutlineColor = Color3.fromRGB(45, 34, 58)
+Palette.EmptyColor = Color3.fromRGB(252, 248, 240)
+
+Palette.List = {
+	{ key = "w", name = "Blanco", color = Color3.fromRGB(255, 255, 255) },
+	{ key = "s", name = "Lavanda", color = Color3.fromRGB(214, 204, 245) },
+	{ key = "a", name = "Gris", color = Color3.fromRGB(150, 156, 175) },
+	{ key = "r", name = "Rojo", color = Color3.fromRGB(236, 72, 80) },
+	{ key = "o", name = "Naranja", color = Color3.fromRGB(255, 152, 56) },
+	{ key = "y", name = "Amarillo", color = Color3.fromRGB(255, 216, 72) },
+	{ key = "t", name = "Durazno", color = Color3.fromRGB(247, 204, 164) },
+	{ key = "u", name = "Café", color = Color3.fromRGB(150, 96, 60) },
+	{ key = "l", name = "Rosa pastel", color = Color3.fromRGB(255, 204, 220) },
+	{ key = "m", name = "Rosa", color = Color3.fromRGB(255, 120, 184) },
+	{ key = "p", name = "Morado", color = Color3.fromRGB(156, 96, 224) },
+	{ key = "n", name = "Azul noche", color = Color3.fromRGB(44, 52, 120) },
+	{ key = "b", name = "Azul", color = Color3.fromRGB(64, 124, 236) },
+	{ key = "c", name = "Celeste", color = Color3.fromRGB(130, 210, 250) },
+	{ key = "v", name = "Menta", color = Color3.fromRGB(170, 238, 206) },
+	{ key = "g", name = "Verde", color = Color3.fromRGB(104, 204, 96) },
+	{ key = "d", name = "Verde bosque", color = Color3.fromRGB(40, 140, 84) },
+}
+
+Palette.ByKey = {}
+for index, entry in ipairs(Palette.List) do
+	entry.index = index
+	Palette.ByKey[entry.key] = entry
+end
+
+-- Color3 para cualquier carácter del lienzo (incluye contorno y vacío).
+function Palette.colorOf(key)
+	if key == Palette.OUTLINE then
+		return Palette.OutlineColor
+	end
+	local entry = Palette.ByKey[key]
+	if entry then
+		return entry.color
+	end
+	return Palette.EmptyColor
+end
+
+function Palette.isPaintKey(key)
+	return Palette.ByKey[key] ~= nil
+end
+
+return Palette
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="5">
+        <Properties>
+          <string name="Name">Scoring</string>
+          <string name="Source"><![CDATA[-- Lógica compartida para pedidos: objetivo de colores, validación y puntuación.
+-- La usa el servidor (autoridad) y el cliente (pistas y vista previa).
+
+local Config = require(script.Parent.Config)
+local Palette = require(script.Parent.Palette)
+
+local Scoring = {}
+
+local OUTLINE = Palette.OUTLINE
+local EMPTY = Palette.EMPTY
+
+-- Color que espera el cliente en cada celda, o nil si el modo no exige uno.
+function Scoring.targetString(order, template)
+	if order.mode == "original" then
+		return template.flat
+	elseif order.mode == "remix" then
+		local swapped = string.gsub(template.flat, order.swapFrom, order.swapTo)
+		return swapped
+	end
+	return nil
+end
+
+-- Lienzo inicial: contornos fijos y el resto vacío.
+function Scoring.blankCanvas(template)
+	local blank = string.gsub(template.flat, "[^" .. OUTLINE .. "]", EMPTY)
+	return blank
+end
+
+-- Comprueba que el lienzo recibido es válido para la plantilla.
+function Scoring.isValidCanvas(cells, template)
+	if type(cells) ~= "string" or #cells ~= Config.CELLS then
+		return false
+	end
+	for i = 1, Config.CELLS do
+		local key = string.sub(cells, i, i)
+		local isOutline = string.sub(template.flat, i, i) == OUTLINE
+		if isOutline then
+			if key ~= OUTLINE then
+				return false
+			end
+		elseif key ~= EMPTY and not Palette.isPaintKey(key) then
+			return false
+		end
+	end
+	return true
+end
+
+local function themeSet(themeId)
+	local theme = Config.ThemeById[themeId]
+	local set = {}
+	if theme then
+		for i = 1, #theme.keys do
+			set[string.sub(theme.keys, i, i)] = true
+		end
+	end
+	return set
+end
+
+function Scoring.starsFor(quality)
+	local stars = 0
+	for i, threshold in ipairs(Config.STAR_THRESHOLDS) do
+		if quality >= threshold then
+			stars = i
+		end
+	end
+	return stars
+end
+
+-- Devuelve calidad (0..1), estrellas y estadísticas del lienzo.
+function Scoring.evaluate(order, template, cells)
+	local target = Scoring.targetString(order, template)
+	local paintable, filled, matches, inTheme = 0, 0, 0, 0
+	local distinct, distinctCount = {}, 0
+	local allowed = order.mode == "tema" and themeSet(order.theme) or nil
+
+	for i = 1, Config.CELLS do
+		local base = string.sub(template.flat, i, i)
+		if base ~= OUTLINE then
+			paintable += 1
+			local key = string.sub(cells, i, i)
+			if key ~= EMPTY then
+				filled += 1
+				if not distinct[key] then
+					distinct[key] = true
+					distinctCount += 1
+				end
+				if target and string.sub(target, i, i) == key then
+					matches += 1
+				end
+				if allowed and allowed[key] then
+					inTheme += 1
+				end
+			end
+		end
+	end
+
+	paintable = math.max(paintable, 1)
+	local coverage = filled / paintable
+	local quality
+
+	if target then
+		quality = matches / paintable
+	elseif order.mode == "tema" then
+		quality = coverage * (inTheme / math.max(filled, 1))
+		if distinctCount < 2 then
+			quality = math.min(quality, 0.79)
+		end
+	else
+		local variety = ({ 0.55, 0.75, 0.9 })[distinctCount] or 1
+		if distinctCount == 0 then
+			variety = 0
+		end
+		quality = coverage * variety
+	end
+
+	quality = math.clamp(quality, 0, 1)
+	return {
+		quality = quality,
+		stars = Scoring.starsFor(quality),
+		coverage = coverage,
+		colors = distinctCount,
+	}
+end
+
+-- Texto que dice el cliente al hacer el pedido.
+function Scoring.describe(order, template)
+	if order.mode == "original" then
+		return "Quiero «" .. template.name .. "» con sus colores originales."
+	elseif order.mode == "remix" then
+		local from = Palette.ByKey[order.swapFrom]
+		local to = Palette.ByKey[order.swapTo]
+		return "«"
+			.. template.name
+			.. "», pero cambia el "
+			.. string.lower(from and from.name or "?")
+			.. " por "
+			.. string.lower(to and to.name or "?")
+			.. "."
+	elseif order.mode == "tema" then
+		local theme = Config.ThemeById[order.theme]
+		return "«" .. template.name .. "» pintado en " .. (theme and theme.name or "colores bonitos") .. "."
+	end
+	return "«" .. template.name .. "» como tú quieras. ¡Usa muchos colores!"
+end
+
+return Scoring
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="ModuleScript" referent="6">
+        <Properties>
+          <string name="Name">Templates</string>
+          <string name="Source"><![CDATA[-- Plantillas de 16x16 que el jugador pinta (estilo "pinta por números").
+-- Cada letra es un color de Palette; "k" es el contorno fijo (no se pinta).
+-- Para añadir una obra nueva basta con copiar un bloque y dibujar con letras.
+
+local Templates = {}
+
+Templates.List = {
+	{
+		id = "corazon",
+		name = "Corazón",
+		level = 1,
+		reward = 40,
+		xp = 10,
+		patience = 80,
+		rows = {
+			"cccccccccccccccc",
+			"cckkkkcccckkkkcc",
+			"ckrrrrkcckrrrrkc",
+			"krrwwrrkkrrrrrmk",
+			"krwwrrrrrrrrrrmk",
+			"krrrrrrrrrrrrrmk",
+			"krrrrrrrrrrrrrmk",
+			"ckrrrrrrrrrrrmkc",
+			"cckrrrrrrrrrmkcc",
+			"ccckrrrrrrrmkccc",
+			"cccckrrrrrmkcccc",
+			"ccccckrrrmkccccc",
+			"cccccckrmkcccccc",
+			"ccccccckkccccccc",
+			"cccccccccccccccc",
+			"cccccccccccccccc",
+		},
+	},
+	{
+		id = "hongo",
+		name = "Hongo Mágico",
+		level = 1,
+		reward = 50,
+		xp = 12,
+		patience = 85,
+		rows = {
+			"cccccccccccccccc",
+			"ccccckkkkkkccccc",
+			"ccckkrrrrrrkkccc",
+			"cckrrwwrrrrrrkcc",
+			"ckrrwwwwrrrwwrkc",
+			"ckrrwwwrrrrwwrkc",
+			"krrrrrrrrrrrrrrk",
+			"krwwrrrrrrrwwrrk",
+			"ckkkkkkkkkkkkkkc",
+			"cccckttttttkcccc",
+			"ccccktkttktkcccc",
+			"cccckttttttkcccc",
+			"cccckttttttkcccc",
+			"ggggkkkkkkkkgggg",
+			"gggggggggggggggg",
+			"dddddddddddddddd",
+		},
+	},
+	{
+		id = "helado",
+		name = "Helado Doble",
+		level = 2,
+		reward = 65,
+		xp = 15,
+		patience = 90,
+		rows = {
+			"lllllllkklllllll",
+			"llllllkrrkllllll",
+			"llllllkrrkllllll",
+			"llllkkkkkkkkllll",
+			"lllkmmwmmmmmmkll",
+			"llkmmwmmmmmmmmkl",
+			"llkmmmmmmmmmmmkl",
+			"lkvvvvvvvvvvvvkl",
+			"lkvvwvvvvvvvvvkl",
+			"lkkkkkkkkkkkkkkl",
+			"llkoouoouoouokll",
+			"lllkouoouoouklll",
+			"llllkoouooukllll",
+			"lllllkouooklllll",
+			"llllllkookllllll",
+			"lllllllkklllllll",
+		},
+	},
+	{
+		id = "gato",
+		name = "Gatito",
+		level = 3,
+		reward = 80,
+		xp = 18,
+		patience = 95,
+		rows = {
+			"vvvvvvvvvvvvvvvv",
+			"vkkvvvvvvvvvvkkv",
+			"vkokvvvvvvvvkokv",
+			"vkmokkkkkkkkomkv",
+			"vkooooooooooookv",
+			"vkooooooooooookv",
+			"vkoogkookkoogokv",
+			"vkookkoooookkokv",
+			"vkooooooooooookv",
+			"vkwwwwwmmwwwwwkv",
+			"vkwwwwkkkkwwwwkv",
+			"vkkwwwwwwwwwwkkv",
+			"vvkkoooooooookkv",
+			"vvvkkkkkkkkkkkvv",
+			"vvvvvvvvvvvvvvvv",
+			"vvvvvvvvvvvvvvvv",
+		},
+	},
+	{
+		id = "pez",
+		name = "Pez Dorado",
+		level = 4,
+		reward = 95,
+		xp = 20,
+		patience = 95,
+		rows = {
+			"bbbbbbbbbbbbbbbb",
+			"bbbbcbbbbbbbbbbb",
+			"bbbcwcbbkkkkbbbb",
+			"bbbbcbbkooookbbb",
+			"bkkbbbkoyyyyokbb",
+			"bkokbkoyyyyykwkb",
+			"bkookoyyyyyyykkb",
+			"bkooooyyyyyyyyyk",
+			"bkookoyyyyyyyyyk",
+			"bkokbkoyyyyyyykb",
+			"bkkbbbkoyyyyykbb",
+			"bbbbbbbkooookbbb",
+			"bbbbbbbbkkkkbbbb",
+			"bbbbbbbbbbbbbcbb",
+			"bbbbbbbbbbbbcwcb",
+			"bbbbbbbbbbbbbcbb",
+		},
+	},
+	{
+		id = "casa",
+		name = "Casita",
+		level = 5,
+		reward = 115,
+		xp = 24,
+		patience = 100,
+		rows = {
+			"ccccccccccccccww",
+			"cccccccckkcccwww",
+			"ccccccckrrkccccc",
+			"cccccckrrrrkcccc",
+			"ccccckrrrrrrkccc",
+			"cccckrrrrrrrrkcc",
+			"ccckrrrrrrrrrrkc",
+			"cckkkkkkkkkkkkkk",
+			"cccykkkyyykkkykc",
+			"cccykckyyykckykc",
+			"cccykkkyyykkkykc",
+			"cccyyyyykkyyyykc",
+			"cccyyyyykuuyyykc",
+			"cccyyyyykuuyyykc",
+			"gggkkkkkkkkkkkkg",
+			"gggggggggggggggg",
+		},
+	},
+	{
+		id = "flor",
+		name = "Flor Rosa",
+		level = 6,
+		reward = 130,
+		xp = 26,
+		patience = 100,
+		rows = {
+			"ssssssssssssssss",
+			"sssssskkkkssssss",
+			"ssssskmmmmksssss",
+			"ssssskmlmmksssss",
+			"sskkkkmmmmkkkkss",
+			"skmmmkkkkkkmmmks",
+			"skmlmkyyyykmmmks",
+			"skmmmkyoyykmmmks",
+			"skmmmkyyyykmlmks",
+			"skmmmkkkkkkmmmks",
+			"sskkkkmmmmkkkkss",
+			"ssssskmmmmksssss",
+			"sssssskddkssssss",
+			"sskkkskddkskkkss",
+			"skgggkkddkkgggks",
+			"sskkkkkddkkkkkss",
+		},
+	},
+	{
+		id = "sandia",
+		name = "Sandía",
+		level = 7,
+		reward = 150,
+		xp = 30,
+		patience = 100,
+		rows = {
+			"yyyyyyyyyyyyyyyy",
+			"yyyyyyykkyyyyyyy",
+			"yyyyyykrrkyyyyyy",
+			"yyyyykrrrrkyyyyy",
+			"yyyykrrkrrrkyyyy",
+			"yyykrrrrrrkrkyyy",
+			"yykrrkrrrrrrrkyy",
+			"ykrrrrrrkrrrrrky",
+			"kwwwwwwwwwwwwwwk",
+			"kggggggggggggggk",
+			"ykddddddddddddky",
+			"yykkkkkkkkkkkkyy",
+			"yyyyyyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyyy",
+			"yyyyyyyyyyyyyyyy",
+		},
+	},
+	{
+		id = "cohete",
+		name = "Cohete",
+		level = 9,
+		reward = 180,
+		xp = 36,
+		patience = 110,
+		rows = {
+			"nnnnnnnkknnnnnyn",
+			"nynnnnkrrknnnnnn",
+			"nnnnnkrrrrknnnnn",
+			"nnnnkrrrrrrknnnn",
+			"nnnnkkkkkkkknnnn",
+			"nnnnkwwwwwwknnnn",
+			"nnnnkwwkkwwknnyn",
+			"nnnnkwkcckwknnnn",
+			"nynnkwkcckwknnnn",
+			"nnnnkwwkkwwknnnn",
+			"nnnkkwwwwwwkknnn",
+			"nnkrkwwwwwwkrknn",
+			"nkrrkaaaaaakrrkn",
+			"nkkkkkkkkkkkkkkn",
+			"nnnnnkoyyoknnnnn",
+			"nnynnnkyyknnnnnn",
+		},
+	},
+	{
+		id = "arbol",
+		name = "Manzano",
+		level = 11,
+		reward = 210,
+		xp = 40,
+		patience = 115,
+		rows = {
+			"cccccccccccccccc",
+			"cccccckkkkcccccc",
+			"ccckkkggggkkkccc",
+			"cckggggggggggkcc",
+			"ckggrgggggggggkc",
+			"ckggggggggdgrgkc",
+			"kgggdgggrggggggk",
+			"kggrgggggggdgggk",
+			"ckgggggdgggggrkc",
+			"cckggrgggggggkcc",
+			"ccckkkkuukkkkccc",
+			"cccccckuukcccccc",
+			"cccccckuukcccccc",
+			"cccccckuukcccccc",
+			"ggggggkuukgggggg",
+			"gggggggggggggggg",
+		},
+	},
+	{
+		id = "pulpo",
+		name = "Pulpo",
+		level = 13,
+		reward = 250,
+		xp = 46,
+		patience = 120,
+		rows = {
+			"bbbbbbbbbbbbbcbb",
+			"bbbbbkkkkkkbbbbb",
+			"bbbbkppppppkbbcb",
+			"bbbkppppppppkbbb",
+			"bbkppwpppppppkbb",
+			"bbkpwkppppwkpkbb",
+			"bbkppppppppppkbb",
+			"bbkppppmmppppkbb",
+			"bbkppppppppppkbb",
+			"bkppkppkkppkppkb",
+			"bkppkppkkppkppkb",
+			"kppkbkpkkpkbkppk",
+			"kpkbbkpkkpkbbkpk",
+			"bkbbbkpkkpkbbbkb",
+			"bbbbbbkbbkbbbbbb",
+			"bcbbbbbbbbbbbbbb",
+		},
+	},
+	{
+		id = "luna",
+		name = "Luna y Estrellas",
+		level = 15,
+		reward = 300,
+		xp = 55,
+		patience = 125,
+		rows = {
+			"nnnnnnnnnnnnnnnn",
+			"nnnnkkkknnnnnnnn",
+			"nnnkyyyykknnnynn",
+			"nnkyyyykknnnnnnn",
+			"nkyyyyknnnnnnnnn",
+			"nkyyyknnnnnnynnn",
+			"kyyyyknnnnnyyynn",
+			"kyyyyknnnnnnynnn",
+			"kyyyyknnnnnnnnnn",
+			"kyyyyyknnnnnnnnn",
+			"nkyyyyyknnnnnnnn",
+			"nkyyyyyykkknnnnn",
+			"nnkkyyyyyyykknnn",
+			"nnnnkkkkkkkknnwn",
+			"nwnnnnnnnnnnnnnn",
+			"nnnnnnnnwnnnnnnn",
+		},
+	},
+}
+
+Templates.ById = {}
+for index, template in ipairs(Templates.List) do
+	template.index = index
+	template.flat = table.concat(template.rows)
+	Templates.ById[template.id] = template
+end
+
+function Templates.get(id)
+	return Templates.ById[id]
+end
+
+-- Devuelve las plantillas desbloqueadas para un nivel dado.
+function Templates.unlockedFor(level)
+	local result = {}
+	for _, template in ipairs(Templates.List) do
+		if template.level <= level then
+			table.insert(result, template)
+		end
+	end
+	return result
+end
+
+-- Siguiente plantilla que se desbloqueará (o nil si ya están todas).
+function Templates.nextUnlock(level)
+	for _, template in ipairs(Templates.List) do
+		if template.level > level then
+			return template
+		end
+	end
+	return nil
+end
+
+return Templates
+]]></string>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="ServerScriptService" referent="7">
+    <Properties>
+      <string name="Name">ServerScriptService</string>
+    </Properties>
+    <Item class="Folder" referent="8">
+      <Properties>
+        <string name="Name">Server</string>
+      </Properties>
+      <Item class="Script" referent="9">
+        <Properties>
+          <string name="Name">Main</string>
+          <token name="RunContext">0</token>
+          <string name="Source"><![CDATA[-- Punto de entrada del servidor: crea el mundo, asigna galerías y gestiona
+-- pedidos, monedas, niveles, mejoras y recompensas.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Templates = require(Shared.Templates)
+local Scoring = require(Shared.Scoring)
+
+local Services = script.Parent:WaitForChild("Services")
+local DataService = require(Services.DataService)
+local WorldBuilder = require(Services.WorldBuilder)
+local CustomerService = require(Services.CustomerService)
+
+-- Remotos -------------------------------------------------------------------------
+local remotes = Instance.new("Folder")
+remotes.Name = "Remotes"
+
+local function remote(class, name)
+	local r = Instance.new(class)
+	r.Name = name
+	r.Parent = remotes
+	return r
+end
+
+local GetState = remote("RemoteFunction", "GetState")
+local StateChanged = remote("RemoteEvent", "StateChanged")
+local Notify = remote("RemoteEvent", "Notify")
+local OpenOrder = remote("RemoteEvent", "OpenOrder")
+local StartPainting = remote("RemoteFunction", "StartPainting")
+local StopPainting = remote("RemoteEvent", "StopPainting")
+local SubmitPainting = remote("RemoteFunction", "SubmitPainting")
+local BuyUpgrade = remote("RemoteFunction", "BuyUpgrade")
+local ClaimDaily = remote("RemoteFunction", "ClaimDaily")
+local GoHome = remote("RemoteEvent", "GoHome")
+remotes.Parent = ReplicatedStorage
+
+-- Mundo ---------------------------------------------------------------------------
+local plots = WorldBuilder.build()
+local plotOf = {}
+local sessions = {}
+
+local function getSession(player)
+	local session = sessions[player]
+	if not session then
+		session = { streak = 0, lastSubmit = 0, painting = nil }
+		sessions[player] = session
+	end
+	return session
+end
+
+local function upgradeLevel(data, id)
+	return data.upgrades[id] or 0
+end
+
+local function dailyStatus(data)
+	local now = os.time()
+	local ready = now - data.lastDaily >= Config.DAILY_COOLDOWN
+	local streak = data.dailyStreak
+	if now - data.lastDaily > Config.DAILY_COOLDOWN * 2.4 then
+		streak = 0
+	end
+	local nextStreak = math.min(streak + 1, 7)
+	local amount = 100 + data.level * 25 + nextStreak * 50
+	return ready, amount, math.max(0, Config.DAILY_COOLDOWN - (now - data.lastDaily)), nextStreak
+end
+
+local function buildState(player)
+	local data = DataService.get(player)
+	if not data then
+		return nil
+	end
+	local session = getSession(player)
+	local ready, amount, wait, nextStreak = dailyStatus(data)
+	local plot = plotOf[player]
+	return {
+		coins = data.coins,
+		xp = data.xp,
+		level = data.level,
+		xpNext = Config.xpToNext(data.level),
+		upgrades = data.upgrades,
+		streak = session.streak,
+		sold = data.sold,
+		perfect = data.perfect,
+		dailyReady = ready,
+		dailyAmount = amount,
+		dailyWait = wait,
+		dailyStreak = nextStreak,
+		plotIndex = plot and plot.index or 0,
+	}
+end
+
+local function updateLeaderstats(player)
+	local data = DataService.get(player)
+	local stats = player:FindFirstChild("leaderstats")
+	if not (data and stats) then
+		return
+	end
+	stats.Monedas.Value = data.coins
+	stats.Nivel.Value = data.level
+	stats.Obras.Value = data.sold
+end
+
+local function pushState(player)
+	local state = buildState(player)
+	if state then
+		StateChanged:FireClient(player, state)
+	end
+	updateLeaderstats(player)
+end
+
+local function notify(player, text, kind)
+	Notify:FireClient(player, text, kind or "info")
+end
+
+-- Galería en las paredes ---------------------------------------------------------
+local function renderGallery(plot, data)
+	local gallery = data and data.gallery or {}
+	for i = 1, Config.GALLERY_SIZE do
+		local entry = gallery[i]
+		local canvas = plot.canvases[i]
+		local plaque = plot.plaques[i]
+		if entry and type(entry.c) == "string" and #entry.c == Config.CELLS then
+			canvas:SetAttribute("Cells", entry.c)
+			local template = Templates.get(entry.t)
+			plaque.Text = string.rep("★", entry.s or 0) .. "  " .. (template and template.name or "Obra")
+		else
+			canvas:SetAttribute("Cells", "")
+			plaque.Text = "Tu próxima obra"
+		end
+	end
+	local latest = gallery[1]
+	plot.easelCanvas:SetAttribute("Cells", latest and latest.c or "")
+end
+
+-- Asignación de galerías ------------------------------------------------------------
+local function assignPlot(player)
+	for _, plot in ipairs(plots) do
+		if plot.model:GetAttribute("OwnerUserId") == 0 then
+			plot.model:SetAttribute("OwnerUserId", player.UserId)
+			plotOf[player] = plot
+			plot.signLabel.Text = "Galería de " .. player.DisplayName
+			return plot
+		end
+	end
+	return nil
+end
+
+local function releasePlot(player)
+	local plot = plotOf[player]
+	if not plot then
+		return
+	end
+	plotOf[player] = nil
+	CustomerService.detach(plot)
+	plot.model:SetAttribute("OwnerUserId", 0)
+	plot.signLabel.Text = "Galería libre"
+	renderGallery(plot, nil)
+	WorldBuilder.setDecorLevel(plot, 0)
+end
+
+local function teleportHome(player)
+	local plot = plotOf[player]
+	local character = player.Character
+	if not (plot and character) then
+		return
+	end
+	local rootPart = character:FindFirstChild("HumanoidRootPart")
+	if rootPart then
+		character:PivotTo(plot.ownerSpawn)
+	end
+end
+
+-- Jugadores -------------------------------------------------------------------------
+local function onPlayerAdded(player)
+	local stats = Instance.new("Folder")
+	stats.Name = "leaderstats"
+	for _, name in ipairs({ "Monedas", "Nivel", "Obras" }) do
+		local value = Instance.new("IntValue")
+		value.Name = name
+		value.Parent = stats
+	end
+	stats.Parent = player
+
+	local data = DataService.load(player)
+	if not player.Parent then
+		return
+	end
+
+	local plot = assignPlot(player)
+	if plot then
+		renderGallery(plot, data)
+		WorldBuilder.setDecorLevel(plot, upgradeLevel(data, "decoracion"))
+		CustomerService.attach(plot, player)
+	else
+		notify(player, "Todas las galerías están ocupadas. ¡Explora la plaza!", "error")
+	end
+
+	player.CharacterAdded:Connect(function(character)
+		character:WaitForChild("HumanoidRootPart", 10)
+		task.wait(0.2)
+		teleportHome(player)
+	end)
+	if player.Character then
+		task.defer(teleportHome, player)
+	end
+
+	pushState(player)
+	notify(player, "¡Bienvenido a tu galería! Atiende a los clientes que entran 🎨", "success")
+end
+
+local function onPlayerRemoving(player)
+	local session = sessions[player]
+	if session and session.painting then
+		local customer = CustomerService.getWaiting(player, session.painting)
+		if customer then
+			CustomerService.setPainting(customer, false)
+		end
+	end
+	releasePlot(player)
+	DataService.release(player)
+	sessions[player] = nil
+end
+
+-- Clientes ---------------------------------------------------------------------------
+CustomerService.getProfile = function(player)
+	return DataService.get(player)
+end
+
+CustomerService.onPromptTriggered = function(player, customer)
+	if customer.owner ~= player then
+		notify(player, "Este cliente es de otra galería 😉", "error")
+		return
+	end
+	if customer.state == "waiting" then
+		OpenOrder:FireClient(player, customer.id)
+	end
+end
+
+CustomerService.onExpired = function(player, customer)
+	local session = getSession(player)
+	if session.painting == customer.id then
+		session.painting = nil
+	end
+	if session.streak > 0 then
+		notify(player, "Un cliente se fue sin su obra. ¡Racha perdida! 💔", "error")
+	else
+		notify(player, "Un cliente se cansó de esperar 😤", "error")
+	end
+	session.streak = 0
+	pushState(player)
+end
+
+-- Remotos: pintura ---------------------------------------------------------------------
+StartPainting.OnServerInvoke = function(player, orderId)
+	if type(orderId) ~= "string" then
+		return false
+	end
+	local customer = CustomerService.getWaiting(player, orderId)
+	if not customer then
+		return false
+	end
+	local session = getSession(player)
+	if session.painting and session.painting ~= orderId then
+		local previous = CustomerService.getWaiting(player, session.painting)
+		if previous then
+			CustomerService.setPainting(previous, false)
+		end
+	end
+	session.painting = orderId
+	CustomerService.setPainting(customer, true)
+	return true
+end
+
+StopPainting.OnServerEvent:Connect(function(player, orderId)
+	local session = getSession(player)
+	if type(orderId) ~= "string" or session.painting ~= orderId then
+		return
+	end
+	session.painting = nil
+	local customer = CustomerService.getWaiting(player, orderId)
+	if customer then
+		CustomerService.setPainting(customer, false)
+	end
+end)
+
+local function pickLine(stars)
+	local list
+	if stars >= 3 then
+		list = Config.HappyLines
+	elseif stars >= 1 then
+		list = Config.OkLines
+	else
+		list = Config.SadLines
+	end
+	return list[math.random(1, #list)]
+end
+
+SubmitPainting.OnServerInvoke = function(player, orderId, cells)
+	local data = DataService.get(player)
+	local session = getSession(player)
+	if not data or type(orderId) ~= "string" then
+		return { ok = false, reason = "Pedido no válido." }
+	end
+	local now = os.clock()
+	if now - session.lastSubmit < 1 then
+		return { ok = false, reason = "Espera un momento..." }
+	end
+	local customer = CustomerService.getWaiting(player, orderId)
+	if not customer then
+		return { ok = false, reason = "El cliente ya se fue 😢" }
+	end
+	local template = Templates.get(customer.order.templateId)
+	if not template or not Scoring.isValidCanvas(cells, template) then
+		return { ok = false, reason = "El lienzo no es válido." }
+	end
+	session.lastSubmit = now
+	if session.painting == orderId then
+		session.painting = nil
+	end
+
+	local result = Scoring.evaluate(customer.order, template, cells)
+	local stars = result.stars
+	local levels = data.upgrades
+
+	if stars >= 2 then
+		session.streak += 1
+	else
+		session.streak = 0
+	end
+	data.bestStreak = math.max(data.bestStreak, session.streak)
+
+	local streakBonus = math.min(Config.MAX_STREAK_BONUS, math.max(0, session.streak - 1) * Config.STREAK_BONUS)
+	local payment = math.floor(customer.order.reward * Config.STAR_PAY[stars] * (1 + streakBonus))
+	local patienceLeft = math.clamp(customer.patience / customer.order.patience, 0, 1)
+	local tip = 0
+	if stars >= 1 then
+		tip = math.floor(customer.order.reward * 0.5 * patienceLeft * Config.tipMultiplier(levels))
+	end
+	local xp = math.floor(template.xp * (0.4 + 0.3 * stars) * (customer.order.vip and 2 or 1))
+
+	data.coins += payment + tip
+	data.xp += xp
+	data.sold += 1
+	if stars >= 3 then
+		data.perfect += 1
+	end
+
+	local oldLevel = data.level
+	while data.xp >= Config.xpToNext(data.level) do
+		data.xp -= Config.xpToNext(data.level)
+		data.level += 1
+	end
+	local unlocked = {}
+	for _, t in ipairs(Templates.List) do
+		if t.level > oldLevel and t.level <= data.level then
+			table.insert(unlocked, t.name)
+		end
+	end
+	local newModes = {}
+	for _, id in ipairs(Config.ModeOrder) do
+		local mode = Config.Modes[id]
+		if mode.level > oldLevel and mode.level <= data.level then
+			table.insert(newModes, mode.name)
+		end
+	end
+
+	if stars >= 1 then
+		table.insert(data.gallery, 1, { t = template.id, c = cells, s = stars })
+		while #data.gallery > Config.GALLERY_SIZE do
+			table.remove(data.gallery)
+		end
+		local plot = plotOf[player]
+		if plot then
+			renderGallery(plot, data)
+		end
+	end
+
+	local line = pickLine(stars)
+	CustomerService.complete(customer, stars, line)
+	pushState(player)
+
+	return {
+		ok = true,
+		stars = stars,
+		quality = result.quality,
+		payment = payment,
+		tip = tip,
+		xp = xp,
+		streak = session.streak,
+		streakBonus = streakBonus,
+		vip = customer.order.vip,
+		line = line,
+		levelUp = data.level > oldLevel and data.level or nil,
+		unlocked = unlocked,
+		newModes = newModes,
+	}
+end
+
+-- Remotos: progreso ---------------------------------------------------------------------
+GetState.OnServerInvoke = function(player)
+	for _ = 1, 50 do
+		if DataService.get(player) then
+			break
+		end
+		task.wait(0.2)
+	end
+	return buildState(player)
+end
+
+BuyUpgrade.OnServerInvoke = function(player, id)
+	local data = DataService.get(player)
+	local upgrade = type(id) == "string" and Config.UpgradeById[id]
+	if not (data and upgrade) then
+		return false, "Mejora no válida."
+	end
+	local level = upgradeLevel(data, id)
+	if level >= upgrade.max then
+		return false, "¡Ya está al máximo!"
+	end
+	local cost = Config.upgradeCost(id, level)
+	if data.coins < cost then
+		return false, "Te faltan " .. (cost - data.coins) .. " monedas."
+	end
+	data.coins -= cost
+	data.upgrades[id] = level + 1
+	if id == "decoracion" then
+		local plot = plotOf[player]
+		if plot then
+			WorldBuilder.setDecorLevel(plot, level + 1)
+		end
+	end
+	pushState(player)
+	return true, upgrade.name .. " subió a nivel " .. (level + 1) .. "!"
+end
+
+ClaimDaily.OnServerInvoke = function(player)
+	local data = DataService.get(player)
+	if not data then
+		return false, 0
+	end
+	local ready, amount, _, nextStreak = dailyStatus(data)
+	if not ready then
+		return false, 0
+	end
+	data.lastDaily = os.time()
+	data.dailyStreak = nextStreak
+	data.coins += amount
+	pushState(player)
+	return true, amount
+end
+
+GoHome.OnServerEvent:Connect(function(player)
+	local session = getSession(player)
+	local now = os.clock()
+	if now - (session.lastHome or 0) < 2 then
+		return
+	end
+	session.lastHome = now
+	teleportHome(player)
+end)
+
+-- Arranque -----------------------------------------------------------------------------
+DataService.start()
+CustomerService.start()
+
+Players.PlayerAdded:Connect(onPlayerAdded)
+Players.PlayerRemoving:Connect(onPlayerRemoving)
+for _, player in ipairs(Players:GetPlayers()) do
+	task.spawn(onPlayerAdded, player)
+end
+
+-- Refresca el contador del regalo diario cada minuto.
+task.spawn(function()
+	while true do
+		task.wait(60)
+		for _, player in ipairs(Players:GetPlayers()) do
+			pushState(player)
+		end
+	end
+end)
+]]></string>
+        </Properties>
+      </Item>
+      <Item class="Folder" referent="10">
+        <Properties>
+          <string name="Name">Services</string>
+        </Properties>
+        <Item class="ModuleScript" referent="11">
+          <Properties>
+            <string name="Name">CustomerService</string>
+            <string name="Source"><![CDATA[-- Clientes: aparecen, caminan hasta la galería, esperan con su pedido y se van.
+-- Cada cliente es un modelo hecho con piezas (no necesita assets externos).
+
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Palette = require(Shared.Palette)
+local Templates = require(Shared.Templates)
+
+local CustomerService = {}
+
+local WALK_SPEED = 10
+local ROOT_HEIGHT = 2.6
+local PATIENCE_UPDATE = 0.2
+
+local SKIN_TONES = {
+	Color3.fromRGB(255, 224, 196),
+	Color3.fromRGB(241, 194, 150),
+	Color3.fromRGB(214, 160, 120),
+	Color3.fromRGB(170, 116, 80),
+	Color3.fromRGB(120, 80, 56),
+}
+
+local rng = Random.new()
+local plotStates = {}
+local customersById = {}
+
+-- Callbacks que asigna el GameService.
+CustomerService.getProfile = nil
+CustomerService.onExpired = nil
+
+local function pick(list)
+	return list[rng:NextInteger(1, #list)]
+end
+
+-- Construcción del muñequito ------------------------------------------------------
+local function attachPart(model, root, props, offset)
+	local p = Instance.new("Part")
+	p.Anchored = false
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = Enum.Material.SmoothPlastic
+	for key, value in pairs(props) do
+		p[key] = value
+	end
+	p.CFrame = root.CFrame * offset
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = root
+	weld.Part1 = p
+	weld.Parent = p
+	p.Parent = model
+	return p
+end
+
+local function ball(size)
+	return Vector3.new(size, size, size)
+end
+
+local function buildModel(startCF, vip)
+	local model = Instance.new("Model")
+	model.Name = "Customer"
+
+	local root = Instance.new("Part")
+	root.Name = "Root"
+	root.Size = Vector3.new(2, 2, 2)
+	root.Transparency = 1
+	root.Anchored = true
+	root.CanCollide = false
+	root.CanTouch = false
+	root.CFrame = startCF * CFrame.new(0, ROOT_HEIGHT, 0)
+	root.Parent = model
+	model.PrimaryPart = root
+
+	local skin = pick(SKIN_TONES)
+	local shirt = pick(Config.CustomerColors)
+	if vip then
+		shirt = Color3.fromRGB(255, 214, 90)
+	end
+
+	local body =
+		attachPart(model, root, { Name = "Body", Size = Vector3.new(3, 3.6, 2.8), Color = shirt }, CFrame.new())
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Parent = body
+
+	attachPart(
+		model,
+		root,
+		{ Name = "Head", Shape = Enum.PartType.Ball, Size = ball(2.8), Color = skin },
+		CFrame.new(0, 2.9, 0)
+	)
+	for _, side in ipairs({ -1, 1 }) do
+		attachPart(
+			model,
+			root,
+			{ Shape = Enum.PartType.Ball, Size = ball(0.45), Color = Color3.fromRGB(40, 30, 50) },
+			CFrame.new(side * 0.5, 3.05, -1.22)
+		)
+		attachPart(model, root, {
+			Shape = Enum.PartType.Ball,
+			Size = ball(0.16),
+			Color = Color3.new(1, 1, 1),
+			Material = Enum.Material.Neon,
+		}, CFrame.new(side * 0.45, 3.15, -1.42))
+		attachPart(model, root, {
+			Shape = Enum.PartType.Ball,
+			Size = ball(0.42),
+			Color = Color3.fromRGB(255, 140, 160),
+			Transparency = 0.35,
+		}, CFrame.new(side * 0.88, 2.6, -1.08))
+		attachPart(
+			model,
+			root,
+			{ Name = "Hand", Shape = Enum.PartType.Ball, Size = ball(0.9), Color = skin },
+			CFrame.new(side * 1.6, -0.3, -0.2)
+		)
+		attachPart(
+			model,
+			root,
+			{ Name = "Foot", Shape = Enum.PartType.Ball, Size = ball(0.95), Color = Color3.fromRGB(70, 56, 90) },
+			CFrame.new(side * 0.65, -2.15, -0.15)
+		)
+	end
+	attachPart(
+		model,
+		root,
+		{ Size = Vector3.new(0.55, 0.12, 0.1), Color = Color3.fromRGB(150, 60, 70) },
+		CFrame.new(0, 2.42, -1.33)
+	)
+
+	local hatStyle = vip and "crown" or pick({ "none", "beret", "tophat", "bow", "cap", "none" })
+	local hatColor = pick(Config.CustomerColors):Lerp(Color3.new(0, 0, 0), 0.25)
+	if hatStyle == "beret" then
+		attachPart(
+			model,
+			root,
+			{ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.5, 2.6, 2.6), Color = hatColor },
+			CFrame.new(0.25, 4.2, 0) * CFrame.Angles(0, 0, math.rad(80))
+		)
+	elseif hatStyle == "tophat" then
+		attachPart(
+			model,
+			root,
+			{ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.2, 2.9, 2.9), Color = Color3.fromRGB(40, 32, 50) },
+			CFrame.new(0, 4.15, 0) * CFrame.Angles(0, 0, math.rad(90))
+		)
+		attachPart(
+			model,
+			root,
+			{ Shape = Enum.PartType.Cylinder, Size = Vector3.new(1.6, 1.9, 1.9), Color = Color3.fromRGB(40, 32, 50) },
+			CFrame.new(0, 4.95, 0) * CFrame.Angles(0, 0, math.rad(90))
+		)
+		attachPart(
+			model,
+			root,
+			{ Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.35, 1.95, 1.95), Color = hatColor },
+			CFrame.new(0, 4.45, 0) * CFrame.Angles(0, 0, math.rad(90))
+		)
+	elseif hatStyle == "bow" then
+		for _, side in ipairs({ -1, 1 }) do
+			attachPart(
+				model,
+				root,
+				{ Shape = Enum.PartType.Ball, Size = ball(0.8), Color = Color3.fromRGB(255, 110, 170) },
+				CFrame.new(side * 0.45, 4.25, 0.2)
+			)
+		end
+		attachPart(
+			model,
+			root,
+			{ Shape = Enum.PartType.Ball, Size = ball(0.4), Color = Color3.fromRGB(230, 70, 140) },
+			CFrame.new(0, 4.25, 0.2)
+		)
+	elseif hatStyle == "cap" then
+		attachPart(
+			model,
+			root,
+			{ Shape = Enum.PartType.Ball, Size = ball(2.9), Color = hatColor },
+			CFrame.new(0, 3.35, 0.05)
+		)
+		attachPart(model, root, { Size = Vector3.new(1.8, 0.15, 1.2), Color = hatColor }, CFrame.new(0, 3.75, -1.5))
+	elseif hatStyle == "crown" then
+		local gold = Color3.fromRGB(255, 200, 60)
+		attachPart(model, root, {
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.7, 1.9, 1.9),
+			Color = gold,
+			Material = Enum.Material.Metal,
+			Reflectance = 0.2,
+		}, CFrame.new(0, 4.35, 0) * CFrame.Angles(0, 0, math.rad(90)))
+		for i = 0, 4 do
+			local angle = i / 5 * math.pi * 2
+			attachPart(model, root, {
+				Shape = Enum.PartType.Ball,
+				Size = ball(0.42),
+				Color = (i % 2 == 0) and Color3.fromRGB(255, 80, 120) or Color3.fromRGB(90, 200, 255),
+				Material = Enum.Material.Neon,
+			}, CFrame.new(math.cos(angle) * 0.8, 4.85, math.sin(angle) * 0.8))
+		end
+		local sparkle = Instance.new("Sparkles")
+		sparkle.SparkleColor = gold
+		sparkle.Parent = body
+	end
+
+	return model, root
+end
+
+-- Pedidos ---------------------------------------------------------------------------
+local function chooseTemplate(level)
+	local unlocked = Templates.unlockedFor(level)
+	local total = 0
+	local weights = {}
+	for i in ipairs(unlocked) do
+		-- Las obras recién desbloqueadas salen un poco más a menudo.
+		local weight = 1 + i / #unlocked
+		weights[i] = weight
+		total += weight
+	end
+	local roll = rng:NextNumber() * total
+	for i, template in ipairs(unlocked) do
+		roll -= weights[i]
+		if roll <= 0 then
+			return template
+		end
+	end
+	return unlocked[#unlocked]
+end
+
+local function chooseMode(level)
+	local total = 0
+	for _, id in ipairs(Config.ModeOrder) do
+		local mode = Config.Modes[id]
+		if mode.level <= level then
+			total += mode.weight
+		end
+	end
+	local roll = rng:NextNumber() * total
+	for _, id in ipairs(Config.ModeOrder) do
+		local mode = Config.Modes[id]
+		if mode.level <= level then
+			roll -= mode.weight
+			if roll <= 0 then
+				return id
+			end
+		end
+	end
+	return "original"
+end
+
+-- Elige el color principal del dibujo y un color nuevo que no esté en la plantilla.
+local function chooseSwap(template)
+	local counts = {}
+	local background = string.sub(template.flat, 1, 1)
+	for i = 1, #template.flat do
+		local key = string.sub(template.flat, i, i)
+		if key ~= Palette.OUTLINE and key ~= background then
+			counts[key] = (counts[key] or 0) + 1
+		end
+	end
+	local from, best = nil, 0
+	for key, count in pairs(counts) do
+		if count > best then
+			from, best = key, count
+		end
+	end
+	from = from or background
+	local options = {}
+	for _, entry in ipairs(Palette.List) do
+		if not string.find(template.flat, entry.key, 1, true) then
+			table.insert(options, entry.key)
+		end
+	end
+	return from, pick(options)
+end
+
+local function makeOrder(profile, levels)
+	local level = profile.level
+	local template = chooseTemplate(level)
+	local mode = chooseMode(level)
+	local vip = rng:NextNumber() < Config.vipChance(levels)
+	local order = {
+		templateId = template.id,
+		mode = mode,
+		vip = vip,
+		theme = "",
+		swapFrom = "",
+		swapTo = "",
+	}
+	if mode == "remix" then
+		order.swapFrom, order.swapTo = chooseSwap(template)
+	elseif mode == "tema" then
+		order.theme = pick(Config.Themes).id
+	end
+	local price = template.reward * Config.Modes[mode].pay * Config.payMultiplier(levels)
+	if vip then
+		price *= Config.VIP_MULTIPLIER
+	end
+	order.reward = math.floor(price)
+	local patience = template.patience * Config.patienceMultiplier(levels)
+	if mode == "remix" or mode == "tema" then
+		patience *= 1.1
+	end
+	order.patience = patience
+	return order
+end
+
+-- Movimiento ------------------------------------------------------------------------
+local function walk(customer, points, onDone)
+	if customer.walkConnection then
+		customer.walkConnection:Disconnect()
+	end
+	local root = customer.root
+	local index = 1
+	local elapsed = 0
+	local position = root.Position - Vector3.new(0, ROOT_HEIGHT, 0)
+	customer.walkConnection = RunService.Heartbeat:Connect(function(dt)
+		if not root.Parent then
+			customer.walkConnection:Disconnect()
+			return
+		end
+		elapsed += dt
+		local target = points[index].Position
+		local offset = target - position
+		local distance = offset.Magnitude
+		local step = WALK_SPEED * dt
+		local direction = distance > 0.01 and offset.Unit or Vector3.new(0, 0, -1)
+		if distance <= step then
+			position = target
+			index += 1
+		else
+			position += direction * step
+		end
+		local flat = Vector3.new(direction.X, 0, direction.Z)
+		if flat.Magnitude < 0.01 then
+			flat = root.CFrame.LookVector
+		end
+		local hop = math.abs(math.sin(elapsed * 9)) * 0.55
+		if index > #points then
+			customer.walkConnection:Disconnect()
+			customer.walkConnection = nil
+			root.CFrame = points[#points] * CFrame.new(0, ROOT_HEIGHT, 0)
+			if onDone then
+				onDone()
+			end
+			return
+		end
+		local sway = math.sin(elapsed * 9) * 0.08
+		root.CFrame = CFrame.lookAt(position, position + flat)
+			* CFrame.new(0, ROOT_HEIGHT + hop, 0)
+			* CFrame.Angles(0, 0, sway)
+	end)
+end
+
+local function setState(customer, state)
+	customer.state = state
+	customer.model:SetAttribute("State", state)
+	customer.prompt.Enabled = state == "waiting"
+end
+
+local function removeCustomer(customer)
+	if customer.walkConnection then
+		customer.walkConnection:Disconnect()
+		customer.walkConnection = nil
+	end
+	customersById[customer.id] = nil
+	local plotState = plotStates[customer.plot.index]
+	if plotState then
+		plotState.customers[customer.id] = nil
+		if plotState.spotsTaken[customer.spotIndex] == customer then
+			plotState.spotsTaken[customer.spotIndex] = nil
+		end
+	end
+	if customer.model then
+		customer.model:Destroy()
+	end
+end
+
+local function leave(customer, reaction)
+	if customer.state == "leaving" then
+		return
+	end
+	setState(customer, "leaving")
+	if reaction then
+		customer.model:SetAttribute("Reaction", reaction)
+	end
+	local plotState = plotStates[customer.plot.index]
+	if plotState and plotState.spotsTaken[customer.spotIndex] == customer then
+		plotState.spotsTaken[customer.spotIndex] = nil
+	end
+	local plot = customer.plot
+	local spot = plot.spots[customer.spotIndex]
+	task.delay(1.6, function()
+		if not customer.model.Parent then
+			return
+		end
+		walk(customer, {
+			spot * CFrame.new(0, 0, -6),
+			plot.inside,
+			plot.entrance,
+			plot.street,
+		}, function()
+			removeCustomer(customer)
+		end)
+	end)
+end
+
+local function spawnCustomer(plotState)
+	local plot = plotState.plot
+	local owner = plotState.owner
+	local profile = CustomerService.getProfile(owner)
+	if not profile then
+		return
+	end
+	local spotIndex
+	local free = {}
+	for i = 1, #plot.spots do
+		if not plotState.spotsTaken[i] then
+			table.insert(free, i)
+		end
+	end
+	if #free == 0 then
+		return
+	end
+	spotIndex = pick(free)
+
+	local order = makeOrder(profile, profile.upgrades)
+	local id = HttpService:GenerateGUID(false)
+	local model, root = buildModel(plot.street, order.vip)
+	local name = pick(Config.CustomerNames)
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = "Pintar pedido"
+	prompt.ObjectText = name
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 14
+	prompt.RequiresLineOfSight = false
+	prompt.Enabled = false
+	prompt.Parent = root
+
+	model:SetAttribute("OrderId", id)
+	model:SetAttribute("Owner", owner.UserId)
+	model:SetAttribute("CustomerName", name)
+	model:SetAttribute("TemplateId", order.templateId)
+	model:SetAttribute("Mode", order.mode)
+	model:SetAttribute("Theme", order.theme)
+	model:SetAttribute("SwapFrom", order.swapFrom)
+	model:SetAttribute("SwapTo", order.swapTo)
+	model:SetAttribute("VIP", order.vip)
+	model:SetAttribute("Reward", order.reward)
+	model:SetAttribute("MaxPatience", order.patience)
+	model:SetAttribute("Patience", order.patience)
+	model:SetAttribute("Painting", false)
+	model:SetAttribute("Reaction", "")
+	model.Name = "Customer_" .. name
+
+	local customer = {
+		id = id,
+		plot = plot,
+		owner = owner,
+		model = model,
+		root = root,
+		prompt = prompt,
+		spotIndex = spotIndex,
+		order = order,
+		patience = order.patience,
+		painting = false,
+		sinceUpdate = 0,
+	}
+	plotState.spotsTaken[spotIndex] = customer
+	plotState.customers[id] = customer
+	customersById[id] = customer
+	setState(customer, "entering")
+	model.Parent = plot.customersFolder
+
+	prompt.Triggered:Connect(function(player)
+		if CustomerService.onPromptTriggered then
+			CustomerService.onPromptTriggered(player, customer)
+		end
+	end)
+
+	local spot = plot.spots[spotIndex]
+	walk(customer, {
+		plot.entrance,
+		plot.inside,
+		spot * CFrame.new(0, 0, -6),
+		spot,
+	}, function()
+		if customer.state ~= "entering" then
+			return
+		end
+		root.CFrame = spot * CFrame.new(0, ROOT_HEIGHT, 0) * CFrame.Angles(0, math.pi, 0)
+		setState(customer, "waiting")
+	end)
+end
+
+-- API pública ------------------------------------------------------------------------
+function CustomerService.attach(plot, owner)
+	plotStates[plot.index] = {
+		plot = plot,
+		owner = owner,
+		customers = {},
+		spotsTaken = {},
+		spawnTimer = Config.BASE_SPAWN_INTERVAL - 2,
+	}
+end
+
+function CustomerService.detach(plot)
+	local plotState = plotStates[plot.index]
+	if not plotState then
+		return
+	end
+	plotStates[plot.index] = nil
+	for _, customer in pairs(plotState.customers) do
+		removeCustomer(customer)
+	end
+	plot.customersFolder:ClearAllChildren()
+end
+
+-- Devuelve el cliente si el pedido es válido para ese jugador.
+function CustomerService.getWaiting(player, orderId)
+	local customer = customersById[orderId]
+	if customer and customer.owner == player and customer.state == "waiting" then
+		return customer
+	end
+	return nil
+end
+
+function CustomerService.setPainting(customer, painting)
+	customer.painting = painting
+	if customer.model.Parent then
+		customer.model:SetAttribute("Painting", painting)
+	end
+end
+
+function CustomerService.complete(customer, stars, line)
+	customer.painting = false
+	local emoji = stars >= 3 and "😍" or (stars >= 2 and "😊" or (stars >= 1 and "🙂" or "😕"))
+	leave(customer, emoji .. " " .. line)
+	if stars >= 2 then
+		local hearts = Instance.new("ParticleEmitter")
+		hearts.Rate = 0
+		hearts.Lifetime = NumberRange.new(1, 1.6)
+		hearts.Speed = NumberRange.new(4, 7)
+		hearts.SpreadAngle = Vector2.new(60, 60)
+		hearts.LightEmission = 0.6
+		hearts.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.8),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		hearts.Color = ColorSequence.new(Color3.fromRGB(255, 120, 180), Color3.fromRGB(255, 220, 120))
+		hearts.EmissionDirection = Enum.NormalId.Top
+		hearts.Parent = customer.root
+		hearts:Emit(stars >= 3 and 40 or 20)
+	end
+end
+
+function CustomerService.countFor(player)
+	local count = 0
+	for _, customer in pairs(customersById) do
+		if customer.owner == player and customer.state ~= "leaving" then
+			count += 1
+		end
+	end
+	return count
+end
+
+function CustomerService.start()
+	RunService.Heartbeat:Connect(function(dt)
+		for _, plotState in pairs(plotStates) do
+			local owner = plotState.owner
+			local profile = CustomerService.getProfile(owner)
+			if profile then
+				local levels = profile.upgrades
+				-- Generar clientes nuevos.
+				local active = 0
+				for _, customer in pairs(plotState.customers) do
+					if customer.state ~= "leaving" then
+						active += 1
+					end
+				end
+				if active < Config.maxQueue(levels) then
+					plotState.spawnTimer += dt
+					if plotState.spawnTimer >= Config.spawnInterval(levels) then
+						plotState.spawnTimer = 0
+						spawnCustomer(plotState)
+					end
+				else
+					plotState.spawnTimer = math.min(plotState.spawnTimer, Config.spawnInterval(levels) * 0.5)
+				end
+
+				-- Paciencia de los clientes que esperan.
+				for _, customer in pairs(plotState.customers) do
+					if customer.state == "waiting" then
+						local rate = customer.painting and Config.PAINTING_PATIENCE_RATE or 1
+						customer.patience -= dt * rate
+						customer.sinceUpdate += dt
+						if customer.patience <= 0 then
+							customer.patience = 0
+							customer.model:SetAttribute("Patience", 0)
+							leave(customer, pick(Config.AngryLines))
+							if CustomerService.onExpired then
+								task.spawn(CustomerService.onExpired, owner, customer)
+							end
+						elseif customer.sinceUpdate >= PATIENCE_UPDATE then
+							customer.sinceUpdate = 0
+							customer.model:SetAttribute("Patience", customer.patience)
+						end
+					end
+				end
+			end
+		end
+	end)
+end
+
+return CustomerService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="12">
+          <Properties>
+            <string name="Name">DataService</string>
+            <string name="Source"><![CDATA[-- Guarda y carga el progreso de cada jugador con DataStoreService.
+-- Si los DataStores no están disponibles (por ejemplo en Studio sin publicar)
+-- el juego sigue funcionando, solo que sin guardar.
+
+local DataStoreService = game:GetService("DataStoreService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+
+local DataService = {}
+
+local STORE_NAME = "GaleriaPincelada_v1"
+local MAX_RETRIES = 4
+
+local store = nil
+local profiles = {}
+local loaded = {}
+
+do
+	local ok, result = pcall(function()
+		return DataStoreService:GetDataStore(STORE_NAME)
+	end)
+	if ok then
+		store = result
+	else
+		warn("[Galería] DataStores no disponibles, el progreso no se guardará: " .. tostring(result))
+	end
+end
+
+local function defaultData()
+	return {
+		coins = Config.START_COINS,
+		xp = 0,
+		level = 1,
+		upgrades = {},
+		sold = 0,
+		perfect = 0,
+		bestStreak = 0,
+		lastDaily = 0,
+		dailyStreak = 0,
+		gallery = {},
+	}
+end
+
+-- Rellena campos que falten (por ejemplo tras una actualización del juego).
+local function reconcile(data)
+	local template = defaultData()
+	if type(data) ~= "table" then
+		return template
+	end
+	for key, value in pairs(template) do
+		if type(data[key]) ~= type(value) then
+			data[key] = value
+		end
+	end
+	for id in pairs(data.upgrades) do
+		if not Config.UpgradeById[id] then
+			data.upgrades[id] = nil
+		end
+	end
+	return data
+end
+
+-- Errores que no se arreglan reintentando (Studio sin acceso a las APIs).
+local function isPermanentError(message)
+	message = tostring(message)
+	return string.find(message, "StudioAccessToApisNotAllowed", 1, true) ~= nil
+		or string.find(message, "publish", 1, true) ~= nil
+end
+
+local function disableStore(reason)
+	if store then
+		store = nil
+		warn("[Galería] DataStores no disponibles, el progreso no se guardará: " .. tostring(reason))
+	end
+end
+
+local function withRetries(callback)
+	local lastError
+	for attempt = 1, MAX_RETRIES do
+		local ok, result = pcall(callback)
+		if ok then
+			return true, result
+		end
+		lastError = result
+		if isPermanentError(result) then
+			disableStore(result)
+			break
+		end
+		task.wait(attempt * 1.5)
+	end
+	return false, lastError
+end
+
+function DataService.load(player)
+	local data
+	local canSave = store ~= nil
+	local currentStore = store
+	if currentStore then
+		local ok, result = withRetries(function()
+			return currentStore:GetAsync("player_" .. player.UserId)
+		end)
+		if ok then
+			data = result
+		else
+			-- No guardamos encima de datos que no pudimos leer.
+			canSave = false
+			if store then
+				warn("[Galería] No se pudo cargar a " .. player.Name .. ": " .. tostring(result))
+			end
+		end
+	end
+	data = reconcile(data)
+	if player.Parent then
+		profiles[player] = data
+		loaded[player] = canSave
+	end
+	return data
+end
+
+function DataService.get(player)
+	return profiles[player]
+end
+
+function DataService.save(player)
+	local data = profiles[player]
+	local currentStore = store
+	if not (currentStore and data and loaded[player]) then
+		return
+	end
+	local ok, result = withRetries(function()
+		return currentStore:UpdateAsync("player_" .. player.UserId, function()
+			return data
+		end)
+	end)
+	if not ok then
+		warn("[Galería] No se pudo guardar a " .. player.Name .. ": " .. tostring(result))
+	end
+end
+
+function DataService.release(player)
+	DataService.save(player)
+	profiles[player] = nil
+	loaded[player] = nil
+end
+
+function DataService.start()
+	task.spawn(function()
+		while true do
+			task.wait(Config.AUTOSAVE_SECONDS)
+			for _, player in ipairs(Players:GetPlayers()) do
+				task.spawn(DataService.save, player)
+			end
+		end
+	end)
+
+	game:BindToClose(function()
+		if RunService:IsStudio() and not store then
+			return
+		end
+		local pending = 0
+		for _, player in ipairs(Players:GetPlayers()) do
+			pending += 1
+			task.spawn(function()
+				DataService.save(player)
+				pending -= 1
+			end)
+		end
+		local started = os.clock()
+		while pending > 0 and os.clock() - started < 25 do
+			task.wait(0.2)
+		end
+	end)
+end
+
+return DataService
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="ModuleScript" referent="13">
+          <Properties>
+            <string name="Name">WorldBuilder</string>
+            <string name="Source"><![CDATA[-- Construye todo el mundo por código: plaza, fuente, árboles y las galerías.
+-- Así el juego funciona sin modelos externos ni assets que puedan fallar.
+
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+
+local WorldBuilder = {}
+
+local PLOT_RADIUS = 120
+local PLAZA_RADIUS = 58
+
+local WALL_COLORS = {
+	Color3.fromRGB(255, 196, 214),
+	Color3.fromRGB(184, 236, 214),
+	Color3.fromRGB(212, 196, 255),
+	Color3.fromRGB(255, 214, 176),
+	Color3.fromRGB(178, 220, 255),
+	Color3.fromRGB(255, 236, 160),
+}
+local ACCENT_COLORS = {
+	Color3.fromRGB(236, 72, 128),
+	Color3.fromRGB(30, 170, 120),
+	Color3.fromRGB(124, 92, 255),
+	Color3.fromRGB(255, 120, 40),
+	Color3.fromRGB(40, 130, 230),
+	Color3.fromRGB(230, 170, 20),
+}
+local RAINBOW = {
+	Color3.fromRGB(255, 90, 110),
+	Color3.fromRGB(255, 170, 60),
+	Color3.fromRGB(255, 225, 80),
+	Color3.fromRGB(110, 220, 120),
+	Color3.fromRGB(90, 170, 255),
+	Color3.fromRGB(180, 120, 255),
+}
+
+local WOOD = Color3.fromRGB(196, 140, 96)
+local DARK_WOOD = Color3.fromRGB(120, 78, 52)
+local CREAM = Color3.fromRGB(255, 248, 236)
+local GOLD = Color3.fromRGB(240, 190, 70)
+
+-- Crea una pieza anclada con propiedades por defecto bonitas.
+local function part(props)
+	local p = Instance.new(props.Class or "Part")
+	p.Anchored = true
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = Enum.Material.SmoothPlastic
+	for key, value in pairs(props) do
+		if key ~= "Class" and key ~= "Parent" then
+			p[key] = value
+		end
+	end
+	p.Parent = props.Parent
+	return p
+end
+
+local function cylinderUp(cf)
+	return cf * CFrame.Angles(0, 0, math.rad(90))
+end
+
+local function addLight(parent, class, props)
+	local light = Instance.new(class)
+	for key, value in pairs(props) do
+		light[key] = value
+	end
+	light.Parent = parent
+	return light
+end
+
+local function surfaceText(parentPart, face, text, props)
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = face
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = props.pps or 40
+	gui.LightInfluence = props.lightInfluence or 0
+	gui.Parent = parentPart
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.fromScale(1, 1)
+	label.BackgroundTransparency = 1
+	label.Font = props.font or Enum.Font.FredokaOne
+	label.Text = text
+	label.TextScaled = true
+	label.TextColor3 = props.color or Color3.new(1, 1, 1)
+	label.Parent = gui
+	local padding = Instance.new("UIPadding")
+	padding.PaddingLeft = UDim.new(0.04, 0)
+	padding.PaddingRight = UDim.new(0.04, 0)
+	padding.PaddingTop = UDim.new(0.08, 0)
+	padding.PaddingBottom = UDim.new(0.08, 0)
+	padding.Parent = label
+	if props.stroke then
+		local stroke = Instance.new("UIStroke")
+		stroke.Color = props.stroke
+		stroke.Thickness = props.strokeThickness or 3
+		stroke.Parent = label
+	end
+	return label
+end
+
+-- Ambiente -----------------------------------------------------------------------
+local function setupLighting()
+	Lighting.ClockTime = 14.6
+	Lighting.GeographicLatitude = 35
+	Lighting.Brightness = 2.6
+	Lighting.Ambient = Color3.fromRGB(105, 95, 120)
+	Lighting.OutdoorAmbient = Color3.fromRGB(150, 140, 165)
+	Lighting.EnvironmentDiffuseScale = 1
+	Lighting.EnvironmentSpecularScale = 1
+	Lighting.GlobalShadows = true
+	Lighting.ShadowSoftness = 0.25
+
+	for _, child in ipairs(Lighting:GetChildren()) do
+		if child:IsA("PostEffect") or child:IsA("Atmosphere") or child:IsA("Sky") then
+			child:Destroy()
+		end
+	end
+
+	local atmosphere = Instance.new("Atmosphere")
+	atmosphere.Density = 0.28
+	atmosphere.Offset = 0.15
+	atmosphere.Color = Color3.fromRGB(214, 190, 235)
+	atmosphere.Decay = Color3.fromRGB(150, 120, 190)
+	atmosphere.Glare = 0.3
+	atmosphere.Haze = 1.2
+	atmosphere.Parent = Lighting
+
+	local bloom = Instance.new("BloomEffect")
+	bloom.Intensity = 0.55
+	bloom.Size = 26
+	bloom.Threshold = 1.4
+	bloom.Parent = Lighting
+
+	local color = Instance.new("ColorCorrectionEffect")
+	color.Saturation = 0.18
+	color.Contrast = 0.06
+	color.Brightness = 0.02
+	color.TintColor = Color3.fromRGB(255, 248, 242)
+	color.Parent = Lighting
+
+	local rays = Instance.new("SunRaysEffect")
+	rays.Intensity = 0.06
+	rays.Spread = 0.8
+	rays.Parent = Lighting
+end
+
+-- Elementos decorativos -------------------------------------------------------
+local function buildTree(parent, cf, scale, rng)
+	local model = Instance.new("Model")
+	model.Name = "Tree"
+	local trunkHeight = 9 * scale
+	part({
+		Name = "Trunk",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(trunkHeight, 1.6 * scale, 1.6 * scale),
+		CFrame = cylinderUp(cf * CFrame.new(0, trunkHeight / 2, 0)),
+		Color = DARK_WOOD,
+		Material = Enum.Material.Wood,
+		Parent = model,
+	})
+	local leafColors = {
+		Color3.fromRGB(110, 200, 110),
+		Color3.fromRGB(90, 180, 100),
+		Color3.fromRGB(255, 170, 200),
+		Color3.fromRGB(130, 210, 120),
+	}
+	local leafColor = leafColors[rng:NextInteger(1, #leafColors)]
+	for i = 1, 4 do
+		local size = (6 + rng:NextNumber() * 3) * scale
+		local offset = Vector3.new(rng:NextNumber(-2, 2), trunkHeight + rng:NextNumber(-1, 3), rng:NextNumber(-2, 2))
+			* scale
+		if i == 1 then
+			offset = Vector3.new(0, trunkHeight + 1.5 * scale, 0)
+		end
+		part({
+			Name = "Leaves",
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(size, size, size),
+			CFrame = cf * CFrame.new(offset),
+			Color = leafColor:Lerp(Color3.new(1, 1, 1), rng:NextNumber() * 0.12),
+			Material = Enum.Material.Grass,
+			CanCollide = false,
+			Parent = model,
+		})
+	end
+	model.Parent = parent
+end
+
+local function buildLampPost(parent, cf)
+	local model = Instance.new("Model")
+	model.Name = "Lamp"
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(12, 0.7, 0.7),
+		CFrame = cylinderUp(cf * CFrame.new(0, 6, 0)),
+		Color = Color3.fromRGB(60, 50, 80),
+		Material = Enum.Material.Metal,
+		Parent = model,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.6, 2, 2),
+		CFrame = cylinderUp(cf * CFrame.new(0, 0.3, 0)),
+		Color = Color3.fromRGB(60, 50, 80),
+		Material = Enum.Material.Metal,
+		Parent = model,
+	})
+	local bulb = part({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(2.2, 2.2, 2.2),
+		CFrame = cf * CFrame.new(0, 12.6, 0),
+		Color = Color3.fromRGB(255, 226, 170),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = model,
+	})
+	addLight(
+		bulb,
+		"PointLight",
+		{ Range = 18, Brightness = 1.3, Color = Color3.fromRGB(255, 214, 160), Shadows = false }
+	)
+	model.Parent = parent
+end
+
+local function buildBench(parent, cf)
+	local model = Instance.new("Model")
+	model.Name = "Bench"
+	part({
+		Size = Vector3.new(6, 0.4, 2),
+		CFrame = cf * CFrame.new(0, 1.8, 0),
+		Color = WOOD,
+		Material = Enum.Material.WoodPlanks,
+		Parent = model,
+	})
+	part({
+		Size = Vector3.new(6, 1.6, 0.3),
+		CFrame = cf * CFrame.new(0, 3, 0.9),
+		Color = WOOD,
+		Material = Enum.Material.WoodPlanks,
+		Parent = model,
+	})
+	for _, x in ipairs({ -2.5, 2.5 }) do
+		part({
+			Size = Vector3.new(0.4, 1.6, 1.8),
+			CFrame = cf * CFrame.new(x, 0.8, 0),
+			Color = Color3.fromRGB(60, 50, 80),
+			Material = Enum.Material.Metal,
+			Parent = model,
+		})
+	end
+	model.Parent = parent
+end
+
+local function buildFlowerBed(parent, cf, width, rng)
+	part({
+		Size = Vector3.new(width, 0.8, 3),
+		CFrame = cf * CFrame.new(0, 0.4, 0),
+		Color = Color3.fromRGB(110, 76, 56),
+		Material = Enum.Material.Ground,
+		Parent = parent,
+	})
+	local count = math.floor(width / 1.4)
+	for i = 1, count do
+		local x = -width / 2 + (i - 0.5) * (width / count)
+		local z = rng:NextNumber(-0.8, 0.8)
+		part({
+			Size = Vector3.new(0.2, 1.2, 0.2),
+			CFrame = cf * CFrame.new(x, 1.2, z),
+			Color = Color3.fromRGB(80, 170, 80),
+			CanCollide = false,
+			Parent = parent,
+		})
+		part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(0.9, 0.9, 0.9),
+			CFrame = cf * CFrame.new(x, 1.9, z),
+			Color = RAINBOW[rng:NextInteger(1, #RAINBOW)],
+			CanCollide = false,
+			Parent = parent,
+		})
+	end
+end
+
+local function buildPlant(parent, cf, scale)
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(2.4 * scale, 2.4 * scale, 2.4 * scale),
+		CFrame = cylinderUp(cf * CFrame.new(0, 1.2 * scale, 0)),
+		Color = Color3.fromRGB(220, 120, 90),
+		Material = Enum.Material.Slate,
+		Parent = parent,
+	})
+	for i = 1, 3 do
+		local angle = i * 2.1
+		part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(2.6, 2.6, 2.6) * scale,
+			CFrame = cf
+				* CFrame.new(math.cos(angle) * 0.6 * scale, (3 + i * 0.8) * scale, math.sin(angle) * 0.6 * scale),
+			Color = Color3.fromRGB(80 + i * 15, 180 + i * 10, 100),
+			Material = Enum.Material.Grass,
+			CanCollide = false,
+			Parent = parent,
+		})
+	end
+end
+
+local function buildFountain(parent)
+	local model = Instance.new("Model")
+	model.Name = "Fountain"
+	local base = CFrame.new(0, 0, 0)
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(2.4, 26, 26),
+		CFrame = cylinderUp(base * CFrame.new(0, 1.2, 0)),
+		Color = CREAM,
+		Material = Enum.Material.Marble,
+		Parent = model,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.4, 23, 23),
+		CFrame = cylinderUp(base * CFrame.new(0, 2.3, 0)),
+		Color = Color3.fromRGB(110, 200, 255),
+		Material = Enum.Material.Glass,
+		Transparency = 0.25,
+		CanCollide = false,
+		Parent = model,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(8, 3, 3),
+		CFrame = cylinderUp(base * CFrame.new(0, 5, 0)),
+		Color = CREAM,
+		Material = Enum.Material.Marble,
+		Parent = model,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1, 11, 11),
+		CFrame = cylinderUp(base * CFrame.new(0, 9, 0)),
+		Color = CREAM,
+		Material = Enum.Material.Marble,
+		Parent = model,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.3, 9.6, 9.6),
+		CFrame = cylinderUp(base * CFrame.new(0, 9.5, 0)),
+		Color = Color3.fromRGB(110, 200, 255),
+		Material = Enum.Material.Glass,
+		Transparency = 0.25,
+		CanCollide = false,
+		Parent = model,
+	})
+
+	-- Escultura de pincel gigante sobre la fuente.
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(7, 1.2, 1.2),
+		CFrame = cylinderUp(base * CFrame.new(0, 13, 0)),
+		Color = Color3.fromRGB(236, 72, 128),
+		Material = Enum.Material.SmoothPlastic,
+		Parent = model,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1.2, 1.5, 1.5),
+		CFrame = cylinderUp(base * CFrame.new(0, 16.8, 0)),
+		Color = GOLD,
+		Material = Enum.Material.Metal,
+		Parent = model,
+	})
+	local tip = part({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(2.4, 2.4, 2.4),
+		CFrame = base * CFrame.new(0, 18.2, 0),
+		Color = Color3.fromRGB(124, 92, 255),
+		Material = Enum.Material.Neon,
+		Parent = model,
+	})
+	addLight(tip, "PointLight", { Range = 22, Brightness = 1.5, Color = Color3.fromRGB(190, 160, 255) })
+
+	local sparkles = Instance.new("ParticleEmitter")
+	sparkles.Rate = 12
+	sparkles.Lifetime = NumberRange.new(1.5, 2.5)
+	sparkles.Speed = NumberRange.new(2, 4)
+	sparkles.SpreadAngle = Vector2.new(180, 180)
+	sparkles.LightEmission = 1
+	sparkles.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.6),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	sparkles.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 160, 220)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(160, 220, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 240, 160)),
+	})
+	sparkles.Parent = tip
+	model.Parent = parent
+end
+
+-- Marcos de la galería ---------------------------------------------------------
+local function buildFrame(parent, cf, name)
+	local frame = Instance.new("Model")
+	frame.Name = name
+	part({
+		Size = Vector3.new(7.4, 7.4, 0.5),
+		CFrame = cf,
+		Color = GOLD,
+		Material = Enum.Material.Metal,
+		Reflectance = 0.05,
+		Parent = frame,
+	})
+	local canvas = part({
+		Name = "Canvas",
+		Size = Vector3.new(6.2, 6.2, 0.2),
+		CFrame = cf * CFrame.new(0, 0, -0.3),
+		Color = CREAM,
+		Parent = frame,
+	})
+	canvas:SetAttribute("Cells", "")
+	local plaque = part({
+		Name = "Plaque",
+		Size = Vector3.new(3.6, 0.9, 0.2),
+		CFrame = cf * CFrame.new(0, -4.3, -0.1),
+		Color = Color3.fromRGB(50, 40, 70),
+		Parent = frame,
+	})
+	local plaqueLabel = surfaceText(plaque, Enum.NormalId.Front, "", { pps = 50, color = GOLD })
+	plaqueLabel.Name = "PlaqueText"
+	local lamp = part({
+		Size = Vector3.new(2.4, 0.4, 0.6),
+		CFrame = cf * CFrame.new(0, 4.4, -0.8),
+		Color = Color3.fromRGB(50, 40, 70),
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = frame,
+	})
+	addLight(lamp, "SpotLight", {
+		Face = Enum.NormalId.Bottom,
+		Angle = 70,
+		Range = 10,
+		Brightness = 2.2,
+		Color = Color3.fromRGB(255, 236, 210),
+	})
+	frame.Parent = parent
+	return canvas, plaqueLabel
+end
+
+local function buildEasel(parent, cf)
+	local model = Instance.new("Model")
+	model.Name = "Easel"
+	for _, x in ipairs({ -1.8, 1.8 }) do
+		part({
+			Size = Vector3.new(0.4, 10, 0.4),
+			CFrame = cf * CFrame.new(x, 5, 0) * CFrame.Angles(math.rad(-8), 0, math.rad(x > 0 and 8 or -8)),
+			Color = WOOD,
+			Material = Enum.Material.Wood,
+			Parent = model,
+		})
+	end
+	part({
+		Size = Vector3.new(0.4, 9, 0.4),
+		CFrame = cf * CFrame.new(0, 4.5, 1.4) * CFrame.Angles(math.rad(14), 0, 0),
+		Color = WOOD,
+		Material = Enum.Material.Wood,
+		Parent = model,
+	})
+	part({
+		Size = Vector3.new(6, 0.4, 0.9),
+		CFrame = cf * CFrame.new(0, 3.9, -0.5),
+		Color = WOOD,
+		Material = Enum.Material.Wood,
+		Parent = model,
+	})
+	local canvas = part({
+		Name = "Canvas",
+		Size = Vector3.new(5.6, 5.6, 0.25),
+		CFrame = cf * CFrame.new(0, 6.95, -0.35) * CFrame.Angles(math.rad(-8), 0, 0),
+		Color = CREAM,
+		Parent = model,
+	})
+	canvas:SetAttribute("Cells", "")
+	-- Paleta de pintor apoyada.
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, 2.6, 2.6),
+		CFrame = cf * CFrame.new(2.6, 4.2, -0.6) * CFrame.Angles(0, math.rad(90), 0),
+		Color = Color3.fromRGB(230, 190, 140),
+		Parent = model,
+	})
+	for i, color in ipairs(RAINBOW) do
+		local angle = i * 0.9
+		part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(0.45, 0.45, 0.45),
+			CFrame = cf * CFrame.new(2.6 + math.cos(angle) * 0.8, 4.2 + math.sin(angle) * 0.8, -0.75),
+			Color = color,
+			CanCollide = false,
+			Parent = model,
+		})
+	end
+	model.Parent = parent
+	return canvas
+end
+
+-- Decoraciones que aparecen al subir la mejora "Decoración".
+local DECOR_BUILDERS = {
+	function(folder, L)
+		buildPlant(folder, L(-7.5, 0, -21.5), 1.1)
+		buildPlant(folder, L(7.5, 0, -21.5), 1.1)
+	end,
+	function(folder, L)
+		part({
+			Size = Vector3.new(5, 0.12, 22),
+			CFrame = L(0, 1.06, -8),
+			Color = Color3.fromRGB(200, 40, 70),
+			Material = Enum.Material.Fabric,
+			CanCollide = false,
+			Parent = folder,
+		})
+		for _, x in ipairs({ -2.6, 2.6 }) do
+			part({
+				Size = Vector3.new(0.25, 0.14, 22),
+				CFrame = L(x, 1.07, -8),
+				Color = GOLD,
+				Material = Enum.Material.Fabric,
+				CanCollide = false,
+				Parent = folder,
+			})
+		end
+	end,
+	function(folder, L)
+		part({
+			Size = Vector3.new(3, 3, 3),
+			CFrame = L(-17, 2.5, -12),
+			Color = CREAM,
+			Material = Enum.Material.Marble,
+			Parent = folder,
+		})
+		local shapes = { Enum.PartType.Ball, Enum.PartType.Block, Enum.PartType.Ball }
+		for i, shape in ipairs(shapes) do
+			local s = 2.4 - i * 0.4
+			part({
+				Shape = shape,
+				Size = Vector3.new(s, s, s),
+				CFrame = L(-17, 3.5 + i * 1.7, -12) * CFrame.Angles(i, i * 0.7, 0),
+				Color = RAINBOW[i * 2],
+				Material = Enum.Material.Glass,
+				Transparency = 0.15,
+				CanCollide = false,
+				Parent = folder,
+			})
+		end
+	end,
+	function(folder, L)
+		for i = 0, 22 do
+			local x = -22 + i * 2
+			local bulb = part({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(0.7, 0.7, 0.7),
+				CFrame = L(x, 11.9 - math.sin(i * 0.55) ^ 2 * 0.6, -23.4),
+				Color = RAINBOW[i % #RAINBOW + 1],
+				Material = Enum.Material.Neon,
+				CanCollide = false,
+				Parent = folder,
+			})
+			if i % 4 == 0 then
+				addLight(bulb, "PointLight", { Range = 8, Brightness = 0.8, Color = bulb.Color })
+			end
+		end
+	end,
+	function(folder, L)
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.4, 5, 5),
+			CFrame = cylinderUp(L(0, 16.5, 9)),
+			Color = GOLD,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = folder,
+		})
+		part({
+			Size = Vector3.new(0.2, 2.5, 0.2),
+			CFrame = L(0, 17.9, 9),
+			Color = GOLD,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = folder,
+		})
+		for i = 1, 8 do
+			local angle = i / 8 * math.pi * 2
+			part({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(0.8, 0.8, 0.8),
+				CFrame = L(math.cos(angle) * 2.5, 16.1, 9 + math.sin(angle) * 2.5),
+				Color = Color3.fromRGB(220, 240, 255),
+				Material = Enum.Material.Neon,
+				CanCollide = false,
+				Parent = folder,
+			})
+		end
+		local core = part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(1.4, 1.4, 1.4),
+			CFrame = L(0, 15.6, 9),
+			Color = Color3.fromRGB(200, 230, 255),
+			Material = Enum.Material.Glass,
+			Transparency = 0.2,
+			CanCollide = false,
+			Parent = folder,
+		})
+		addLight(core, "PointLight", { Range = 20, Brightness = 1.2, Color = Color3.fromRGB(230, 240, 255) })
+	end,
+	function(folder, L)
+		local index = 0
+		for step = 0, 16 do
+			local angle = math.pi * step / 16
+			index += 1
+			part({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(1.4, 1.4, 1.4),
+				CFrame = L(math.cos(angle) * 6.2, 7 + math.sin(angle) * 5.6, -19.9),
+				Color = RAINBOW[index % #RAINBOW + 1],
+				Material = Enum.Material.SmoothPlastic,
+				Reflectance = 0.15,
+				CanCollide = false,
+				Parent = folder,
+			})
+		end
+		for _, x in ipairs({ -6.2, 6.2 }) do
+			for y = 1.7, 6.5, 1.3 do
+				index += 1
+				part({
+					Shape = Enum.PartType.Ball,
+					Size = Vector3.new(1.4, 1.4, 1.4),
+					CFrame = L(x, y, -19.9),
+					Color = RAINBOW[index % #RAINBOW + 1],
+					Reflectance = 0.15,
+					CanCollide = false,
+					Parent = folder,
+				})
+			end
+		end
+	end,
+}
+WorldBuilder.DECOR_LEVELS = #DECOR_BUILDERS
+
+-- Galería de un jugador -----------------------------------------------------------
+local function buildPlot(parent, index, plotCF, rng)
+	local wallColor = WALL_COLORS[index]
+	local accent = ACCENT_COLORS[index]
+	local function L(x, y, z)
+		return plotCF * CFrame.new(x, y, z)
+	end
+
+	local model = Instance.new("Model")
+	model.Name = "Plot" .. index
+	model:SetAttribute("Index", index)
+	model:SetAttribute("OwnerUserId", 0)
+
+	local shop = Instance.new("Model")
+	shop.Name = "Shop"
+	shop.Parent = model
+
+	-- Suelo, alfombra y camino hasta la plaza.
+	part({
+		Name = "Floor",
+		Size = Vector3.new(46, 1, 38),
+		CFrame = L(0, 0.5, 0),
+		Color = WOOD,
+		Material = Enum.Material.WoodPlanks,
+		Parent = shop,
+	})
+	part({
+		Size = Vector3.new(18, 0.1, 11),
+		CFrame = L(0, 1.05, -9),
+		Color = accent:Lerp(Color3.new(1, 1, 1), 0.55),
+		Material = Enum.Material.Fabric,
+		CanCollide = false,
+		Parent = shop,
+	})
+	part({
+		Size = Vector3.new(16.6, 0.12, 9.6),
+		CFrame = L(0, 1.06, -9),
+		Color = accent:Lerp(Color3.new(1, 1, 1), 0.25),
+		Material = Enum.Material.Fabric,
+		CanCollide = false,
+		Parent = shop,
+	})
+	local pathLength = PLOT_RADIUS - PLAZA_RADIUS - 19
+	part({
+		Size = Vector3.new(10, 0.4, pathLength),
+		CFrame = L(0, 0.2, -19 - pathLength / 2),
+		Color = Color3.fromRGB(230, 214, 190),
+		Material = Enum.Material.Cobblestone,
+		Parent = shop,
+	})
+	part({
+		Size = Vector3.new(8, 0.15, 3),
+		CFrame = L(0, 1.07, -16.6),
+		Color = accent,
+		Material = Enum.Material.Fabric,
+		CanCollide = false,
+		Parent = shop,
+	})
+
+	-- Paredes.
+	part({ Size = Vector3.new(46, 18, 1), CFrame = L(0, 10, 18.5), Color = wallColor, Parent = shop })
+	part({ Size = Vector3.new(1, 18, 38), CFrame = L(-22.5, 10, 0), Color = wallColor, Parent = shop })
+	part({ Size = Vector3.new(1, 18, 38), CFrame = L(22.5, 10, 0), Color = wallColor, Parent = shop })
+	for _, side in ipairs({ -1, 1 }) do
+		local cx = side * 14
+		part({ Size = Vector3.new(18, 3, 1), CFrame = L(cx, 2.5, -18.5), Color = wallColor, Parent = shop })
+		part({ Size = Vector3.new(18, 6, 1), CFrame = L(cx, 16, -18.5), Color = wallColor, Parent = shop })
+		part({
+			Size = Vector3.new(18, 9, 0.3),
+			CFrame = L(cx, 8.5, -18.5),
+			Color = Color3.fromRGB(200, 235, 255),
+			Material = Enum.Material.Glass,
+			Transparency = 0.65,
+			Parent = shop,
+		})
+		part({ Size = Vector3.new(0.4, 9, 0.6), CFrame = L(cx, 8.5, -18.5), Color = CREAM, Parent = shop })
+		part({ Size = Vector3.new(18, 0.4, 0.6), CFrame = L(cx, 8.5, -18.5), Color = CREAM, Parent = shop })
+	end
+	part({ Size = Vector3.new(10, 6, 1), CFrame = L(0, 16, -18.5), Color = wallColor, Parent = shop })
+	-- Molduras.
+	for _, z in ipairs({ -18.5, 18.5 }) do
+		part({ Size = Vector3.new(46.4, 0.8, 1.4), CFrame = L(0, 19, z), Color = CREAM, Parent = shop })
+		part({ Size = Vector3.new(46.4, 0.6, 1.3), CFrame = L(0, 1.3, z), Color = CREAM, Parent = shop })
+	end
+	for _, x in ipairs({ -22.5, 22.5 }) do
+		part({ Size = Vector3.new(1.4, 0.8, 38), CFrame = L(x, 19, 0), Color = CREAM, Parent = shop })
+	end
+	for _, x in ipairs({ -5.4, 5.4, -22.8, 22.8 }) do
+		part({ Size = Vector3.new(1, 18, 1.4), CFrame = L(x, 10, -18.6), Color = CREAM, Parent = shop })
+	end
+
+	-- Techo y letrero.
+	part({ Size = Vector3.new(48, 1.2, 40), CFrame = L(0, 19.9, 0), Color = Color3.fromRGB(70, 60, 90), Parent = shop })
+	part({
+		Size = Vector3.new(26, 5.4, 0.8),
+		CFrame = L(0, 23.2, -18.7),
+		Color = Color3.fromRGB(50, 40, 70),
+		Parent = shop,
+	})
+	local signPart = part({
+		Name = "Sign",
+		Size = Vector3.new(24.8, 4.4, 0.3),
+		CFrame = L(0, 23.2, -19.2),
+		Color = Color3.fromRGB(60, 48, 84),
+		Parent = shop,
+	})
+	local signLabel = surfaceText(signPart, Enum.NormalId.Front, "Galería libre", {
+		pps = 30,
+		color = Color3.fromRGB(255, 244, 220),
+		stroke = accent,
+		strokeThickness = 4,
+	})
+	signLabel.Name = "SignText"
+	for _, data in ipairs({
+		{ Vector3.new(26, 0.35, 0.35), CFrame.new(0, 2.85, 0) },
+		{ Vector3.new(26, 0.35, 0.35), CFrame.new(0, -2.85, 0) },
+		{ Vector3.new(0.35, 6, 0.35), CFrame.new(13, 0, 0) },
+		{ Vector3.new(0.35, 6, 0.35), CFrame.new(-13, 0, 0) },
+	}) do
+		local neon = part({
+			Size = data[1],
+			CFrame = L(0, 23.2, -19.2) * data[2],
+			Color = accent,
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			Parent = shop,
+		})
+		neon.Name = "SignNeon"
+	end
+	addLight(
+		signPart,
+		"SurfaceLight",
+		{ Face = Enum.NormalId.Front, Range = 10, Brightness = 1.2, Color = accent, Angle = 80 }
+	)
+
+	-- Toldo de rayas sobre las ventanas (lonas inclinadas con faldón).
+	for side = -1, 1, 2 do
+		for i = 0, 3 do
+			local x = side * (5.75 + 2.25 + i * 4.5)
+			local stripe = (i % 2 == 0) and accent or Color3.new(1, 1, 1)
+			part({
+				Size = Vector3.new(4.5, 0.3, 4.8),
+				CFrame = L(x, 14.2, -20.8) * CFrame.Angles(math.rad(-28), 0, 0),
+				Color = stripe,
+				Material = Enum.Material.Fabric,
+				CanCollide = false,
+				Parent = shop,
+			})
+			part({
+				Size = Vector3.new(4.5, 0.9, 0.2),
+				CFrame = L(x, 12.75, -22.9),
+				Color = stripe,
+				Material = Enum.Material.Fabric,
+				CanCollide = false,
+				Parent = shop,
+			})
+		end
+	end
+
+	-- Mostrador.
+	part({
+		Size = Vector3.new(14, 4, 3),
+		CFrame = L(0, 3, 4),
+		Color = DARK_WOOD,
+		Material = Enum.Material.Wood,
+		Parent = shop,
+	})
+	part({ Size = Vector3.new(14.2, 0.6, 0.2), CFrame = L(0, 4.3, 2.45), Color = accent, Parent = shop })
+	part({
+		Size = Vector3.new(15, 0.5, 3.8),
+		CFrame = L(0, 5.25, 4),
+		Color = CREAM,
+		Material = Enum.Material.Marble,
+		Parent = shop,
+	})
+	part({
+		Size = Vector3.new(2.2, 1.4, 1.8),
+		CFrame = L(4.5, 6.2, 4.2),
+		Color = Color3.fromRGB(70, 60, 90),
+		Parent = shop,
+	})
+	part({
+		Size = Vector3.new(1.8, 0.9, 0.2),
+		CFrame = L(4.5, 7.2, 4.6) * CFrame.Angles(math.rad(-20), 0, 0),
+		Color = Color3.fromRGB(120, 255, 190),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = shop,
+	})
+	for i = 1, 5 do
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(1.2, 0.8, 0.8),
+			CFrame = cylinderUp(L(-5.5 + i * 0.9, 6.1, 4)),
+			Color = RAINBOW[i],
+			Parent = shop,
+		})
+	end
+
+	-- Estantería con botes de pintura.
+	part({
+		Size = Vector3.new(8, 0.4, 2),
+		CFrame = L(-17.5, 6, 17.2),
+		Color = WOOD,
+		Material = Enum.Material.Wood,
+		Parent = shop,
+	})
+	part({
+		Size = Vector3.new(8, 0.4, 2),
+		CFrame = L(-17.5, 3, 17.2),
+		Color = WOOD,
+		Material = Enum.Material.Wood,
+		Parent = shop,
+	})
+	for i = 1, 6 do
+		for row = 0, 1 do
+			part({
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(1.4, 1.1, 1.1),
+				CFrame = cylinderUp(L(-21 + i * 1.15, 3.9 + row * 3, 17.2)),
+				Color = RAINBOW[(i + row * 3) % #RAINBOW + 1],
+				Parent = shop,
+			})
+		end
+	end
+
+	-- Lámparas colgantes.
+	for _, pos in ipairs({ Vector3.new(-12, 0, -2), Vector3.new(12, 0, -2), Vector3.new(0, 0, -10) }) do
+		part({
+			Size = Vector3.new(0.15, 3, 0.15),
+			CFrame = L(pos.X, 17.8, pos.Z),
+			Color = Color3.fromRGB(40, 30, 50),
+			CanCollide = false,
+			Parent = shop,
+		})
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(1, 2.6, 2.6),
+			CFrame = cylinderUp(L(pos.X, 16.2, pos.Z)),
+			Color = accent,
+			CanCollide = false,
+			Parent = shop,
+		})
+		local bulb = part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(1.3, 1.3, 1.3),
+			CFrame = L(pos.X, 15.6, pos.Z),
+			Color = Color3.fromRGB(255, 230, 180),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			Parent = shop,
+		})
+		addLight(
+			bulb,
+			"PointLight",
+			{ Range = 22, Brightness = 1.2, Color = Color3.fromRGB(255, 220, 180), Shadows = true }
+		)
+	end
+
+	-- Plantas interiores.
+	buildPlant(shop, L(19.5, 1, 15.5), 1)
+	buildPlant(shop, L(-19.5, 1, -15.5), 0.9)
+	buildPlant(shop, L(19.5, 1, -15.5), 0.9)
+
+	-- Puestos de espera con cojines.
+	local spots = {}
+	for i, x in ipairs({ -12, -6, 0, 6, 12 }) do
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.2, 3.2, 3.2),
+			CFrame = cylinderUp(L(x, 1.1, -3.5)),
+			Color = (i % 2 == 0) and accent or CREAM,
+			Material = Enum.Material.Fabric,
+			CanCollide = false,
+			Parent = shop,
+		})
+		spots[i] = L(x, 1, -3.5)
+	end
+
+	-- Galería en las paredes.
+	local gallery = Instance.new("Folder")
+	gallery.Name = "Gallery"
+	gallery.Parent = model
+	local frameCFrames = {
+		L(-12, 11, 17.9),
+		L(0, 11.5, 17.9),
+		L(12, 11, 17.9),
+		L(-21.9, 11, 8) * CFrame.Angles(0, -math.pi / 2, 0),
+		L(-21.9, 11, -6) * CFrame.Angles(0, -math.pi / 2, 0),
+		L(21.9, 11, 8) * CFrame.Angles(0, math.pi / 2, 0),
+		L(21.9, 11, -6) * CFrame.Angles(0, math.pi / 2, 0),
+	}
+	local canvases, plaques = {}, {}
+	for i = 1, Config.GALLERY_SIZE do
+		canvases[i], plaques[i] = buildFrame(gallery, frameCFrames[i], "Frame" .. i)
+	end
+	local easelCanvas = buildEasel(shop, L(13, 1, 11) * CFrame.Angles(0, math.rad(-25), 0))
+
+	local decor = Instance.new("Folder")
+	decor.Name = "Decor"
+	decor.Parent = model
+
+	local customers = Instance.new("Folder")
+	customers.Name = "Customers"
+	customers.Parent = model
+
+	-- Exterior: jardineras junto a la entrada.
+	buildFlowerBed(shop, L(-14, 0, -24.5), 16, rng)
+	buildFlowerBed(shop, L(14, 0, -24.5), 16, rng)
+
+	model.Parent = parent
+
+	return {
+		index = index,
+		model = model,
+		cframe = plotCF,
+		spots = spots,
+		entrance = L(0, 0.4, -24),
+		inside = L(0, 1, -12),
+		street = L(0, 0.4, -(PLOT_RADIUS - PLAZA_RADIUS) + 4),
+		ownerSpawn = L(0, 4, 9),
+		signLabel = signLabel,
+		canvases = canvases,
+		plaques = plaques,
+		easelCanvas = easelCanvas,
+		decorFolder = decor,
+		customersFolder = customers,
+		decorBuilt = 0,
+		L = L,
+	}
+end
+
+-- Construye las decoraciones hasta el nivel indicado (o las quita si baja).
+function WorldBuilder.setDecorLevel(plot, level)
+	if level < plot.decorBuilt then
+		plot.decorFolder:ClearAllChildren()
+		plot.decorBuilt = 0
+	end
+	for i = plot.decorBuilt + 1, math.min(level, #DECOR_BUILDERS) do
+		local folder = Instance.new("Folder")
+		folder.Name = "Decor" .. i
+		DECOR_BUILDERS[i](folder, plot.L)
+		folder.Parent = plot.decorFolder
+		plot.decorBuilt = i
+	end
+end
+
+function WorldBuilder.build()
+	setupLighting()
+
+	local world = Instance.new("Folder")
+	world.Name = "World"
+	world.Parent = Workspace
+
+	local rng = Random.new(2024)
+
+	part({
+		Name = "Ground",
+		Size = Vector3.new(800, 4, 800),
+		CFrame = CFrame.new(0, -2, 0),
+		Color = Color3.fromRGB(120, 200, 110),
+		Material = Enum.Material.Grass,
+		Parent = world,
+	})
+	part({
+		Name = "Plaza",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.4, PLAZA_RADIUS * 2, PLAZA_RADIUS * 2),
+		CFrame = cylinderUp(CFrame.new(0, 0.2, 0)),
+		Color = Color3.fromRGB(236, 222, 200),
+		Material = Enum.Material.Cobblestone,
+		Parent = world,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.45, 40, 40),
+		CFrame = cylinderUp(CFrame.new(0, 0.22, 0)),
+		Color = Color3.fromRGB(214, 196, 240),
+		Material = Enum.Material.Pavement,
+		Parent = world,
+	})
+	buildFountain(world)
+
+	local spawn = Instance.new("SpawnLocation")
+	spawn.Name = "PlazaSpawn"
+	spawn.Anchored = true
+	spawn.Size = Vector3.new(8, 0.4, 8)
+	spawn.CFrame = CFrame.new(26, 0.6, 0)
+	spawn.Color = Color3.fromRGB(255, 196, 214)
+	spawn.Material = Enum.Material.SmoothPlastic
+	spawn.Duration = 0
+	spawn.Neutral = true
+	spawn.TopSurface = Enum.SurfaceType.Smooth
+	spawn.Parent = world
+
+	-- Jardineras redondas alrededor de la fuente, entre los caminos.
+	for i = 0, Config.MAX_PLOTS - 1 do
+		local angle = (i + 0.5) / Config.MAX_PLOTS * math.pi * 2
+		local center = CFrame.new(math.cos(angle) * 30, 0, math.sin(angle) * 30)
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(1.6, 9, 9),
+			CFrame = cylinderUp(center * CFrame.new(0, 0.8, 0)),
+			Color = CREAM,
+			Material = Enum.Material.Marble,
+			Parent = world,
+		})
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.4, 8, 8),
+			CFrame = cylinderUp(center * CFrame.new(0, 1.5, 0)),
+			Color = Color3.fromRGB(110, 76, 56),
+			Material = Enum.Material.Ground,
+			Parent = world,
+		})
+		for f = 1, 10 do
+			local a = f / 10 * math.pi * 2
+			local r = (f % 2 == 0) and 2.6 or 1.4
+			part({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(1.3, 1.3, 1.3),
+				CFrame = center * CFrame.new(math.cos(a) * r, 2.3 + (f % 3) * 0.3, math.sin(a) * r),
+				Color = RAINBOW[(i + f) % #RAINBOW + 1],
+				CanCollide = false,
+				Parent = world,
+			})
+		end
+		part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(3.4, 3.4, 3.4),
+			CFrame = center * CFrame.new(0, 3.2, 0),
+			Color = Color3.fromRGB(110, 200, 110),
+			Material = Enum.Material.Grass,
+			CanCollide = false,
+			Parent = world,
+		})
+	end
+
+	for i = 0, 11 do
+		local angle = (i + 0.5) / 12 * math.pi * 2
+		local pos = Vector3.new(math.cos(angle), 0, math.sin(angle)) * (PLAZA_RADIUS - 4)
+		buildLampPost(world, CFrame.new(pos))
+		if i % 2 == 0 then
+			buildBench(world, CFrame.lookAt(pos * 0.82, Vector3.new(0, 0, 0)))
+		end
+	end
+
+	-- Árboles entre galerías y alrededor del mundo.
+	for i = 0, Config.MAX_PLOTS - 1 do
+		local angle = (i + 0.5) / Config.MAX_PLOTS * math.pi * 2
+		for _, radius in ipairs({ 86, 118, 150 }) do
+			local jitter = Vector3.new(rng:NextNumber(-6, 6), 0, rng:NextNumber(-6, 6))
+			local pos = Vector3.new(math.cos(angle), 0, math.sin(angle)) * radius + jitter
+			buildTree(world, CFrame.new(pos), rng:NextNumber(0.9, 1.3), rng)
+		end
+	end
+	for i = 1, 40 do
+		local angle = i / 40 * math.pi * 2 + rng:NextNumber(-0.05, 0.05)
+		local radius = rng:NextNumber(185, 240)
+		buildTree(world, CFrame.new(math.cos(angle) * radius, 0, math.sin(angle) * radius), rng:NextNumber(1, 1.6), rng)
+	end
+
+	local plotsFolder = Instance.new("Folder")
+	plotsFolder.Name = "Plots"
+	plotsFolder.Parent = Workspace
+
+	local plots = {}
+	for i = 1, Config.MAX_PLOTS do
+		local angle = (i - 1) / Config.MAX_PLOTS * math.pi * 2
+		local position = Vector3.new(math.cos(angle), 0, math.sin(angle)) * PLOT_RADIUS
+		local plotCF = CFrame.lookAt(position, Vector3.new(0, 0, 0))
+		plots[i] = buildPlot(plotsFolder, i, plotCF, rng)
+	end
+	return plots
+end
+
+return WorldBuilder
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="SoundService" referent="14">
+    <Properties>
+      <string name="Name">SoundService</string>
+      <bool name="RespectFilteringEnabled">true</bool>
+    </Properties>
+  </Item>
+  <Item class="StarterPlayer" referent="15">
+    <Properties>
+      <string name="Name">StarterPlayer</string>
+      <float name="CameraMaxZoomDistance">80</float>
+      <float name="CharacterWalkSpeed">20</float>
+    </Properties>
+    <Item class="StarterPlayerScripts" referent="16">
+      <Properties>
+        <string name="Name">StarterPlayerScripts</string>
+      </Properties>
+      <Item class="Folder" referent="17">
+        <Properties>
+          <string name="Name">Client</string>
+        </Properties>
+        <Item class="LocalScript" referent="18">
+          <Properties>
+            <string name="Name">Main</string>
+            <string name="Source"><![CDATA[-- Punto de entrada del cliente: conecta la interfaz con el servidor.
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
+local Workspace = game:GetService("Workspace")
+
+local UI = script.Parent:WaitForChild("UI")
+local Theme = require(UI.Theme)
+local HUD = require(UI.HUD)
+local Studio = require(UI.Studio)
+local Shop = require(UI.Shop)
+local Results = require(UI.Results)
+local World = require(script.Parent:WaitForChild("World"))
+
+local player = Players.LocalPlayer
+local remotes = ReplicatedStorage:WaitForChild("Remotes")
+
+local app = {
+	state = nil,
+	remotes = {},
+	patienceColor = World.patienceColor,
+	orderPreview = World.orderPreview,
+}
+for _, name in ipairs({
+	"GetState",
+	"StateChanged",
+	"Notify",
+	"OpenOrder",
+	"StartPainting",
+	"StopPainting",
+	"SubmitPainting",
+	"BuyUpgrade",
+	"ClaimDaily",
+	"GoHome",
+}) do
+	app.remotes[name] = remotes:WaitForChild(name)
+end
+
+function app.notify(text, kind)
+	HUD.notify(text, kind)
+end
+
+function app.openShop()
+	Shop.open()
+end
+
+function app.showHelp()
+	Results.showHelp()
+end
+
+function app.openStudio(model)
+	if Studio.isOpen() then
+		return
+	end
+	Studio.open(model)
+end
+
+function app.showResults(result, template, art)
+	Results.show(result, template, art)
+end
+
+local claiming = false
+function app.claimDaily()
+	if claiming then
+		return
+	end
+	if not (app.state and app.state.dailyReady) then
+		app.notify(
+			"Tu próximo regalo llega en " .. Theme.formatTime(app.state and app.state.dailyWait or 0) .. " ⏰",
+			"info"
+		)
+		return
+	end
+	claiming = true
+	local ok, success, amount = pcall(function()
+		return app.remotes.ClaimDaily:InvokeServer()
+	end)
+	claiming = false
+	if ok and success then
+		Theme.playSound("success", 1.1)
+		app.notify("🎁 ¡Regalo diario! +" .. Theme.formatNumber(amount) .. " monedas", "gold")
+	end
+end
+
+local function applyState(state)
+	if type(state) ~= "table" then
+		return
+	end
+	local first = app.state == nil
+	app.state = state
+	HUD.applyState(state)
+	Shop.refresh()
+	if first and state.sold == 0 then
+		task.delay(1.5, Results.showHelp)
+	end
+end
+
+-- Quita la mochila (no se usa) y prepara la interfaz.
+pcall(function()
+	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+end)
+
+HUD.init(app)
+Studio.init(app)
+Shop.init(app)
+Results.init()
+Studio.start()
+World.start()
+
+app.remotes.StateChanged.OnClientEvent:Connect(applyState)
+app.remotes.Notify.OnClientEvent:Connect(function(text, kind)
+	app.notify(text, kind)
+end)
+app.remotes.OpenOrder.OnClientEvent:Connect(function(orderId)
+	local plots = Workspace:FindFirstChild("Plots")
+	if not plots then
+		return
+	end
+	for _, plot in ipairs(plots:GetChildren()) do
+		local customers = plot:FindFirstChild("Customers")
+		if customers then
+			for _, model in ipairs(customers:GetChildren()) do
+				if model:GetAttribute("OrderId") == orderId then
+					app.openStudio(model)
+					return
+				end
+			end
+		end
+	end
+end)
+
+task.spawn(function()
+	local ok, state = pcall(function()
+		return app.remotes.GetState:InvokeServer()
+	end)
+	if ok and state and not app.state then
+		applyState(state)
+	end
+end)
+
+player.CharacterAdded:Connect(function()
+	if Studio.isOpen() then
+		Studio.close(true)
+	end
+end)
+]]></string>
+          </Properties>
+        </Item>
+        <Item class="Folder" referent="19">
+          <Properties>
+            <string name="Name">UI</string>
+          </Properties>
+          <Item class="ModuleScript" referent="20">
+            <Properties>
+              <string name="Name">HUD</string>
+              <string name="Source"><![CDATA[-- Interfaz principal: monedas, nivel, racha, lista de pedidos, botones y avisos.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Templates = require(Shared.Templates)
+
+local Theme = require(script.Parent.Theme)
+local PixelArt = require(script.Parent.PixelArt)
+
+local HUD = {}
+
+local C = Theme.Colors
+local player = Players.LocalPlayer
+
+local app
+local gui
+local refs = {}
+local cards = {}
+local shownCoins = nil
+
+-- Avisos tipo "toast" --------------------------------------------------------------
+local toastHolder
+local KIND_COLORS = {
+	info = C.Primary,
+	success = C.Green,
+	error = C.Red,
+	gold = C.GoldDark,
+}
+
+function HUD.notify(text, kind)
+	if not toastHolder then
+		return
+	end
+	local color = KIND_COLORS[kind] or C.Primary
+	local toast = Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 46),
+		BackgroundColor3 = C.Panel,
+		LayoutOrder = -math.floor(os.clock() * 100),
+		Parent = toastHolder,
+	}, {
+		Theme.corner(14),
+		Theme.stroke(color, 3),
+	})
+	Theme.new("Frame", {
+		Size = UDim2.new(0, 8, 1, -16),
+		Position = UDim2.fromOffset(8, 8),
+		BackgroundColor3 = color,
+		Parent = toast,
+	}, { Theme.corner(4) })
+	Theme.label({
+		Size = UDim2.new(1, -30, 1, -12),
+		Position = UDim2.fromOffset(22, 6),
+		Text = text,
+		Font = Theme.Fonts.Bold,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 20,
+		Parent = toast,
+	})
+	Theme.pop(toast, 0.7)
+	if kind == "error" then
+		Theme.playSound("click", 0.6)
+	end
+	task.delay(3.5, function()
+		if toast.Parent then
+			Theme.tween(toast, 0.3, { BackgroundTransparency = 1 })
+			for _, d in ipairs(toast:GetDescendants()) do
+				if d:IsA("TextLabel") then
+					Theme.tween(d, 0.3, { TextTransparency = 1 })
+				elseif d:IsA("UIStroke") then
+					Theme.tween(d, 0.3, { Transparency = 1 })
+				elseif d:IsA("Frame") then
+					Theme.tween(d, 0.3, { BackgroundTransparency = 1 })
+				end
+			end
+			task.wait(0.35)
+			toast:Destroy()
+		end
+	end)
+	local toasts = {}
+	for _, child in ipairs(toastHolder:GetChildren()) do
+		if child:IsA("Frame") then
+			table.insert(toasts, child)
+		end
+	end
+	if #toasts > 4 then
+		table.sort(toasts, function(a, b)
+			return a.LayoutOrder > b.LayoutOrder
+		end)
+		toasts[1]:Destroy()
+	end
+end
+
+-- Barra superior ---------------------------------------------------------------------
+local function pill(parent, props)
+	local frame = Theme.new("Frame", {
+		Name = props.Name,
+		Size = props.Size,
+		BackgroundColor3 = C.Panel,
+		LayoutOrder = props.LayoutOrder,
+		Parent = parent,
+	}, {
+		Theme.corner(22),
+		Theme.stroke(props.Color, 3),
+	})
+	local icon = Theme.new("Frame", {
+		Size = UDim2.new(0, 44, 0, 44),
+		Position = UDim2.new(0, -6, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 0.5),
+		BackgroundColor3 = props.Color,
+		ZIndex = 2,
+		Parent = frame,
+	}, { Theme.corner(22), Theme.stroke(Color3.new(1, 1, 1), 3) })
+	Theme.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = props.Icon,
+		ZIndex = 3,
+		MaxTextSize = 26,
+		Parent = icon,
+	})
+	local label = Theme.label({
+		Name = "Value",
+		Size = UDim2.new(1, -50, 1, -10),
+		Position = UDim2.fromOffset(44, 5),
+		Text = "0",
+		TextColor3 = C.Ink,
+		MaxTextSize = 26,
+		Parent = frame,
+	})
+	return frame, label
+end
+
+local function buildTopBar()
+	local bar = Theme.new("Frame", {
+		Name = "TopBar",
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 8),
+		Size = UDim2.new(0, 560, 0, 44),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	}, {
+		Theme.new("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			Padding = UDim.new(0, 18),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+	})
+	local coinsFrame, coinsLabel =
+		pill(bar, { Name = "Coins", Size = UDim2.new(0, 180, 1, 0), Color = C.Gold, Icon = "💰", LayoutOrder = 1 })
+	refs.coins = coinsLabel
+	refs.coinsFrame = coinsFrame
+
+	local levelFrame, levelLabel =
+		pill(bar, { Name = "Level", Size = UDim2.new(0, 210, 1, 0), Color = C.Primary, Icon = "⭐", LayoutOrder = 2 })
+	refs.level = levelLabel
+	levelLabel.Size = UDim2.new(1, -54, 0.55, -2)
+	levelLabel.Position = UDim2.fromOffset(46, 3)
+	local xpBack = Theme.new("Frame", {
+		Size = UDim2.new(1, -60, 0.28, 0),
+		Position = UDim2.new(0, 46, 0.62, 0),
+		BackgroundColor3 = Color3.fromRGB(232, 226, 246),
+		Parent = levelFrame,
+	}, { Theme.corner(6) })
+	refs.xpFill = Theme.new("Frame", {
+		Size = UDim2.fromScale(0, 1),
+		BackgroundColor3 = C.Primary,
+		Parent = xpBack,
+	}, { Theme.corner(6), Theme.gradient(Color3.fromRGB(150, 120, 255), Color3.fromRGB(255, 120, 190), 0) })
+
+	local streakFrame, streakLabel =
+		pill(bar, { Name = "Streak", Size = UDim2.new(0, 120, 1, 0), Color = C.Orange, Icon = "🔥", LayoutOrder = 3 })
+	refs.streak = streakLabel
+	refs.streakFrame = streakFrame
+end
+
+-- Botones laterales -------------------------------------------------------------------
+local function buildSideButtons()
+	local holder = Theme.new("Frame", {
+		Name = "SideButtons",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.new(0, 96, 0, 330),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	}, {
+		Theme.new("UIListLayout", {
+			Padding = UDim.new(0, 14),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+		}),
+	})
+	local function sideButton(order, icon, text, color, onClick)
+		local button = Theme.button({
+			Size = UDim2.new(1, 0, 0, 70),
+			Text = "",
+			Color = color,
+			LayoutOrder = order,
+			Radius = 18,
+			Parent = holder,
+			OnClick = onClick,
+		})
+		Theme.label({
+			Size = UDim2.new(1, 0, 0.62, 0),
+			Text = icon,
+			ZIndex = 4,
+			MaxTextSize = 34,
+			Parent = button.Button,
+		})
+		local caption = Theme.label({
+			Size = UDim2.new(1, 0, 0.38, 0),
+			Position = UDim2.fromScale(0, 0.62),
+			Text = text,
+			TextColor3 = Color3.new(1, 1, 1),
+			ZIndex = 4,
+			MaxTextSize = 16,
+			Parent = button.Button,
+		})
+		Theme.textStroke(color:Lerp(Color3.new(0, 0, 0), 0.4), 1.5).Parent = caption
+		return button, caption
+	end
+	refs.shopButton = sideButton(1, "🛒", "Mejoras", C.Green, function()
+		app.openShop()
+	end)
+	local daily, dailyCaption = sideButton(2, "🎁", "Regalo", C.Pink, function()
+		app.claimDaily()
+	end)
+	refs.dailyButton = daily
+	refs.dailyCaption = dailyCaption
+	refs.dailyBadge = Theme.new("Frame", {
+		Size = UDim2.fromOffset(22, 22),
+		Position = UDim2.new(1, -14, 0, -8),
+		BackgroundColor3 = C.Red,
+		ZIndex = 6,
+		Visible = false,
+		Parent = daily.Holder,
+	}, { Theme.corner(11), Theme.stroke(Color3.new(1, 1, 1), 2) })
+	Theme.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "!",
+		TextColor3 = Color3.new(1, 1, 1),
+		ZIndex = 7,
+		Parent = refs.dailyBadge,
+	})
+
+	sideButton(3, "🏠", "Mi galería", C.Orange, function()
+		app.remotes.GoHome:FireServer()
+	end)
+	sideButton(4, "❓", "Ayuda", C.Primary, function()
+		app.showHelp()
+	end)
+end
+
+-- Lista de pedidos -----------------------------------------------------------------------
+local function myCustomersFolder()
+	local index = app.state and app.state.plotIndex or 0
+	if index == 0 then
+		return nil
+	end
+	local plots = Workspace:FindFirstChild("Plots")
+	local plot = plots and plots:FindFirstChild("Plot" .. index)
+	return plot and plot:FindFirstChild("Customers")
+end
+
+local function createCard(model)
+	local template, preview = app.orderPreview(model)
+	if not template then
+		return nil
+	end
+	local mode = Config.Modes[model:GetAttribute("Mode")] or Config.Modes.original
+	local vip = model:GetAttribute("VIP")
+	local card = Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 92),
+		BackgroundColor3 = vip and Color3.fromRGB(255, 247, 220) or C.Panel,
+		Parent = refs.orderList,
+	}, {
+		Theme.corner(16),
+		Theme.stroke(vip and C.Gold or mode.color, 3),
+	})
+	local thumb = Theme.new("Frame", {
+		Size = UDim2.fromOffset(72, 72),
+		Position = UDim2.fromOffset(10, 10),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Parent = card,
+	}, { Theme.corner(8), Theme.stroke(C.Ink, 2, 0.7) })
+	PixelArt.render(thumb, preview)
+	Theme.label({
+		Size = UDim2.new(1, -170, 0, 24),
+		Position = UDim2.fromOffset(92, 8),
+		Text = (vip and "👑 " or "") .. tostring(model:GetAttribute("CustomerName")),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 22,
+		Parent = card,
+	})
+	Theme.label({
+		Size = UDim2.new(1, -170, 0, 20),
+		Position = UDim2.fromOffset(92, 32),
+		Text = mode.icon .. " " .. mode.name .. " · " .. template.name,
+		Font = Theme.Fonts.Bold,
+		TextColor3 = mode.color,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 16,
+		Parent = card,
+	})
+	Theme.label({
+		Size = UDim2.new(1, -170, 0, 18),
+		Position = UDim2.fromOffset(92, 52),
+		Text = "💰 " .. Theme.formatNumber(model:GetAttribute("Reward")),
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.GoldDark,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 16,
+		Parent = card,
+	})
+	local barBack = Theme.new("Frame", {
+		Size = UDim2.new(1, -176, 0, 8),
+		Position = UDim2.fromOffset(92, 74),
+		BackgroundColor3 = Color3.fromRGB(232, 226, 246),
+		Parent = card,
+	}, { Theme.corner(4) })
+	local bar = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.Green,
+		Parent = barBack,
+	}, { Theme.corner(4) })
+	local button = Theme.button({
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -10, 0.5, -2),
+		Size = UDim2.fromOffset(72, 56),
+		Text = "🎨\nPintar",
+		Color = C.Pink,
+		MaxTextSize = 18,
+		Parent = card,
+		OnClick = function()
+			app.openStudio(model)
+		end,
+	})
+	Theme.pop(card, 0.6)
+	return { frame = card, bar = bar, model = model, button = button }
+end
+
+local function updateOrders()
+	local folder = myCustomersFolder()
+	local alive = {}
+	if folder then
+		for _, model in ipairs(folder:GetChildren()) do
+			if model:GetAttribute("State") == "waiting" then
+				alive[model] = true
+				if not cards[model] then
+					cards[model] = createCard(model)
+				end
+			end
+		end
+	end
+	local list = {}
+	for model, card in pairs(cards) do
+		if not alive[model] or not card then
+			if card then
+				card.frame:Destroy()
+			end
+			cards[model] = nil
+		else
+			local max = model:GetAttribute("MaxPatience") or 1
+			local fraction = math.clamp((model:GetAttribute("Patience") or 0) / math.max(max, 1), 0, 1)
+			card.bar.Size = UDim2.fromScale(fraction, 1)
+			card.bar.BackgroundColor3 = app.patienceColor(fraction)
+			card.fraction = fraction
+			table.insert(list, card)
+		end
+	end
+	table.sort(list, function(a, b)
+		return a.fraction < b.fraction
+	end)
+	for order, card in ipairs(list) do
+		card.frame.LayoutOrder = order
+	end
+	refs.emptyOrders.Visible = #list == 0
+	refs.ordersTitle.Text = "📋 Pedidos (" .. #list .. ")"
+end
+
+local function buildOrders()
+	local panel = Theme.new("Frame", {
+		Name = "Orders",
+		Position = UDim2.new(0, 12, 0, 70),
+		Size = UDim2.new(0, 320, 1, -150),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	}, { Theme.new("UISizeConstraint", { MaxSize = Vector2.new(320, 520) }) })
+	local title = Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 40),
+		BackgroundColor3 = C.Primary,
+		Parent = panel,
+	}, {
+		Theme.corner(14),
+		Theme.gradient(Color3.fromRGB(150, 120, 255), Color3.fromRGB(255, 120, 190), 0),
+		Theme.stroke(Color3.new(1, 1, 1), 3),
+	})
+	refs.ordersTitle = Theme.label({
+		Size = UDim2.new(1, -20, 1, -10),
+		Position = UDim2.fromOffset(10, 5),
+		Text = "📋 Pedidos",
+		TextColor3 = Color3.new(1, 1, 1),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 24,
+		Parent = title,
+	})
+	Theme.textStroke(C.PrimaryDark, 2).Parent = refs.ordersTitle
+
+	refs.orderList = Theme.new("ScrollingFrame", {
+		Position = UDim2.fromOffset(0, 50),
+		Size = UDim2.new(1, 0, 1, -50),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 6,
+		ScrollBarImageColor3 = C.Primary,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		Parent = panel,
+	}, {
+		Theme.new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }),
+		Theme.new(
+			"UIPadding",
+			{ PaddingTop = UDim.new(0, 4), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 10) }
+		),
+	})
+	refs.emptyOrders = Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 70),
+		BackgroundColor3 = C.Panel,
+		BackgroundTransparency = 0.15,
+		LayoutOrder = 999,
+		Parent = refs.orderList,
+	}, { Theme.corner(16), Theme.padding(10) })
+	Theme.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "Esperando clientes... ☕\n¡Ya vienen en camino!",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 18,
+		Parent = refs.emptyOrders,
+	})
+end
+
+-- Estado ----------------------------------------------------------------------------------
+local function animateCoins(target)
+	if shownCoins == nil then
+		shownCoins = target
+		refs.coins.Text = Theme.formatNumber(target)
+		return
+	end
+	local start = shownCoins
+	shownCoins = target
+	if start == target then
+		return
+	end
+	if target > start then
+		Theme.pop(refs.coinsFrame, 0.85)
+	end
+	task.spawn(function()
+		local duration = 0.6
+		local t0 = os.clock()
+		while os.clock() - t0 < duration do
+			if shownCoins ~= target then
+				return
+			end
+			local alpha = (os.clock() - t0) / duration
+			refs.coins.Text = Theme.formatNumber(start + (target - start) * alpha)
+			RunService.RenderStepped:Wait()
+		end
+		refs.coins.Text = Theme.formatNumber(target)
+	end)
+end
+
+function HUD.applyState(state)
+	animateCoins(state.coins)
+	refs.level.Text = "Nivel " .. state.level
+	refs.xpFill.Size = UDim2.fromScale(math.clamp(state.xp / math.max(state.xpNext, 1), 0, 1), 1)
+	refs.streak.Text = "x" .. state.streak
+	refs.streakFrame.Visible = state.streak > 0
+	refs.dailyBadge.Visible = state.dailyReady
+	refs.dailyCaption.Text = state.dailyReady and "¡Regalo!" or Theme.formatTime(state.dailyWait)
+	local nextTemplate = Templates.nextUnlock(state.level)
+	refs.nextUnlock.Text = nextTemplate and ("🔓 Nivel " .. nextTemplate.level .. ": " .. nextTemplate.name)
+		or "🏆 ¡Todas las obras desbloqueadas!"
+end
+
+function HUD.init(appRef)
+	app = appRef
+	gui = Theme.new("ScreenGui", {
+		Name = "HUD",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = false,
+		DisplayOrder = 1,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		Parent = player:WaitForChild("PlayerGui"),
+	})
+	buildTopBar()
+	buildSideButtons()
+	buildOrders()
+
+	refs.nextUnlock = Theme.label({
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -12),
+		Size = UDim2.new(0, 420, 0, 30),
+		Text = "",
+		TextColor3 = Color3.new(1, 1, 1),
+		MaxTextSize = 22,
+		Parent = gui,
+	})
+	Theme.textStroke(C.Ink, 2.5).Parent = refs.nextUnlock
+
+	local notifyGui = Theme.new("ScreenGui", {
+		Name = "Notifications",
+		ResetOnSpawn = false,
+		DisplayOrder = 50,
+		Parent = player:WaitForChild("PlayerGui"),
+	})
+	toastHolder = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 64),
+		Size = UDim2.new(0, 420, 0, 260),
+		BackgroundTransparency = 1,
+		Parent = notifyGui,
+	}, {
+		Theme.new("UIListLayout", {
+			Padding = UDim.new(0, 8),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		}),
+	})
+
+	-- Escala la interfaz en pantallas pequeñas (móviles).
+	local scaled = { gui.TopBar, gui.SideButtons, gui.Orders, toastHolder }
+	local function updateScale()
+		local camera = Workspace.CurrentCamera
+		if not camera then
+			return
+		end
+		local viewport = camera.ViewportSize
+		local scale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 720), 0.55, 1)
+		for _, frame in ipairs(scaled) do
+			local uiScale = frame:FindFirstChild("ViewportScale")
+				or Theme.new("UIScale", { Name = "ViewportScale", Parent = frame })
+			uiScale.Scale = scale
+		end
+		-- La lista de pedidos ocupa el alto disponible aunque esté escalada.
+		gui.Orders.Size = UDim2.new(0, 320, 1 / scale, -150 / scale)
+	end
+	updateScale()
+	local function bindCamera()
+		local camera = Workspace.CurrentCamera
+		if camera then
+			camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+			updateScale()
+		end
+	end
+	bindCamera()
+	Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(bindCamera)
+
+	task.spawn(function()
+		while true do
+			pcall(updateOrders)
+			task.wait(0.2)
+		end
+	end)
+end
+
+function HUD.setVisible(visible)
+	if gui then
+		gui.Enabled = visible
+	end
+end
+
+return HUD
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="21">
+            <Properties>
+              <string name="Name">PixelArt</string>
+              <string name="Source"><![CDATA[-- Dibuja un lienzo de 16x16 dentro de un Frame usando pocas piezas:
+-- las celdas seguidas del mismo color de una fila se unen en un solo rectángulo.
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Palette = require(Shared.Palette)
+
+local PixelArt = {}
+
+function PixelArt.render(container, cells, emptyColor)
+	local old = container:FindFirstChild("Pixels")
+	if old then
+		old:Destroy()
+	end
+	if type(cells) ~= "string" or #cells ~= Config.CELLS then
+		return
+	end
+	local grid = Config.GRID
+	local holder = Instance.new("Frame")
+	holder.Name = "Pixels"
+	holder.Size = UDim2.fromScale(1, 1)
+	holder.BackgroundTransparency = 1
+	holder.ZIndex = container.ZIndex
+
+	for row = 0, grid - 1 do
+		local col = 0
+		while col < grid do
+			local key = string.sub(cells, row * grid + col + 1, row * grid + col + 1)
+			local runEnd = col
+			while runEnd + 1 < grid and string.sub(cells, row * grid + runEnd + 2, row * grid + runEnd + 2) == key do
+				runEnd += 1
+			end
+			local color = key == Palette.EMPTY and (emptyColor or Palette.EmptyColor) or Palette.colorOf(key)
+			local pixel = Instance.new("Frame")
+			pixel.BorderSizePixel = 0
+			pixel.BackgroundColor3 = color
+			-- Un pelín más grande para que no se vean rendijas entre filas.
+			pixel.Position = UDim2.fromScale(col / grid, row / grid)
+			pixel.Size = UDim2.new((runEnd - col + 1) / grid, 1, 1 / grid, 1)
+			pixel.ZIndex = container.ZIndex
+			pixel.Parent = holder
+			col = runEnd + 1
+		end
+	end
+	holder.Parent = container
+end
+
+return PixelArt
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="22">
+            <Properties>
+              <string name="Name">Results</string>
+              <string name="Source"><![CDATA[-- Pantalla de resultados tras entregar una obra (estrellas, monedas, confeti)
+-- y la ventana de ayuda.
+
+local Players = game:GetService("Players")
+
+local Theme = require(script.Parent.Theme)
+local PixelArt = require(script.Parent.PixelArt)
+
+local Results = {}
+
+local C = Theme.Colors
+local CONFETTI_COLORS = {
+	Color3.fromRGB(255, 90, 140),
+	Color3.fromRGB(255, 200, 60),
+	Color3.fromRGB(90, 200, 255),
+	Color3.fromRGB(140, 110, 255),
+	Color3.fromRGB(80, 220, 140),
+}
+
+local gui
+local refs = {}
+local queue = {}
+local showing = false
+
+local function confetti(amount)
+	local holder = refs.confetti
+	local random = Random.new()
+	for _ = 1, amount do
+		local piece = Theme.new("Frame", {
+			Size = UDim2.fromOffset(random:NextInteger(8, 14), random:NextInteger(12, 20)),
+			Position = UDim2.new(random:NextNumber(0.1, 0.9), 0, -0.05, 0),
+			Rotation = random:NextInteger(0, 360),
+			BackgroundColor3 = CONFETTI_COLORS[random:NextInteger(1, #CONFETTI_COLORS)],
+			BorderSizePixel = 0,
+			Parent = holder,
+		}, { Theme.corner(3) })
+		local duration = random:NextNumber(1.6, 2.8)
+		Theme.tween(piece, duration, {
+			Position = UDim2.new(piece.Position.X.Scale + random:NextNumber(-0.15, 0.15), 0, 1.05, 0),
+			Rotation = piece.Rotation + random:NextInteger(-540, 540),
+		}, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		task.delay(duration, function()
+			piece:Destroy()
+		end)
+	end
+end
+
+local function row(parent, order, icon, text, color)
+	local frame = Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 34),
+		BackgroundColor3 = C.PanelSoft,
+		LayoutOrder = order,
+		Parent = parent,
+	}, { Theme.corner(10) })
+	Theme.label({
+		Size = UDim2.new(1, -20, 1, -8),
+		Position = UDim2.fromOffset(10, 4),
+		Text = icon .. "  " .. text,
+		TextColor3 = color or C.Ink,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 22,
+		Parent = frame,
+	})
+	frame.Visible = false
+	return frame
+end
+
+local function buildModal(name)
+	local holder = Theme.new("Frame", {
+		Name = name,
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Visible = false,
+		Parent = gui,
+	})
+	Theme.new("TextButton", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.Shadow,
+		BackgroundTransparency = 0.45,
+		Text = "",
+		AutoButtonColor = false,
+		Parent = holder,
+	})
+	-- El "Wrapper" lleva la escala por pantalla y la tarjeta la animación de entrada.
+	local wrapper = Theme.new("Frame", {
+		Name = "Wrapper",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(440, 600),
+		BackgroundTransparency = 1,
+		Parent = holder,
+	})
+	local card = Theme.new("Frame", {
+		Name = "Card",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.Background,
+		Parent = wrapper,
+	}, {
+		Theme.corner(26),
+		Theme.stroke(C.Ink, 4),
+	})
+	return holder, card, wrapper
+end
+
+local function buildResults()
+	local holder, card = buildModal("Results")
+	refs.holder = holder
+	refs.card = card
+
+	refs.title = Theme.label({
+		Size = UDim2.new(1, -40, 0, 46),
+		Position = UDim2.fromOffset(20, 14),
+		Text = "¡Obra entregada!",
+		TextColor3 = C.Primary,
+		MaxTextSize = 40,
+		Parent = card,
+	})
+	Theme.textStroke(Color3.new(1, 1, 1), 3).Parent = refs.title
+
+	local starRow = Theme.new("Frame", {
+		Size = UDim2.new(1, -40, 0, 70),
+		Position = UDim2.fromOffset(20, 62),
+		BackgroundTransparency = 1,
+		Parent = card,
+	}, {
+		Theme.new("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			Padding = UDim.new(0, 10),
+		}),
+	})
+	refs.stars = {}
+	for i = 1, 3 do
+		local star = Theme.label({
+			Size = UDim2.fromOffset(i == 2 and 74 or 62, i == 2 and 74 or 62),
+			Text = "★",
+			TextColor3 = Color3.fromRGB(220, 214, 230),
+			MaxTextSize = 80,
+			LayoutOrder = i,
+			Parent = starRow,
+		})
+		Theme.textStroke(C.Ink, 3).Parent = star
+		refs.stars[i] = star
+	end
+
+	refs.art = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 140),
+		Size = UDim2.fromOffset(150, 150),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		Parent = card,
+	}, { Theme.stroke(C.Gold, 6), Theme.corner(4) })
+
+	refs.line = Theme.label({
+		Size = UDim2.new(1, -40, 0, 30),
+		Position = UDim2.fromOffset(20, 302),
+		Text = "",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 20,
+		Parent = card,
+	})
+
+	refs.rows = Theme.new("Frame", {
+		Size = UDim2.new(1, -60, 0, 180),
+		Position = UDim2.fromOffset(30, 338),
+		BackgroundTransparency = 1,
+		Parent = card,
+	}, {
+		Theme.new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }),
+	})
+
+	refs.continue = Theme.button({
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -18),
+		Size = UDim2.fromOffset(220, 56),
+		Text = "¡Genial!",
+		Color = C.Green,
+		Parent = card,
+		OnClick = function()
+			Results.hide()
+		end,
+	})
+
+	refs.confetti = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		ClipsDescendants = true,
+		ZIndex = 20,
+		Parent = gui,
+	})
+end
+
+local function buildLevelUp()
+	local holder, card, wrapper = buildModal("LevelUp")
+	wrapper.Size = UDim2.fromOffset(420, 340)
+	refs.levelHolder = holder
+	refs.levelCard = card
+	local banner = Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 90),
+		BackgroundColor3 = C.Gold,
+		Parent = card,
+	}, { Theme.corner(26), Theme.gradient(Color3.fromRGB(255, 220, 90), Color3.fromRGB(255, 150, 60), 0) })
+	refs.levelTitle = Theme.label({
+		Size = UDim2.new(1, -20, 1, -16),
+		Position = UDim2.fromOffset(10, 8),
+		Text = "¡NIVEL 2!",
+		TextColor3 = Color3.new(1, 1, 1),
+		MaxTextSize = 56,
+		Parent = banner,
+	})
+	Theme.textStroke(C.GoldDark, 3).Parent = refs.levelTitle
+	refs.levelText = Theme.label({
+		Size = UDim2.new(1, -40, 0, 150),
+		Position = UDim2.fromOffset(20, 104),
+		Text = "",
+		Font = Theme.Fonts.Bold,
+		TextWrapped = true,
+		TextColor3 = C.Ink,
+		MaxTextSize = 22,
+		Parent = card,
+	})
+	Theme.button({
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -18),
+		Size = UDim2.fromOffset(220, 56),
+		Text = "¡A pintar!",
+		Color = C.Primary,
+		Parent = card,
+		OnClick = function()
+			refs.levelHolder.Visible = false
+			Results.next()
+		end,
+	})
+end
+
+local HELP_TEXT = table.concat({
+	"1️⃣  Los clientes entran a tu galería con un pedido.",
+	"2️⃣  Pulsa «Pintar» en la lista o acércate y pulsa E.",
+	"3️⃣  Pinta sobre la imagen: usa la 🪣 cubeta para rellenar zonas y el 🖌️ pincel para detalles.",
+	"4️⃣  En modo Original y Remix los números te dicen qué color va en cada casilla.",
+	"5️⃣  ¡Entrega rápido! Más estrellas y más paciencia restante = más monedas y propinas.",
+	"6️⃣  Compra mejoras 🛒, sube de nivel ⭐ y desbloquea nuevas obras.",
+	"",
+	"Atajos: B pincel · F cubeta · X borrador · Z deshacer · Enter entregar",
+}, "\n")
+
+local function buildHelp()
+	local holder, card, wrapper = buildModal("Help")
+	wrapper.Size = UDim2.fromOffset(560, 470)
+	refs.helpHolder = holder
+	refs.helpCard = card
+	local title = Theme.label({
+		Size = UDim2.new(1, -40, 0, 50),
+		Position = UDim2.fromOffset(20, 16),
+		Text = "🎨 ¿Cómo se juega?",
+		TextColor3 = C.Primary,
+		MaxTextSize = 40,
+		Parent = card,
+	})
+	Theme.textStroke(Color3.new(1, 1, 1), 2).Parent = title
+	Theme.label({
+		Size = UDim2.new(1, -50, 0, 300),
+		Position = UDim2.fromOffset(25, 76),
+		Text = HELP_TEXT,
+		Font = Theme.Fonts.Body,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+		TextColor3 = C.Ink,
+		MaxTextSize = 20,
+		Parent = card,
+	})
+	Theme.button({
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -18),
+		Size = UDim2.fromOffset(220, 56),
+		Text = "¡Entendido!",
+		Color = C.Green,
+		Parent = card,
+		OnClick = function()
+			refs.helpHolder.Visible = false
+		end,
+	})
+end
+
+-- Muestra los resultados uno a uno (por si llegan varios seguidos).
+function Results.next()
+	if showing then
+		return
+	end
+	local item = table.remove(queue, 1)
+	if not item then
+		return
+	end
+	showing = true
+	if item.kind == "level" then
+		refs.levelTitle.Text = "¡NIVEL " .. item.level .. "!"
+		local lines = { "¡Tu galería es cada vez más famosa! 🌟" }
+		for _, name in ipairs(item.unlocked) do
+			table.insert(lines, "🖼️ Nueva obra: " .. name)
+		end
+		for _, name in ipairs(item.modes) do
+			table.insert(lines, "✨ Nuevo modo de pedido: " .. name)
+		end
+		refs.levelText.Text = table.concat(lines, "\n")
+		refs.levelHolder.Visible = true
+		Theme.pop(refs.levelCard, 0.5)
+		Theme.playSound("success", 0.8)
+		confetti(70)
+		showing = false
+		return
+	end
+
+	local result = item.result
+	refs.holder.Visible = true
+	Theme.pop(refs.card, 0.6)
+	PixelArt.render(refs.art, item.art)
+	refs.line.Text = "«" .. result.line .. "»"
+	local titles =
+		{ [0] = "Hmm... no le gustó", [1] = "¡Obra entregada!", [2] = "¡Muy bien hecho!", [3] = "¡OBRA MAESTRA!" }
+	refs.title.Text = titles[result.stars] or "¡Obra entregada!"
+	refs.title.TextColor3 = result.stars >= 3 and C.Gold or (result.stars == 0 and C.Red or C.Primary)
+
+	for _, child in ipairs(refs.rows:GetChildren()) do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+	local rows = {
+		row(
+			refs.rows,
+			1,
+			"💰",
+			"Pago: " .. Theme.formatNumber(result.payment) .. (result.vip and "  (VIP 👑)" or ""),
+			C.GoldDark
+		),
+	}
+	if result.tip > 0 then
+		table.insert(
+			rows,
+			row(refs.rows, 2, "⚡", "Propina por rapidez: " .. Theme.formatNumber(result.tip), C.Orange)
+		)
+	end
+	if result.streak > 1 then
+		table.insert(
+			rows,
+			row(
+				refs.rows,
+				3,
+				"🔥",
+				"Racha x" .. result.streak .. "  (+" .. math.floor(result.streakBonus * 100 + 0.5) .. "%)",
+				C.Red
+			)
+		)
+	end
+	table.insert(
+		rows,
+		row(
+			refs.rows,
+			4,
+			"⭐",
+			"+" .. result.xp .. " XP  ·  Precisión " .. math.floor(result.quality * 100 + 0.5) .. "%",
+			C.Primary
+		)
+	)
+
+	for _, star in ipairs(refs.stars) do
+		star.TextColor3 = Color3.fromRGB(220, 214, 230)
+	end
+	refs.continue.Holder.Visible = false
+	task.spawn(function()
+		task.wait(0.35)
+		for i = 1, result.stars do
+			local star = refs.stars[i]
+			star.TextColor3 = C.Gold
+			Theme.pop(star, 1.8)
+			Theme.playSound("success", 0.9 + i * 0.15)
+			task.wait(0.32)
+		end
+		for _, frame in ipairs(rows) do
+			frame.Visible = true
+			Theme.pop(frame, 0.8)
+			Theme.playSound("click", 1.3)
+			task.wait(0.15)
+		end
+		if result.stars >= 3 then
+			confetti(90)
+		elseif result.stars == 2 then
+			confetti(30)
+		end
+		refs.continue.Holder.Visible = true
+		Theme.pop(refs.continue.Holder, 0.6)
+	end)
+end
+
+function Results.hide()
+	refs.holder.Visible = false
+	showing = false
+	Results.next()
+end
+
+function Results.show(result, template, art)
+	table.insert(queue, { kind = "result", result = result, template = template, art = art })
+	if result.levelUp then
+		table.insert(queue, {
+			kind = "level",
+			level = result.levelUp,
+			unlocked = result.unlocked or {},
+			modes = result.newModes or {},
+		})
+	end
+	Results.next()
+end
+
+function Results.showHelp()
+	refs.helpHolder.Visible = true
+	Theme.pop(refs.helpCard, 0.7)
+end
+
+function Results.init()
+	gui = Theme.new("ScreenGui", {
+		Name = "Results",
+		ResetOnSpawn = false,
+		DisplayOrder = 20,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		Parent = Players.LocalPlayer:WaitForChild("PlayerGui"),
+	})
+	buildResults()
+	buildLevelUp()
+	buildHelp()
+
+	-- Ajusta las ventanas a pantallas pequeñas.
+	local function updateScale()
+		local camera = workspace.CurrentCamera
+		if not camera then
+			return
+		end
+		local viewport = camera.ViewportSize
+		for _, holder in ipairs({ refs.holder, refs.levelHolder, refs.helpHolder }) do
+			local wrapper = holder:FindFirstChild("Wrapper")
+			local size = wrapper.Size
+			local scale = math.min((viewport.X - 20) / size.X.Offset, (viewport.Y - 80) / size.Y.Offset)
+			local uiScale = wrapper:FindFirstChild("ViewportScale")
+				or Theme.new("UIScale", { Name = "ViewportScale", Parent = wrapper })
+			uiScale.Scale = math.clamp(scale, 0.45, 1.15)
+		end
+	end
+	updateScale()
+	if workspace.CurrentCamera then
+		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+	end
+end
+
+return Results
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="23">
+            <Properties>
+              <string name="Name">Shop</string>
+              <string name="Source"><![CDATA[-- Tienda de mejoras de la galería.
+
+local Players = game:GetService("Players")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+
+local Theme = require(script.Parent.Theme)
+
+local Shop = {}
+
+local C = Theme.Colors
+
+local app
+local gui, panel
+local cards = {}
+local busy = false
+
+-- Texto con el efecto actual y el siguiente de cada mejora.
+local function effectText(id, level)
+	local levels = { [id] = level }
+	local nextLevels = { [id] = level + 1 }
+	if id == "precio" or id == "decoracion" then
+		return string.format("Pago x%.2f → x%.2f", Config.payMultiplier(levels), Config.payMultiplier(nextLevels))
+	elseif id == "paciencia" then
+		return string.format(
+			"Paciencia x%.2f → x%.2f",
+			Config.patienceMultiplier(levels),
+			Config.patienceMultiplier(nextLevels)
+		)
+	elseif id == "fama" then
+		return string.format(
+			"Cliente cada %.1fs → %.1fs · Fila %d",
+			Config.spawnInterval(levels),
+			Config.spawnInterval(nextLevels),
+			Config.maxQueue(nextLevels)
+		)
+	elseif id == "propinas" then
+		return string.format("Propina x%.2f → x%.2f", Config.tipMultiplier(levels), Config.tipMultiplier(nextLevels))
+	elseif id == "vip" then
+		return string.format(
+			"VIP %d%% → %d%%",
+			math.floor(Config.vipChance(levels) * 100 + 0.5),
+			math.floor(Config.vipChance(nextLevels) * 100 + 0.5)
+		)
+	elseif id == "pincel" then
+		return level == 0 and "Desbloquea pincel 2x2" or "Desbloquea pincel 3x3"
+	end
+	return ""
+end
+
+local function buildCard(upgrade, order, parent)
+	local card = Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 96),
+		BackgroundColor3 = C.Panel,
+		LayoutOrder = order,
+		Parent = parent,
+	}, { Theme.corner(18), Theme.stroke(C.Ink, 2, 0.8) })
+	local iconBack = Theme.new("Frame", {
+		Size = UDim2.fromOffset(72, 72),
+		Position = UDim2.fromOffset(12, 12),
+		BackgroundColor3 = C.PanelSoft,
+		Parent = card,
+	}, { Theme.corner(16) })
+	Theme.label({ Size = UDim2.fromScale(1, 1), Text = upgrade.icon, MaxTextSize = 44, Parent = iconBack })
+
+	Theme.label({
+		Size = UDim2.new(1, -270, 0, 28),
+		Position = UDim2.fromOffset(96, 8),
+		Text = upgrade.name,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 24,
+		Parent = card,
+	})
+	Theme.label({
+		Size = UDim2.new(1, -270, 0, 20),
+		Position = UDim2.fromOffset(96, 36),
+		Text = upgrade.desc,
+		Font = Theme.Fonts.Body,
+		TextColor3 = C.InkSoft,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 16,
+		Parent = card,
+	})
+	local effect = Theme.label({
+		Size = UDim2.new(1, -270, 0, 18),
+		Position = UDim2.fromOffset(96, 58),
+		Text = "",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.Primary,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 15,
+		Parent = card,
+	})
+	local dots = Theme.new("Frame", {
+		Size = UDim2.new(1, -270, 0, 8),
+		Position = UDim2.fromOffset(96, 80),
+		BackgroundTransparency = 1,
+		Parent = card,
+	}, {
+		Theme.new("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			Padding = UDim.new(0, 3),
+		}),
+	})
+	local dotFrames = {}
+	for i = 1, upgrade.max do
+		dotFrames[i] = Theme.new("Frame", {
+			Size = UDim2.new(1 / upgrade.max, -3, 1, 0),
+			BackgroundColor3 = Color3.fromRGB(230, 224, 240),
+			Parent = dots,
+		}, { Theme.corner(4) })
+	end
+
+	local button = Theme.button({
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -14, 0.5, -2),
+		Size = UDim2.fromOffset(150, 60),
+		Text = "",
+		Color = C.Green,
+		Parent = card,
+		OnClick = function()
+			if busy then
+				return
+			end
+			busy = true
+			local ok, success, message = pcall(function()
+				return app.remotes.BuyUpgrade:InvokeServer(upgrade.id)
+			end)
+			busy = false
+			if ok and success then
+				Theme.playSound("success", 1.2)
+				app.notify("✨ " .. message, "success")
+				Theme.pop(card, 0.9)
+			else
+				app.notify(ok and message or "No se pudo comprar.", "error")
+			end
+		end,
+	})
+	cards[upgrade.id] = { effect = effect, dots = dotFrames, button = button }
+end
+
+function Shop.refresh()
+	local state = app.state
+	if not (state and gui) then
+		return
+	end
+	for _, upgrade in ipairs(Config.Upgrades) do
+		local card = cards[upgrade.id]
+		local level = state.upgrades[upgrade.id] or 0
+		for i, dot in ipairs(card.dots) do
+			dot.BackgroundColor3 = i <= level and C.Pink or Color3.fromRGB(230, 224, 240)
+		end
+		if level >= upgrade.max then
+			card.effect.Text = "¡Nivel máximo!"
+			card.button.Button.Text = "MÁX"
+			card.button.SetEnabled(false)
+		else
+			local cost = Config.upgradeCost(upgrade.id, level)
+			card.effect.Text = effectText(upgrade.id, level)
+			card.button.Button.Text = "💰 " .. Theme.formatNumber(cost)
+			card.button.SetEnabled(state.coins >= cost)
+		end
+	end
+	if panel then
+		panel.Header.Coins.Text = "💰 " .. Theme.formatNumber(state.coins)
+	end
+end
+
+function Shop.open()
+	gui.Enabled = true
+	Shop.refresh()
+	Theme.pop(panel, 0.8)
+	Theme.playSound("whoosh", 1.1)
+end
+
+function Shop.close()
+	gui.Enabled = false
+end
+
+function Shop.init(appRef)
+	app = appRef
+	gui = Theme.new("ScreenGui", {
+		Name = "Shop",
+		ResetOnSpawn = false,
+		DisplayOrder = 8,
+		Enabled = false,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		Parent = Players.LocalPlayer:WaitForChild("PlayerGui"),
+	})
+	local dim = Theme.new("TextButton", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.Shadow,
+		BackgroundTransparency = 0.5,
+		Text = "",
+		AutoButtonColor = false,
+		Parent = gui,
+	})
+	dim.Activated:Connect(Shop.close)
+
+	panel = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.new(0.9, 0, 0.88, 0),
+		BackgroundColor3 = C.Background,
+		Parent = gui,
+	}, {
+		Theme.corner(24),
+		Theme.stroke(C.Ink, 4),
+		Theme.new("UISizeConstraint", { MaxSize = Vector2.new(720, 640) }),
+	})
+	local header = Theme.new("Frame", {
+		Name = "Header",
+		Size = UDim2.new(1, 0, 0, 64),
+		BackgroundColor3 = C.Green,
+		Parent = panel,
+	}, { Theme.corner(24), Theme.gradient(Color3.fromRGB(60, 210, 140), Color3.fromRGB(40, 170, 200), 0) })
+	Theme.label({
+		Size = UDim2.new(0.5, 0, 0, 40),
+		Position = UDim2.fromOffset(20, 12),
+		Text = "🛒 Mejoras de la Galería",
+		TextColor3 = Color3.new(1, 1, 1),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 32,
+		Parent = header,
+	})
+	local coins = Theme.label({
+		Name = "Coins",
+		Size = UDim2.new(0.3, 0, 0, 34),
+		Position = UDim2.new(0.58, 0, 0, 15),
+		Text = "",
+		TextColor3 = Color3.new(1, 1, 1),
+		MaxTextSize = 28,
+		Parent = header,
+	})
+	Theme.textStroke(C.GreenDark, 2).Parent = coins
+	Theme.button({
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 10),
+		Size = UDim2.fromOffset(44, 44),
+		Text = "✕",
+		Color = C.Red,
+		Parent = header,
+		OnClick = Shop.close,
+	})
+
+	local list = Theme.new("ScrollingFrame", {
+		Position = UDim2.fromOffset(16, 78),
+		Size = UDim2.new(1, -32, 1, -92),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 8,
+		ScrollBarImageColor3 = C.Primary,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		Parent = panel,
+	}, {
+		Theme.new("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }),
+		Theme.new(
+			"UIPadding",
+			{ PaddingRight = UDim.new(0, 12), PaddingTop = UDim.new(0, 2), PaddingBottom = UDim.new(0, 8) }
+		),
+	})
+	for order, upgrade in ipairs(Config.Upgrades) do
+		buildCard(upgrade, order, list)
+	end
+end
+
+return Shop
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="24">
+            <Properties>
+              <string name="Name">Studio</string>
+              <string name="Source"><![CDATA[-- Estudio de pintura: el jugador pinta sobre la plantilla del pedido.
+-- Herramientas: pincel (con tamaños), cubeta de relleno por zonas, borrador,
+-- deshacer y limpiar. En los modos Original y Remix se ven los números guía.
+
+local Players = game:GetService("Players")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local UserInputService = game:GetService("UserInputService")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Palette = require(Shared.Palette)
+local Scoring = require(Shared.Scoring)
+local Templates = require(Shared.Templates)
+
+local Theme = require(script.Parent.Theme)
+local PixelArt = require(script.Parent.PixelArt)
+
+local Studio = {}
+
+local C = Theme.Colors
+local GRID = Config.GRID
+local EMPTY = Palette.EMPTY
+local OUTLINE = Palette.OUTLINE
+local MAX_UNDO = 40
+local GRID_LINE = Color3.fromRGB(226, 218, 236)
+
+local app
+local gui, panel
+local canvasFrame, catcher
+local cellFrames, numberLabels = {}, {}
+local paletteButtons = {}
+local toolButtons = {}
+local sizeButtons = {}
+local sizeLocked = {}
+local refs = {}
+
+local current = nil -- pedido abierto
+local cells = {}
+local undoStack = {}
+local selectedKey = "r"
+local tool = "brush"
+local brushSize = 1
+local stroking = false
+local lastCell = nil
+local submitting = false
+local confirmUntil = 0
+local drafts = {}
+
+-- Utilidades de lienzo ------------------------------------------------------------
+local function index(col, row)
+	return row * GRID + col + 1
+end
+
+local function templateKey(i)
+	return string.sub(current.template.flat, i, i)
+end
+
+local function targetKey(i)
+	if current.target then
+		return string.sub(current.target, i, i)
+	end
+	return nil
+end
+
+local function cellColor(i)
+	local key = cells[i]
+	if key == OUTLINE then
+		return Palette.OutlineColor
+	end
+	if key == EMPTY then
+		local target = targetKey(i)
+		if current.hints and target == selectedKey and tool ~= "eraser" then
+			return Palette.EmptyColor:Lerp(Palette.colorOf(selectedKey), 0.28)
+		end
+		return Palette.EmptyColor
+	end
+	return Palette.colorOf(key)
+end
+
+local function refreshCell(i)
+	local frame = cellFrames[i]
+	if not frame then
+		return
+	end
+	frame.BackgroundColor3 = cellColor(i)
+	local label = numberLabels[i]
+	if label then
+		label.Visible = current.hints and cells[i] == EMPTY
+	end
+end
+
+local function refreshAll()
+	for i = 1, Config.CELLS do
+		refreshCell(i)
+	end
+end
+
+local function updateProgress()
+	local paintable, filled = 0, 0
+	for i = 1, Config.CELLS do
+		if templateKey(i) ~= OUTLINE then
+			paintable += 1
+			if cells[i] ~= EMPTY then
+				filled += 1
+			end
+		end
+	end
+	local fraction = filled / math.max(paintable, 1)
+	refs.progressFill.Size = UDim2.fromScale(fraction, 1)
+	refs.progressText.Text = "Progreso " .. math.floor(fraction * 100 + 0.5) .. "%"
+	refs.submit.SetBaseColor(fraction >= 0.999 and C.Green or C.Primary)
+	return fraction
+end
+
+local function snapshot()
+	return table.concat(cells)
+end
+
+local function pushUndo()
+	table.insert(undoStack, snapshot())
+	if #undoStack > MAX_UNDO then
+		table.remove(undoStack, 1)
+	end
+end
+
+local function loadSnapshot(str)
+	for i = 1, Config.CELLS do
+		cells[i] = string.sub(str, i, i)
+	end
+	refreshAll()
+	updateProgress()
+end
+
+local function paintCell(col, row, key)
+	if col < 0 or row < 0 or col >= GRID or row >= GRID then
+		return false
+	end
+	local i = index(col, row)
+	if templateKey(i) == OUTLINE or cells[i] == key then
+		return false
+	end
+	cells[i] = key
+	refreshCell(i)
+	return true
+end
+
+local function paintBrush(col, row)
+	local key = tool == "eraser" and EMPTY or selectedKey
+	local offset = math.floor((brushSize - 1) / 2)
+	local changed = false
+	for dy = 0, brushSize - 1 do
+		for dx = 0, brushSize - 1 do
+			if paintCell(col + dx - offset, row + dy - offset, key) then
+				changed = true
+			end
+		end
+	end
+	return changed
+end
+
+-- Rellena la zona de la plantilla (misma letra) que tenga el mismo color actual.
+local function floodFill(col, row)
+	local start = index(col, row)
+	local zone = templateKey(start)
+	if zone == OUTLINE then
+		return false
+	end
+	local from = cells[start]
+	local to = selectedKey
+	if from == to then
+		return false
+	end
+	local queue = { { col, row } }
+	local seen = { [start] = true }
+	local head = 1
+	while head <= #queue do
+		local c, r = queue[head][1], queue[head][2]
+		head += 1
+		local i = index(c, r)
+		cells[i] = to
+		refreshCell(i)
+		for _, d in ipairs({ { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }) do
+			local nc, nr = c + d[1], r + d[2]
+			if nc >= 0 and nr >= 0 and nc < GRID and nr < GRID then
+				local ni = index(nc, nr)
+				if not seen[ni] and templateKey(ni) == zone and cells[ni] == from then
+					seen[ni] = true
+					table.insert(queue, { nc, nr })
+				end
+			end
+		end
+	end
+	return true
+end
+
+local function cellAt(position)
+	local absPos = canvasFrame.AbsolutePosition
+	local absSize = canvasFrame.AbsoluteSize
+	if absSize.X <= 0 or absSize.Y <= 0 then
+		return nil
+	end
+	local col = math.floor((position.X - absPos.X) / absSize.X * GRID)
+	local row = math.floor((position.Y - absPos.Y) / absSize.Y * GRID)
+	if col < 0 or row < 0 or col >= GRID or row >= GRID then
+		return nil
+	end
+	return col, row
+end
+
+local function strokeTo(col, row)
+	if not lastCell then
+		paintBrush(col, row)
+	else
+		-- Interpola para que los trazos rápidos no dejen huecos.
+		local c0, r0 = lastCell[1], lastCell[2]
+		local steps = math.max(math.abs(col - c0), math.abs(row - r0))
+		for s = 1, steps do
+			local t = s / steps
+			paintBrush(math.floor(c0 + (col - c0) * t + 0.5), math.floor(r0 + (row - r0) * t + 0.5))
+		end
+	end
+	lastCell = { col, row }
+end
+
+local function onPress(position)
+	if not current or submitting then
+		return
+	end
+	local col, row = cellAt(position)
+	if not col then
+		return
+	end
+	pushUndo()
+	if tool == "fill" then
+		if floodFill(col, row) then
+			Theme.playSound("whoosh", 1.3)
+			updateProgress()
+		else
+			table.remove(undoStack)
+		end
+		return
+	end
+	stroking = true
+	lastCell = nil
+	strokeTo(col, row)
+	Theme.playSound("paint", 0.9 + math.random() * 0.3)
+	updateProgress()
+end
+
+-- Selección de herramientas ---------------------------------------------------------
+local function refreshTools()
+	for key, button in pairs(paletteButtons) do
+		local selected = (key == selectedKey and tool ~= "eraser") or (key == EMPTY and tool == "eraser")
+		button.stroke.Thickness = selected and 4 or 0
+		button.check.Visible = selected
+	end
+	for name, button in pairs(toolButtons) do
+		button.SetBaseColor(name == tool and C.Pink or C.Primary)
+	end
+	for size, button in pairs(sizeButtons) do
+		if sizeLocked[size] then
+			button.SetEnabled(false)
+		else
+			button.SetBaseColor((size == brushSize and tool ~= "fill") and C.Pink or Color3.fromRGB(150, 130, 200))
+		end
+	end
+	if refs.colorName then
+		if tool == "eraser" then
+			refs.colorName.Text = "Borrador"
+		else
+			local entry = Palette.ByKey[selectedKey]
+			refs.colorName.Text = entry and (entry.index .. " · " .. entry.name) or ""
+		end
+	end
+	if current then
+		refreshAll()
+	end
+end
+
+local function selectColor(key)
+	if key == EMPTY then
+		tool = "eraser"
+	else
+		selectedKey = key
+		if tool == "eraser" then
+			tool = "brush"
+		end
+	end
+	refreshTools()
+end
+
+local function setTool(name)
+	tool = name
+	refreshTools()
+end
+
+-- Construcción de la interfaz ---------------------------------------------------------
+local function buildCanvas(parent)
+	canvasFrame = Theme.new("Frame", {
+		Name = "Canvas",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = GRID_LINE,
+		BorderSizePixel = 0,
+		Parent = parent,
+	})
+	for row = 0, GRID - 1 do
+		for col = 0, GRID - 1 do
+			local i = index(col, row)
+			local cell = Theme.new("Frame", {
+				Name = "C" .. i,
+				Position = UDim2.new(col / GRID, 0, row / GRID, 0),
+				Size = UDim2.new(1 / GRID, -1, 1 / GRID, -1),
+				BackgroundColor3 = Palette.EmptyColor,
+				BorderSizePixel = 0,
+				Parent = canvasFrame,
+			})
+			cellFrames[i] = cell
+			numberLabels[i] = Theme.new("TextLabel", {
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				Font = Theme.Fonts.Bold,
+				TextScaled = true,
+				TextColor3 = Color3.fromRGB(170, 160, 190),
+				Text = "",
+				Visible = false,
+				Parent = cell,
+			}, {
+				Theme.new("UITextSizeConstraint", { MaxTextSize = 14 }),
+				Theme.new("UIPadding", {
+					PaddingTop = UDim.new(0.2, 0),
+					PaddingBottom = UDim.new(0.2, 0),
+				}),
+			})
+		end
+	end
+	catcher = Theme.new("TextButton", {
+		Name = "Input",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		Text = "",
+		AutoButtonColor = false,
+		ZIndex = 5,
+		Parent = canvasFrame,
+	})
+	catcher.InputBegan:Connect(function(input)
+		if
+			input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch
+		then
+			onPress(input.Position)
+		end
+	end)
+end
+
+local function buildPalette(parent)
+	local grid = Theme.new("Frame", {
+		Name = "Palette",
+		Size = UDim2.fromScale(1, 0.5),
+		BackgroundTransparency = 1,
+		Parent = parent,
+	}, {
+		Theme.new("UIGridLayout", {
+			CellSize = UDim2.new(1 / 3, -6, 1 / 6, -6),
+			CellPadding = UDim2.fromOffset(6, 6),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+	})
+	local entries = {}
+	for _, entry in ipairs(Palette.List) do
+		table.insert(entries, entry)
+	end
+	table.insert(entries, { key = EMPTY, name = "Borrador", color = Color3.fromRGB(255, 255, 255), index = 99 })
+
+	for order, entry in ipairs(entries) do
+		local button = Theme.new("TextButton", {
+			Name = entry.key,
+			BackgroundColor3 = entry.color,
+			AutoButtonColor = false,
+			Text = "",
+			LayoutOrder = order,
+			Parent = grid,
+		}, { Theme.corner(10) })
+		local stroke = Theme.stroke(C.Ink, 0)
+		stroke.Parent = button
+		Theme.stroke(Color3.fromRGB(0, 0, 0), 1, 0.85).Parent = button
+		local isLight = entry.color.R * 0.3 + entry.color.G * 0.59 + entry.color.B * 0.11 > 0.6
+		Theme.label({
+			Size = UDim2.fromScale(1, 1),
+			Text = entry.key == EMPTY and "🧽" or tostring(entry.index),
+			Font = Theme.Fonts.Title,
+			TextColor3 = isLight and C.Ink or Color3.new(1, 1, 1),
+			MaxTextSize = 22,
+			Parent = button,
+		}, nil)
+		local check = Theme.new("Frame", {
+			Size = UDim2.fromOffset(12, 12),
+			Position = UDim2.new(1, -6, 0, -6),
+			BackgroundColor3 = C.Pink,
+			Visible = false,
+			ZIndex = 3,
+			Parent = button,
+		}, { Theme.corner(6), Theme.stroke(Color3.new(1, 1, 1), 2) })
+		button.Activated:Connect(function()
+			Theme.playSound("click", 1.2)
+			selectColor(entry.key)
+		end)
+		paletteButtons[entry.key] = { stroke = stroke, check = check }
+	end
+end
+
+local function buildUI()
+	gui = Theme.new("ScreenGui", {
+		Name = "Studio",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = false,
+		DisplayOrder = 10,
+		Enabled = false,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		Parent = Players.LocalPlayer:WaitForChild("PlayerGui"),
+	})
+	Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.Shadow,
+		BackgroundTransparency = 0.45,
+		BorderSizePixel = 0,
+		Parent = gui,
+	})
+	panel = Theme.new("Frame", {
+		Name = "Panel",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(0.97, 0.94),
+		BackgroundColor3 = C.Background,
+		Parent = gui,
+	}, {
+		Theme.corner(22),
+		Theme.stroke(C.Ink, 4),
+		Theme.new("UIAspectRatioConstraint", { AspectRatio = 1.62 }),
+		Theme.new("UISizeConstraint", { MaxSize = Vector2.new(1240, 766) }),
+	})
+
+	-- Cabecera.
+	local header = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 0.11),
+		BackgroundColor3 = C.Primary,
+		Parent = panel,
+	}, {
+		Theme.corner(22),
+		Theme.gradient(Color3.fromRGB(150, 120, 255), Color3.fromRGB(255, 120, 190), 0),
+	})
+	Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0.4, 0),
+		Position = UDim2.fromScale(0, 0.6),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		Parent = header,
+	}, { Theme.gradient(Color3.fromRGB(150, 120, 255), Color3.fromRGB(255, 120, 190), 0) })
+	Theme.label({
+		Size = UDim2.fromScale(0.4, 0.7),
+		Position = UDim2.fromScale(0.02, 0.15),
+		Text = "🎨 Estudio de Pintura",
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextColor3 = Color3.new(1, 1, 1),
+		Parent = header,
+	}, nil)
+		:FindFirstChildOfClass("UITextSizeConstraint").MaxTextSize =
+		34
+	Theme.textStroke(C.PrimaryDark, 2).Parent = header:FindFirstChildOfClass("TextLabel")
+
+	refs.patienceBack = Theme.new("Frame", {
+		Size = UDim2.fromScale(0.3, 0.26),
+		Position = UDim2.fromScale(0.52, 0.37),
+		BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+		BackgroundTransparency = 0.4,
+		Parent = header,
+	}, { Theme.corner(10) })
+	refs.patienceFill = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.Green,
+		Parent = refs.patienceBack,
+	}, { Theme.corner(10) })
+	Theme.label({
+		Size = UDim2.fromScale(0.1, 0.6),
+		Position = UDim2.fromScale(0.42, 0.2),
+		Text = "⏳",
+		Parent = header,
+	})
+
+	Theme.button({
+		Size = UDim2.fromScale(0.06, 0.7),
+		Position = UDim2.fromScale(0.925, 0.12),
+		Text = "✕",
+		Color = C.Red,
+		Radius = 12,
+		Parent = header,
+		OnClick = function()
+			Studio.close(true)
+		end,
+	})
+
+	-- Columna izquierda: el pedido.
+	local left = Theme.new("Frame", {
+		Size = UDim2.fromScale(0.24, 0.84),
+		Position = UDim2.fromScale(0.015, 0.135),
+		BackgroundColor3 = C.Panel,
+		Parent = panel,
+	}, { Theme.corner(18), Theme.stroke(C.Ink, 2, 0.8), Theme.padding(10) })
+
+	refs.customer = Theme.label({
+		Size = UDim2.fromScale(1, 0.08),
+		Text = "Pedido",
+		Parent = left,
+	})
+	refs.modeBadge = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 0.07),
+		Position = UDim2.fromScale(0, 0.09),
+		BackgroundColor3 = C.Primary,
+		Parent = left,
+	}, { Theme.corner(10) })
+	refs.modeText = Theme.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "",
+		TextColor3 = Color3.new(1, 1, 1),
+		Parent = refs.modeBadge,
+	})
+	Theme.new(
+		"UIPadding",
+		{ PaddingTop = UDim.new(0.15, 0), PaddingBottom = UDim.new(0.15, 0), Parent = refs.modeText }
+	)
+
+	refs.request = Theme.label({
+		Size = UDim2.fromScale(1, 0.17),
+		Position = UDim2.fromScale(0, 0.17),
+		Text = "",
+		Font = Theme.Fonts.Body,
+		TextWrapped = true,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 18,
+		Parent = left,
+	})
+
+	local previewHolder = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 0.42),
+		Position = UDim2.fromScale(0, 0.35),
+		BackgroundTransparency = 1,
+		Parent = left,
+	})
+	refs.preview = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.fromScale(0.5, 0),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Palette.EmptyColor,
+		Parent = previewHolder,
+	}, {
+		Theme.new("UIAspectRatioConstraint", { AspectRatio = 1 }),
+		Theme.stroke(C.Gold, 4),
+	})
+	refs.previewTag = Theme.label({
+		Size = UDim2.fromScale(0.9, 0.16),
+		Position = UDim2.fromScale(0.05, 0.82),
+		Text = "Referencia",
+		TextColor3 = Color3.new(1, 1, 1),
+		ZIndex = 4,
+		Parent = refs.preview,
+	})
+	Theme.textStroke(C.Ink, 2).Parent = refs.previewTag
+
+	refs.swatches = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 0.07),
+		Position = UDim2.fromScale(0, 0.78),
+		BackgroundTransparency = 1,
+		Parent = left,
+	}, {
+		Theme.new("UIListLayout", {
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			Padding = UDim.new(0, 4),
+		}),
+	})
+
+	refs.reward = Theme.label({
+		Size = UDim2.fromScale(1, 0.07),
+		Position = UDim2.fromScale(0, 0.86),
+		Text = "",
+		TextColor3 = C.GoldDark,
+		Parent = left,
+	})
+	local progressBack = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 0.06),
+		Position = UDim2.fromScale(0, 0.94),
+		BackgroundColor3 = Color3.fromRGB(234, 228, 244),
+		Parent = left,
+	}, { Theme.corner(8) })
+	refs.progressFill = Theme.new("Frame", {
+		Size = UDim2.fromScale(0, 1),
+		BackgroundColor3 = C.Primary,
+		Parent = progressBack,
+	}, { Theme.corner(8), Theme.gradient(Color3.fromRGB(150, 120, 255), Color3.fromRGB(255, 120, 190), 0) })
+	refs.progressText = Theme.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "Progreso 0%",
+		TextColor3 = C.Ink,
+		ZIndex = 3,
+		Parent = progressBack,
+	})
+
+	-- Centro: lienzo cuadrado.
+	local canvasHolder = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Size = UDim2.fromScale(0.47, 0.84),
+		Position = UDim2.fromScale(0.5, 0.135),
+		BackgroundColor3 = Color3.fromRGB(120, 80, 50),
+		Parent = panel,
+	}, {
+		Theme.new("UIAspectRatioConstraint", { AspectRatio = 1 }),
+		Theme.corner(10),
+		Theme.stroke(Color3.fromRGB(90, 60, 36), 3),
+		Theme.padding(10),
+	})
+	buildCanvas(canvasHolder)
+
+	-- Columna derecha: paleta y herramientas.
+	local right = Theme.new("Frame", {
+		Size = UDim2.fromScale(0.24, 0.84),
+		Position = UDim2.fromScale(0.745, 0.135),
+		BackgroundColor3 = C.Panel,
+		Parent = panel,
+	}, { Theme.corner(18), Theme.stroke(C.Ink, 2, 0.8), Theme.padding(10) })
+
+	refs.colorName = Theme.label({
+		Size = UDim2.fromScale(1, 0.06),
+		Text = "",
+		Parent = right,
+	})
+	local paletteHolder = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 0.5),
+		Position = UDim2.fromScale(0, 0.07),
+		BackgroundTransparency = 1,
+		Parent = right,
+	})
+	buildPalette(paletteHolder)
+	paletteHolder.Palette.Size = UDim2.fromScale(1, 1)
+
+	local toolsRow = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 0.1),
+		Position = UDim2.fromScale(0, 0.59),
+		BackgroundTransparency = 1,
+		Parent = right,
+	})
+	toolButtons.brush = Theme.button({
+		Size = UDim2.new(0.5, -4, 1, -4),
+		Text = "🖌️ Pincel",
+		Parent = toolsRow,
+		OnClick = function()
+			setTool("brush")
+		end,
+	})
+	toolButtons.fill = Theme.button({
+		Size = UDim2.new(0.5, -4, 1, -4),
+		Position = UDim2.new(0.5, 4, 0, 0),
+		Text = "🪣 Cubeta",
+		Parent = toolsRow,
+		OnClick = function()
+			setTool("fill")
+		end,
+	})
+
+	refs.sizeRow = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 0.08),
+		Position = UDim2.fromScale(0, 0.71),
+		BackgroundTransparency = 1,
+		Parent = right,
+	})
+	for size = 1, 3 do
+		sizeButtons[size] = Theme.button({
+			Size = UDim2.new(1 / 3, -4, 1, -4),
+			Position = UDim2.new((size - 1) / 3, 2, 0, 0),
+			Text = size .. "x" .. size,
+			Color = Color3.fromRGB(150, 130, 200),
+			Parent = refs.sizeRow,
+			OnClick = function()
+				brushSize = size
+				if tool == "fill" then
+					tool = "brush"
+				end
+				refreshTools()
+			end,
+		})
+	end
+
+	local actionRow = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 0.08),
+		Position = UDim2.fromScale(0, 0.8),
+		BackgroundTransparency = 1,
+		Parent = right,
+	})
+	Theme.button({
+		Size = UDim2.new(0.5, -4, 1, -4),
+		Text = "↩️ Deshacer",
+		Color = C.Orange,
+		Parent = actionRow,
+		OnClick = function()
+			Studio.undo()
+		end,
+	})
+	Theme.button({
+		Size = UDim2.new(0.5, -4, 1, -4),
+		Position = UDim2.new(0.5, 4, 0, 0),
+		Text = "🗑️ Limpiar",
+		Color = Color3.fromRGB(150, 140, 170),
+		Parent = actionRow,
+		OnClick = function()
+			if not current then
+				return
+			end
+			pushUndo()
+			loadSnapshot(Scoring.blankCanvas(current.template))
+			Theme.playSound("whoosh", 0.8)
+		end,
+	})
+
+	refs.submit = Theme.button({
+		Size = UDim2.new(1, 0, 0.1, -4),
+		Position = UDim2.fromScale(0, 0.9),
+		Text = "✅ Entregar obra",
+		Color = C.Primary,
+		Parent = right,
+		OnClick = function()
+			Studio.submit()
+		end,
+	})
+end
+
+-- Entrada global (arrastrar el pincel y atajos de teclado) --------------------------
+local function bindInput()
+	UserInputService.InputChanged:Connect(function(input)
+		if not (stroking and current) then
+			return
+		end
+		if
+			input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch
+		then
+			local col, row = cellAt(input.Position)
+			if col then
+				strokeTo(col, row)
+				updateProgress()
+			end
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if
+			input.UserInputType == Enum.UserInputType.MouseButton1
+			or input.UserInputType == Enum.UserInputType.Touch
+		then
+			stroking = false
+			lastCell = nil
+		end
+	end)
+	UserInputService.InputBegan:Connect(function(input, processed)
+		if processed or not current then
+			return
+		end
+		local code = input.KeyCode
+		if code == Enum.KeyCode.B then
+			setTool("brush")
+		elseif code == Enum.KeyCode.F or code == Enum.KeyCode.G then
+			setTool("fill")
+		elseif code == Enum.KeyCode.X then
+			selectColor(EMPTY)
+		elseif code == Enum.KeyCode.Z then
+			Studio.undo()
+		elseif code == Enum.KeyCode.Return then
+			Studio.submit()
+		end
+	end)
+end
+
+local function setControlsEnabled(enabled)
+	pcall(function()
+		local playerModule = require(Players.LocalPlayer.PlayerScripts:WaitForChild("PlayerModule", 2))
+		local controls = playerModule:GetControls()
+		if enabled then
+			controls:Enable()
+		else
+			controls:Disable()
+		end
+	end)
+end
+
+-- API ----------------------------------------------------------------------------------
+function Studio.init(appRef)
+	app = appRef
+	buildUI()
+	refreshTools()
+end
+
+function Studio.isOpen()
+	return current ~= nil
+end
+
+function Studio.undo()
+	if not current or #undoStack == 0 then
+		return
+	end
+	loadSnapshot(table.remove(undoStack))
+	Theme.playSound("click", 0.8)
+end
+
+local opening = false
+
+function Studio.open(model)
+	if current or submitting or opening then
+		return
+	end
+	local orderId = model:GetAttribute("OrderId")
+	local template = Templates.get(model:GetAttribute("TemplateId"))
+	if not (orderId and template) then
+		return
+	end
+	opening = true
+	local ok, accepted = pcall(function()
+		return app.remotes.StartPainting:InvokeServer(orderId)
+	end)
+	opening = false
+	if not (ok and accepted) then
+		app.notify("Ese cliente ya no está esperando.", "error")
+		return
+	end
+
+	local order = {
+		mode = model:GetAttribute("Mode"),
+		swapFrom = model:GetAttribute("SwapFrom"),
+		swapTo = model:GetAttribute("SwapTo"),
+		theme = model:GetAttribute("Theme"),
+	}
+	local target = Scoring.targetString(order, template)
+	current = {
+		id = orderId,
+		model = model,
+		template = template,
+		order = order,
+		target = target,
+		hints = target ~= nil,
+	}
+
+	-- Números guía.
+	for i = 1, Config.CELLS do
+		local label = numberLabels[i]
+		local key = target and string.sub(target, i, i)
+		local entry = key and Palette.ByKey[key]
+		label.Text = entry and tostring(entry.index) or ""
+	end
+
+	-- Cargar borrador previo o lienzo en blanco.
+	undoStack = {}
+	loadSnapshot(drafts[orderId] or Scoring.blankCanvas(template))
+
+	-- Panel del pedido.
+	local mode = Config.Modes[order.mode] or Config.Modes.original
+	local vip = model:GetAttribute("VIP")
+	refs.customer.Text = (vip and "👑 " or "") .. "Pedido de " .. tostring(model:GetAttribute("CustomerName"))
+	refs.modeBadge.BackgroundColor3 = mode.color
+	refs.modeText.Text = mode.icon .. " Modo " .. mode.name .. (vip and " · VIP" or "")
+	refs.request.Text = Scoring.describe(order, template)
+	refs.reward.Text = "💰 Hasta "
+		.. Theme.formatNumber(math.floor((model:GetAttribute("Reward") or 0) * Config.STAR_PAY[3]))
+		.. " + propina"
+	PixelArt.render(refs.preview, target or Scoring.blankCanvas(template))
+	refs.previewTag.Text = target and "Referencia" or (order.mode == "tema" and "¡Tú eliges!" or "¡Libre!")
+
+	for _, child in ipairs(refs.swatches:GetChildren()) do
+		if child:IsA("GuiObject") then
+			child:Destroy()
+		end
+	end
+	if order.mode == "tema" then
+		local theme = Config.ThemeById[order.theme]
+		if theme then
+			for i = 1, #theme.keys do
+				Theme.new("Frame", {
+					Size = UDim2.new(0, 22, 1, 0),
+					BackgroundColor3 = Palette.colorOf(string.sub(theme.keys, i, i)),
+					Parent = refs.swatches,
+				}, { Theme.corner(6), Theme.stroke(C.Ink, 1, 0.6) })
+			end
+		end
+	end
+
+	-- Pinceles desbloqueados.
+	local sizes = Config.brushSizes(app.state and app.state.upgrades or {})
+	local unlocked = {}
+	for _, size in ipairs(sizes) do
+		unlocked[size] = true
+	end
+	for size, button in pairs(sizeButtons) do
+		sizeLocked[size] = not unlocked[size]
+		button.SetEnabled(unlocked[size] == true)
+		button.Button.Text = unlocked[size] and (size .. "x" .. size) or "🔒"
+	end
+	if not unlocked[brushSize] then
+		brushSize = 1
+	end
+	tool = target and "fill" or "brush"
+	if target then
+		-- Empieza con el color de la zona más grande para ir directo al grano.
+		local counts, best, bestKey = {}, 0, selectedKey
+		for i = 1, #target do
+			local key = string.sub(target, i, i)
+			if key ~= OUTLINE then
+				counts[key] = (counts[key] or 0) + 1
+				if counts[key] > best then
+					best, bestKey = counts[key], key
+				end
+			end
+		end
+		selectedKey = bestKey
+	end
+	refreshTools()
+
+	-- Vigilar al cliente.
+	local function watch()
+		if not current or current.model ~= model then
+			return
+		end
+		local max = model:GetAttribute("MaxPatience") or 1
+		local fraction = math.clamp((model:GetAttribute("Patience") or 0) / math.max(max, 1), 0, 1)
+		refs.patienceFill.Size = UDim2.fromScale(fraction, 1)
+		refs.patienceFill.BackgroundColor3 = app.patienceColor(fraction)
+		if model:GetAttribute("State") ~= "waiting" and not submitting then
+			app.notify((model:GetAttribute("CustomerName") or "El cliente") .. " se fue sin esperar 😢", "error")
+			Studio.close(false)
+		end
+	end
+	current.attrConnection = model.AttributeChanged:Connect(watch)
+	current.ancestryConnection = model.AncestryChanged:Connect(function(_, parent)
+		if parent == nil and current and current.model == model and not submitting then
+			Studio.close(false)
+		end
+	end)
+	watch()
+
+	ProximityPromptService.Enabled = false
+	setControlsEnabled(false)
+	gui.Enabled = true
+	Theme.pop(panel, 0.85)
+	Theme.playSound("whoosh")
+end
+
+function Studio.close(sendStop)
+	if not current then
+		gui.Enabled = false
+		return
+	end
+	local closing = current
+	drafts[closing.id] = snapshot()
+	if closing.attrConnection then
+		closing.attrConnection:Disconnect()
+	end
+	if closing.ancestryConnection then
+		closing.ancestryConnection:Disconnect()
+	end
+	if sendStop then
+		app.remotes.StopPainting:FireServer(closing.id)
+	end
+	current = nil
+	stroking = false
+	lastCell = nil
+	gui.Enabled = false
+	ProximityPromptService.Enabled = true
+	setControlsEnabled(true)
+end
+
+function Studio.submit()
+	if not current or submitting then
+		return
+	end
+	local fraction = updateProgress()
+	if fraction < 0.9 and os.clock() > confirmUntil then
+		confirmUntil = os.clock() + 3
+		refs.submit.Button.Text = "¿Entregar incompleta?"
+		task.delay(3, function()
+			if refs.submit.Button.Text == "¿Entregar incompleta?" then
+				refs.submit.Button.Text = "✅ Entregar obra"
+			end
+		end)
+		return
+	end
+	confirmUntil = 0
+	refs.submit.Button.Text = "✅ Entregar obra"
+
+	submitting = true
+	local order = current
+	local art = snapshot()
+	local ok, result = pcall(function()
+		return app.remotes.SubmitPainting:InvokeServer(order.id, art)
+	end)
+	submitting = false
+
+	if not ok or type(result) ~= "table" then
+		app.notify("No se pudo entregar. Inténtalo otra vez.", "error")
+		return
+	end
+	if not result.ok then
+		app.notify(result.reason or "No se pudo entregar.", "error")
+		if current == order and not (order.model.Parent and order.model:GetAttribute("State") == "waiting") then
+			Studio.close(false)
+		end
+		return
+	end
+	drafts[order.id] = nil
+	if current == order then
+		Studio.close(false)
+	end
+	drafts[order.id] = nil
+	app.showResults(result, order.template, art)
+end
+
+function Studio.start()
+	bindInput()
+end
+
+return Studio
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="25">
+            <Properties>
+              <string name="Name">Theme</string>
+              <string name="Source"><![CDATA[-- Estilo visual compartido por toda la interfaz y pequeñas utilidades.
+
+local SoundService = game:GetService("SoundService")
+local TweenService = game:GetService("TweenService")
+
+local Theme = {}
+
+Theme.Colors = {
+	Background = Color3.fromRGB(255, 249, 242),
+	Panel = Color3.fromRGB(255, 255, 255),
+	PanelSoft = Color3.fromRGB(246, 240, 255),
+	Ink = Color3.fromRGB(52, 40, 74),
+	InkSoft = Color3.fromRGB(122, 108, 150),
+	Primary = Color3.fromRGB(124, 92, 255),
+	PrimaryDark = Color3.fromRGB(92, 64, 214),
+	Pink = Color3.fromRGB(255, 105, 180),
+	Gold = Color3.fromRGB(255, 196, 40),
+	GoldDark = Color3.fromRGB(214, 150, 10),
+	Green = Color3.fromRGB(46, 196, 120),
+	GreenDark = Color3.fromRGB(26, 150, 90),
+	Red = Color3.fromRGB(240, 80, 100),
+	Orange = Color3.fromRGB(255, 150, 50),
+	Shadow = Color3.fromRGB(40, 20, 70),
+}
+
+Theme.Fonts = {
+	Title = Enum.Font.FredokaOne,
+	Body = Enum.Font.GothamMedium,
+	Bold = Enum.Font.GothamBold,
+}
+
+-- Crea una instancia con propiedades e hijos en una sola llamada.
+function Theme.new(className, props, children)
+	local instance = Instance.new(className)
+	if props then
+		for key, value in pairs(props) do
+			if key ~= "Parent" then
+				instance[key] = value
+			end
+		end
+	end
+	if children then
+		for _, child in ipairs(children) do
+			child.Parent = instance
+		end
+	end
+	if props and props.Parent then
+		instance.Parent = props.Parent
+	end
+	return instance
+end
+
+function Theme.corner(radius)
+	return Theme.new("UICorner", { CornerRadius = UDim.new(0, radius or 14) })
+end
+
+function Theme.stroke(color, thickness, transparency)
+	return Theme.new("UIStroke", {
+		Color = color or Theme.Colors.Ink,
+		Thickness = thickness or 2,
+		Transparency = transparency or 0,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	})
+end
+
+function Theme.textStroke(color, thickness)
+	return Theme.new("UIStroke", {
+		Color = color or Theme.Colors.Ink,
+		Thickness = thickness or 2,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+	})
+end
+
+function Theme.padding(all)
+	local p = UDim.new(0, all)
+	return Theme.new("UIPadding", { PaddingTop = p, PaddingBottom = p, PaddingLeft = p, PaddingRight = p })
+end
+
+function Theme.gradient(top, bottom, rotation)
+	return Theme.new("UIGradient", {
+		Color = ColorSequence.new(top, bottom),
+		Rotation = rotation or 90,
+	})
+end
+
+function Theme.label(props)
+	local defaults = {
+		BackgroundTransparency = 1,
+		Font = Theme.Fonts.Title,
+		TextColor3 = Theme.Colors.Ink,
+		TextScaled = true,
+		Text = "",
+	}
+	for key, value in pairs(props) do
+		if key ~= "MaxTextSize" then
+			defaults[key] = value
+		end
+	end
+	local label = Theme.new("TextLabel", defaults)
+	if props.TextScaled ~= false and not label:FindFirstChildOfClass("UITextSizeConstraint") then
+		Theme.new("UITextSizeConstraint", { MaxTextSize = props.MaxTextSize or 40, Parent = label })
+	end
+	return label
+end
+
+-- Botón con sombra "3D" y animación al pulsar.
+function Theme.button(props)
+	local color = props.Color or Theme.Colors.Primary
+	local holder = Theme.new("Frame", {
+		Name = props.Name or "Button",
+		Size = props.Size or UDim2.fromOffset(160, 48),
+		Position = props.Position or UDim2.new(),
+		AnchorPoint = props.AnchorPoint or Vector2.new(),
+		BackgroundTransparency = 1,
+		LayoutOrder = props.LayoutOrder or 0,
+		ZIndex = props.ZIndex or 1,
+		Parent = props.Parent,
+	})
+	local shadow = Theme.new("Frame", {
+		Name = "Shadow",
+		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 4),
+		BackgroundColor3 = color:Lerp(Color3.new(0, 0, 0), 0.35),
+		ZIndex = holder.ZIndex,
+		Parent = holder,
+	}, { Theme.corner(props.Radius or 14) })
+	local button = Theme.new("TextButton", {
+		Name = "Face",
+		Size = UDim2.new(1, 0, 1, 0),
+		BackgroundColor3 = color,
+		AutoButtonColor = false,
+		Font = Theme.Fonts.Title,
+		Text = props.Text or "",
+		TextColor3 = props.TextColor or Color3.new(1, 1, 1),
+		TextScaled = true,
+		ZIndex = holder.ZIndex + 1,
+		Parent = holder,
+	}, {
+		Theme.corner(props.Radius or 14),
+		Theme.gradient(Color3.new(1, 1, 1), Color3.fromRGB(215, 215, 215)),
+		Theme.new("UIPadding", {
+			PaddingTop = UDim.new(0.18, 0),
+			PaddingBottom = UDim.new(0.18, 0),
+			PaddingLeft = UDim.new(0, 8),
+			PaddingRight = UDim.new(0, 8),
+		}),
+		Theme.new("UITextSizeConstraint", { MaxTextSize = props.MaxTextSize or 28 }),
+	})
+	Theme.textStroke(color:Lerp(Color3.new(0, 0, 0), 0.45), 1.5).Parent = button
+
+	local enabled = true
+	button.MouseButton1Down:Connect(function()
+		if enabled then
+			button.Position = UDim2.fromOffset(0, 3)
+		end
+	end)
+	button.MouseButton1Up:Connect(function()
+		button.Position = UDim2.fromOffset(0, 0)
+	end)
+	button.MouseLeave:Connect(function()
+		button.Position = UDim2.fromOffset(0, 0)
+	end)
+
+	local api = { Holder = holder, Button = button, Shadow = shadow }
+	function api.SetColor(newColor)
+		button.BackgroundColor3 = newColor
+		shadow.BackgroundColor3 = newColor:Lerp(Color3.new(0, 0, 0), 0.35)
+	end
+	function api.SetEnabled(value)
+		enabled = value
+		button.Active = value
+		button.AutoButtonColor = false
+		api.SetColor(value and color or Color3.fromRGB(190, 184, 200))
+	end
+	function api.SetBaseColor(newColor)
+		color = newColor
+		api.SetColor(newColor)
+	end
+	if props.OnClick then
+		button.Activated:Connect(function()
+			if enabled then
+				Theme.playSound("click")
+				props.OnClick()
+			end
+		end)
+	end
+	return api
+end
+
+function Theme.tween(instance, time, props, style, direction)
+	local tween = TweenService:Create(
+		instance,
+		TweenInfo.new(time, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out),
+		props
+	)
+	tween:Play()
+	return tween
+end
+
+-- Pequeño "rebote" al aparecer.
+function Theme.pop(guiObject, scale)
+	local uiScale = guiObject:FindFirstChild("PopScale")
+	if not uiScale then
+		uiScale = Theme.new("UIScale", { Name = "PopScale", Parent = guiObject })
+	end
+	uiScale.Scale = scale or 0.6
+	Theme.tween(uiScale, 0.35, { Scale = 1 }, Enum.EasingStyle.Back)
+end
+
+-- Formatea números grandes: 1234 -> 1.234, 1500000 -> 1,5M
+function Theme.formatNumber(n)
+	n = math.floor(n or 0)
+	if n >= 1000000 then
+		return (string.gsub(string.format("%.1fM", n / 1000000), "%.", ","))
+	end
+	local formatted = tostring(n)
+	while true do
+		local replaced, count = string.gsub(formatted, "^(-?%d+)(%d%d%d)", "%1.%2")
+		formatted = replaced
+		if count == 0 then
+			break
+		end
+	end
+	return formatted
+end
+
+function Theme.formatTime(seconds)
+	seconds = math.max(0, math.floor(seconds))
+	local h = math.floor(seconds / 3600)
+	local m = math.floor(seconds % 3600 / 60)
+	if h > 0 then
+		return string.format("%dh %02dm", h, m)
+	end
+	return string.format("%dm %02ds", m, seconds % 60)
+end
+
+-- Sonidos incluidos en el cliente de Roblox (no requieren subir audio).
+local SOUND_IDS = {
+	click = "rbxasset://sounds/button.wav",
+	paint = "rbxasset://sounds/clickfast.wav",
+	success = "rbxasset://sounds/electronicpingshort.wav",
+	whoosh = "rbxasset://sounds/swoosh.wav",
+}
+local SOUND_VOLUME = {
+	click = 0.4,
+	paint = 0.15,
+	success = 0.6,
+	whoosh = 0.4,
+}
+local soundCache = {}
+
+function Theme.playSound(name, pitch)
+	local id = SOUND_IDS[name]
+	if not id then
+		return
+	end
+	local sound = soundCache[name]
+	if not sound then
+		sound = Instance.new("Sound")
+		sound.SoundId = id
+		sound.Volume = SOUND_VOLUME[name] or 0.5
+		sound.Parent = SoundService
+		soundCache[name] = sound
+	end
+	sound.PlaybackSpeed = pitch or 1
+	SoundService:PlayLocalSound(sound)
+end
+
+return Theme
+]]></string>
+            </Properties>
+          </Item>
+        </Item>
+        <Item class="ModuleScript" referent="26">
+          <Properties>
+            <string name="Name">World</string>
+            <string name="Source"><![CDATA[-- Parte visual del mundo que se dibuja en el cliente:
+-- cuadros de la galería y los globos de pedido sobre cada cliente.
+
+local Workspace = game:GetService("Workspace")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Config = require(Shared.Config)
+local Palette = require(Shared.Palette)
+local Scoring = require(Shared.Scoring)
+local Templates = require(Shared.Templates)
+
+local UI = script.Parent:WaitForChild("UI")
+local Theme = require(UI.Theme)
+local PixelArt = require(UI.PixelArt)
+
+local World = {}
+
+local C = Theme.Colors
+
+-- Cuadros ------------------------------------------------------------------------------
+local function setupCanvas(canvas)
+	if canvas:FindFirstChild("ArtGui") then
+		return
+	end
+	local gui = Theme.new("SurfaceGui", {
+		Name = "ArtGui",
+		Face = Enum.NormalId.Front,
+		SizingMode = Enum.SurfaceGuiSizingMode.FixedSize,
+		CanvasSize = Vector2.new(256, 256),
+		LightInfluence = 0.4,
+		Brightness = 1.2,
+		Parent = canvas,
+	})
+	local art = Theme.new("Frame", {
+		Name = "Art",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Palette.EmptyColor,
+		BorderSizePixel = 0,
+		Parent = gui,
+	})
+	local placeholder = Theme.label({
+		Name = "Placeholder",
+		Size = UDim2.fromScale(0.8, 0.5),
+		Position = UDim2.fromScale(0.1, 0.25),
+		Text = "🖌️\nPróximamente",
+		TextColor3 = Color3.fromRGB(190, 180, 205),
+		MaxTextSize = 60,
+		Parent = art,
+	})
+	local function refresh()
+		local cells = canvas:GetAttribute("Cells")
+		local valid = type(cells) == "string" and #cells == Config.CELLS
+		placeholder.Visible = not valid
+		PixelArt.render(art, valid and cells or nil)
+	end
+	canvas:GetAttributeChangedSignal("Cells"):Connect(refresh)
+	refresh()
+end
+
+-- Globos de pedido ---------------------------------------------------------------------
+local function orderPreview(model)
+	local template = Templates.get(model:GetAttribute("TemplateId"))
+	if not template then
+		return nil, nil
+	end
+	local order = {
+		mode = model:GetAttribute("Mode"),
+		swapFrom = model:GetAttribute("SwapFrom"),
+		swapTo = model:GetAttribute("SwapTo"),
+		theme = model:GetAttribute("Theme"),
+	}
+	return template, Scoring.targetString(order, template) or Scoring.blankCanvas(template)
+end
+
+function World.orderPreview(model)
+	return orderPreview(model)
+end
+
+local function patienceColor(fraction)
+	if fraction > 0.5 then
+		return C.Green:Lerp(C.Gold, (1 - fraction) * 2)
+	end
+	return C.Gold:Lerp(C.Red, 1 - fraction * 2)
+end
+World.patienceColor = patienceColor
+
+local function setupCustomer(model)
+	local root = model:WaitForChild("Root", 5)
+	if not root or root:FindFirstChild("OrderBubble") then
+		return
+	end
+	local isMine = model:GetAttribute("Owner") == game:GetService("Players").LocalPlayer.UserId
+	if not isMine then
+		-- Solo el dueño de la galería ve el aviso para atender a sus clientes.
+		local prompt = root:FindFirstChildOfClass("ProximityPrompt")
+		if prompt then
+			prompt.MaxActivationDistance = 0
+		end
+	end
+	local _, preview = orderPreview(model)
+	local mode = Config.Modes[model:GetAttribute("Mode")] or Config.Modes.original
+	local vip = model:GetAttribute("VIP")
+
+	local billboard = Theme.new("BillboardGui", {
+		Name = "OrderBubble",
+		Size = UDim2.new(5.2, 0, 6.4, 0),
+		StudsOffset = Vector3.new(0, 7.6, 0),
+		MaxDistance = isMine and 90 or 45,
+		LightInfluence = 0,
+		ResetOnSpawn = false,
+		Parent = root,
+	})
+
+	local bubble = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 0.86),
+		BackgroundColor3 = vip and Color3.fromRGB(255, 246, 214) or C.Panel,
+		Parent = billboard,
+	}, {
+		Theme.corner(16),
+		Theme.stroke(vip and C.Gold or mode.color, 3),
+	})
+	Theme.new("Frame", {
+		Size = UDim2.fromScale(0.16, 0.12),
+		Position = UDim2.fromScale(0.42, 0.93),
+		Rotation = 45,
+		BackgroundColor3 = bubble.BackgroundColor3,
+		BorderSizePixel = 0,
+		Parent = billboard,
+	})
+
+	local nameLabel = Theme.label({
+		Size = UDim2.fromScale(0.92, 0.13),
+		Position = UDim2.fromScale(0.04, 0.03),
+		Text = (vip and "👑 " or "") .. tostring(model:GetAttribute("CustomerName")),
+		TextColor3 = vip and C.GoldDark or C.Ink,
+		Parent = bubble,
+	})
+
+	local thumb = Theme.new("Frame", {
+		Size = UDim2.fromScale(0.62, 0.5),
+		Position = UDim2.fromScale(0.19, 0.18),
+		BackgroundColor3 = Palette.EmptyColor,
+		Parent = bubble,
+	}, {
+		Theme.new("UIAspectRatioConstraint", { AspectRatio = 1 }),
+		Theme.stroke(C.Ink, 2, 0.6),
+	})
+	if preview then
+		PixelArt.render(thumb, preview)
+	end
+	Theme.label({
+		Size = UDim2.fromScale(0.3, 0.3),
+		Position = UDim2.fromScale(0.82, -0.08),
+		Text = mode.icon,
+		Parent = thumb,
+	})
+
+	local rewardLabel = Theme.label({
+		Size = UDim2.fromScale(0.92, 0.13),
+		Position = UDim2.fromScale(0.04, 0.69),
+		Text = "💰 " .. Theme.formatNumber(model:GetAttribute("Reward")),
+		TextColor3 = C.GoldDark,
+		Parent = bubble,
+	})
+
+	local barBack = Theme.new("Frame", {
+		Size = UDim2.fromScale(0.84, 0.07),
+		Position = UDim2.fromScale(0.08, 0.86),
+		BackgroundColor3 = Color3.fromRGB(230, 224, 240),
+		Parent = bubble,
+	}, { Theme.corner(8) })
+	local bar = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.Green,
+		Parent = barBack,
+	}, { Theme.corner(8) })
+
+	local reaction = Theme.label({
+		Name = "Reaction",
+		Size = UDim2.fromScale(0.92, 0.6),
+		Position = UDim2.fromScale(0.04, 0.2),
+		Text = "",
+		Visible = false,
+		Font = Theme.Fonts.Title,
+		Parent = bubble,
+	})
+
+	local function refresh()
+		local state = model:GetAttribute("State")
+		local reactionText = model:GetAttribute("Reaction") or ""
+		local leaving = state == "leaving" and reactionText ~= ""
+		reaction.Visible = leaving
+		reaction.Text = reactionText
+		thumb.Visible = not leaving
+		rewardLabel.Visible = not leaving
+		barBack.Visible = state == "waiting"
+		nameLabel.Visible = true
+		if state == "leaving" and reactionText == "" then
+			billboard.Enabled = false
+		end
+		local max = model:GetAttribute("MaxPatience") or 1
+		local fraction = math.clamp((model:GetAttribute("Patience") or 0) / math.max(max, 1), 0, 1)
+		bar.Size = UDim2.fromScale(fraction, 1)
+		bar.BackgroundColor3 = patienceColor(fraction)
+		if model:GetAttribute("Painting") and state == "waiting" then
+			rewardLabel.Text = "🎨 Pintando..."
+		else
+			rewardLabel.Text = "💰 " .. Theme.formatNumber(model:GetAttribute("Reward"))
+		end
+	end
+
+	model.AttributeChanged:Connect(refresh)
+	refresh()
+	Theme.pop(bubble, 0.3)
+end
+
+local function watchPlot(plot)
+	local gallery = plot:WaitForChild("Gallery", 10)
+	if gallery then
+		for _, descendant in ipairs(gallery:GetDescendants()) do
+			if descendant.Name == "Canvas" and descendant:IsA("BasePart") then
+				setupCanvas(descendant)
+			end
+		end
+		gallery.DescendantAdded:Connect(function(descendant)
+			if descendant.Name == "Canvas" and descendant:IsA("BasePart") then
+				setupCanvas(descendant)
+			end
+		end)
+	end
+	local shop = plot:WaitForChild("Shop", 10)
+	local easel = shop and shop:WaitForChild("Easel", 10)
+	local easelCanvas = easel and easel:WaitForChild("Canvas", 10)
+	if easelCanvas then
+		setupCanvas(easelCanvas)
+	end
+	local customers = plot:WaitForChild("Customers", 10)
+	if customers then
+		for _, model in ipairs(customers:GetChildren()) do
+			task.spawn(setupCustomer, model)
+		end
+		customers.ChildAdded:Connect(function(model)
+			task.spawn(setupCustomer, model)
+		end)
+	end
+end
+
+function World.start()
+	local plots = Workspace:WaitForChild("Plots")
+	for _, plot in ipairs(plots:GetChildren()) do
+		task.spawn(watchPlot, plot)
+	end
+	plots.ChildAdded:Connect(function(plot)
+		task.spawn(watchPlot, plot)
+	end)
+end
+
+return World
+]]></string>
+          </Properties>
+        </Item>
+      </Item>
+    </Item>
+  </Item>
+  <Item class="Workspace" referent="27">
+    <Properties>
+      <string name="Name">Workspace</string>
+      <bool name="NeedsPivotMigration">false</bool>
+      <bool name="StreamingEnabled">false</bool>
+    </Properties>
+  </Item>
+</roblox>

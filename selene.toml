@@ -1,0 +1,4 @@
+std = "roblox_min"
+
+[rules]
+shadowing = "allow"

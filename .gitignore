@@ -1,0 +1,7 @@
+tests/sim/rbxdb.lua
+tests/sim/defaults.lua
+tests/sim/out_*.json
+tests/sim/loader.lua
+__pycache__/
+*.rbxl.lock
+*.rbxlx.lock
