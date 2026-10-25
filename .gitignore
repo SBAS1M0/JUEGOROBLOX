@@ -5,3 +5,13 @@ tests/sim/loader.lua
 __pycache__/
 *.rbxl.lock
 *.rbxlx.lock
+tests/sim/node_modules
+tests/sim/*.png
+tests/sim/*.html
+tests/sim/out_*.txt
+tests/sim/out.txt
+tests/sim/node_modules
+tests/sim/*.png
+tests/sim/*.html
+tests/sim/out_*.txt
+tests/sim/out.txt

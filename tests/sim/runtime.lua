@@ -37,6 +37,7 @@ for _, cls in ipairs({
 	"ProximityPromptService",
 	"GuiService",
 	"TextService",
+	"PhysicsService",
 }) do
 	addService(cls)
 end
@@ -210,6 +211,109 @@ M.method("Players", "GetPlayerFromCharacter", function(self, character)
 	return nil
 end)
 
+-- PhysicsService
+local groups = { Default = true }
+M.collisionGroups = groups
+M.method("PhysicsService", "RegisterCollisionGroup", function(self, name)
+	assert(type(name) == "string", "RegisterCollisionGroup name")
+	groups[name] = true
+end)
+M.method("PhysicsService", "CollisionGroupSetCollidable", function(self, a, b, value)
+	if not groups[a] or not groups[b] then
+		error("CollisionGroupSetCollidable: group not registered " .. tostring(a) .. "/" .. tostring(b), 2)
+	end
+	assert(type(value) == "boolean", "collidable must be bool")
+end)
+M.method("BasePart", "SetNetworkOwner", function(self, owner)
+	if self.Anchored then
+		error("Network Ownership API cannot be called on Anchored parts", 2)
+	end
+	if not self:IsDescendantOf(workspace) then
+		error("Can only call Network Ownership API on a part that is descendant of Workspace", 2)
+	end
+end)
+
+-- Avatares
+M.method("Players", "GetHumanoidDescriptionFromUserId", function(self, userId)
+	assert(type(userId) == "number", "userId must be number")
+	task.wait(0.1)
+	if userId == 2 then
+		error("HTTP 404 (user not found)")
+	end
+	return new("HumanoidDescription")
+end)
+M.method("Players", "GetFriendsAsync", function(self, userId)
+	task.wait(0.1)
+	local pages = {
+		IsFinished = true,
+		GetCurrentPage = function()
+			return { { Id = 9001, Username = "amiga1", DisplayName = "Amiga Uno" }, { Id = 9002, Username = "amigo2", DisplayName = "Amigo Dos" } }
+		end,
+	}
+	return pages
+end)
+M.method("Players", "CreateHumanoidModelFromDescription", function(self, desc, rig)
+	if G.typeof(desc) ~= "Instance" or desc.ClassName ~= "HumanoidDescription" then
+		error("CreateHumanoidModelFromDescription expects HumanoidDescription", 2)
+	end
+	if G.typeof(rig) ~= "EnumItem" or rig.EnumType ~= "HumanoidRigType" then
+		error("CreateHumanoidModelFromDescription expects HumanoidRigType", 2)
+	end
+	local model = new("Model")
+	model.Name = "Avatar"
+	local hrp = new("Part")
+	hrp.Name = "HumanoidRootPart"
+	hrp.Parent = model
+	model.PrimaryPart = hrp
+	for _, n in ipairs({ "Head", "UpperTorso", "LeftFoot" }) do
+		local p = new("MeshPart")
+		p.Name = n
+		p.Parent = model
+	end
+	local hum = new("Humanoid")
+	hum.Parent = model
+	local animator = new("Animator")
+	animator.Parent = hum
+	return model
+end)
+M.method("Humanoid", "MoveTo", function(self, position, part)
+	if G.typeof(position) ~= "Vector3" then
+		error("MoveTo expects Vector3", 2)
+	end
+	local model = self.Parent
+	local hrp = model and model:FindFirstChild("HumanoidRootPart")
+	local distance = hrp and (hrp.Position - position).Magnitude or 0
+	local speed = self.WalkSpeed > 0 and self.WalkSpeed or 16
+	local token = {}
+	self.moveToken = token
+	task.delay(math.min(distance / speed, 8), function()
+		if self.moveToken ~= token or not model.Parent then
+			return
+		end
+		model:PivotTo(G.CFrame.new(position + G.Vector3.new(0, 3, 0)))
+		self.MoveToFinished:Fire(true)
+	end)
+end)
+M.method("Animator", "LoadAnimation", function(self, animation)
+	if G.typeof(animation) ~= "Instance" or animation.ClassName ~= "Animation" then
+		error("LoadAnimation expects Animation", 2)
+	end
+	if not animation.AnimationId:match("^rbxassetid://%d+$") then
+		error("bad AnimationId " .. animation.AnimationId, 2)
+	end
+	return new("AnimationTrack", true)
+end)
+M.method("AnimationTrack", "Play", function(self)
+	self.allowWrite = true
+	self.IsPlaying = true
+	self.allowWrite = nil
+end)
+M.method("AnimationTrack", "Stop", function(self)
+	self.allowWrite = true
+	self.IsPlaying = false
+	self.allowWrite = nil
+end)
+
 -- Remotes: same VM plays server and client.
 M.method("RemoteEvent", "FireServer", function(self, ...)
 	self.OnServerEvent:Fire(M.localPlayer, ...)
@@ -328,6 +432,13 @@ tablex.find = function(t, v)
 		end
 	end
 	return nil
+end
+tablex.clone = function(t)
+	local c = {}
+	for k, v in pairs(t) do
+		c[k] = v
+	end
+	return c
 end
 tablex.clear = function(t)
 	for k in pairs(t) do

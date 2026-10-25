@@ -79,42 +79,26 @@ R.runScript(client.Main)
 R.run(3)
 check(#R.errors == 0, "client boots")
 local pg = player.PlayerGui
-for _, n in ipairs({ "HUD", "Studio", "Shop", "Results", "Notifications" }) do
+for _, n in ipairs({ "HUD", "MachineHud", "DesignPicker", "ColorPicker", "Painter", "Shop", "Collection", "Notifications" }) do
 	check(pg:FindFirstChild(n) ~= nil, "gui " .. n .. " exists")
 end
--- close help popup shown to new players
-local okHelp = buttonWithText(pg.Results, "¡Entendido!")
-fireClick(okHelp)
 
-local Scoring = R.require(S.ReplicatedStorage.Shared.Scoring)
-local Templates = R.require(S.ReplicatedStorage.Shared.Templates)
+local Designs = R.require(S.ReplicatedStorage.Shared.Designs)
+local Colors = R.require(S.ReplicatedStorage.Shared.Colors)
 local Config = R.require(S.ReplicatedStorage.Shared.Config)
-local Palette = R.require(S.ReplicatedStorage.Shared.Palette)
 local DataService = R.require(server.Services.DataService)
 
-print("== Wait for customers")
-R.run(25)
-check(#R.errors == 0, "customers spawn and walk without errors")
-local customersFolder = plots.Plot1.Customers
-local function waiting()
-	local list = {}
-	for _, m in ipairs(customersFolder:GetChildren()) do
-		if m:GetAttribute("State") == "waiting" then
-			table.insert(list, m)
-		end
-	end
-	return list
-end
-check(#waiting() >= 1, "at least one customer waiting (" .. #waiting() .. ")")
-check(#findAll(plots.Plot2.Customers, function()
-	return true
-end) == 0, "no customers in unowned plot")
-
--- HUD order cards
-R.run(0.5)
-local orderCards = findAll(pg.HUD, function(d)
-	return d.ClassName == "TextButton" and d.Text == "🎨\nPintar"
-end)
-check(#orderCards == #waiting(), "HUD shows one card per waiting customer (" .. #orderCards .. ")")
-
-return { Scoring = Scoring, Templates = Templates, Config = Config, Palette = Palette, DataService = DataService, R = R, player = player, plots = plots, waiting = waiting, fireClick = fireClick, buttonWithText = buttonWithText, buttonWithLabel = buttonWithLabel, findAll = findAll, check = check }
+return {
+	Designs = Designs,
+	Colors = Colors,
+	Config = Config,
+	DataService = DataService,
+	R = R,
+	player = player,
+	plots = plots,
+	fireClick = fireClick,
+	buttonWithText = buttonWithText,
+	buttonWithLabel = buttonWithLabel,
+	findAll = findAll,
+	check = check,
+}

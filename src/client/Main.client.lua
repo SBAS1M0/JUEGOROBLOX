@@ -1,35 +1,36 @@
--- Punto de entrada del cliente: conecta la interfaz con el servidor.
+-- Punto de entrada del cliente: conecta las ventanas con el servidor.
 
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StarterGui = game:GetService("StarterGui")
-local Workspace = game:GetService("Workspace")
 
 local UI = script.Parent:WaitForChild("UI")
 local Theme = require(UI.Theme)
 local HUD = require(UI.HUD)
-local Studio = require(UI.Studio)
+local Machine = require(UI.Machine)
+local DesignPicker = require(UI.DesignPicker)
+local ColorPicker = require(UI.ColorPicker)
+local Painter = require(UI.Painter)
 local Shop = require(UI.Shop)
-local Results = require(UI.Results)
 local World = require(script.Parent:WaitForChild("World"))
 
-local player = Players.LocalPlayer
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local Colors = require(Shared.Colors)
+
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 
-local app = {
-	state = nil,
-	remotes = {},
-	patienceColor = World.patienceColor,
-	orderPreview = World.orderPreview,
-}
+local app = { state = nil, remotes = {} }
 for _, name in ipairs({
 	"GetState",
 	"StateChanged",
 	"Notify",
-	"OpenOrder",
+	"Roll",
+	"SetAutoRoll",
+	"RollResult",
+	"OpenDesigns",
+	"UnlockDesign",
 	"StartPainting",
-	"StopPainting",
-	"SubmitPainting",
+	"CancelPainting",
+	"FinishPainting",
 	"BuyUpgrade",
 	"ClaimDaily",
 	"GoHome",
@@ -37,27 +38,55 @@ for _, name in ipairs({
 	app.remotes[name] = remotes:WaitForChild(name)
 end
 
+-- Último cuadro empezado (para retomarlo si se cierra la ventana).
+local lastPainting = nil
+
 function app.notify(text, kind)
 	HUD.notify(text, kind)
+end
+
+function app.celebrate()
+	HUD.celebrate()
 end
 
 function app.openShop()
 	Shop.open()
 end
 
-function app.showHelp()
-	Results.showHelp()
+function app.openCollection()
+	Machine.openCollection()
 end
 
-function app.openStudio(model)
-	if Studio.isOpen() then
+function app.openDesigns()
+	if Painter.isOpen() then
 		return
 	end
-	Studio.open(model)
+	DesignPicker.open()
 end
 
-function app.showResults(result, template, art)
-	Results.show(result, template, art)
+function app.openColorPicker(design)
+	ColorPicker.open(design)
+end
+
+function app.openPainter(design, colors)
+	lastPainting = { design = design, colors = colors }
+	Painter.open(design, colors)
+end
+
+function app.resumePainting()
+	if Painter.isOpen() then
+		return
+	end
+	if lastPainting and app.state and app.state.painting == lastPainting.design.id then
+		Painter.open(lastPainting.design, lastPainting.colors)
+	else
+		app.remotes.CancelPainting:FireServer()
+	end
+end
+
+function app.setHudVisible(visible)
+	HUD.setVisible(visible)
+	Machine.setVisible(visible)
 end
 
 local claiming = false
@@ -73,13 +102,20 @@ function app.claimDaily()
 		return
 	end
 	claiming = true
-	local ok, success, amount = pcall(function()
+	local ok, success, amount, colorId = pcall(function()
 		return app.remotes.ClaimDaily:InvokeServer()
 	end)
 	claiming = false
 	if ok and success then
 		Theme.playSound("success", 1.1)
-		app.notify("🎁 ¡Regalo diario! +" .. Theme.formatNumber(amount) .. " monedas", "gold")
+		local entry = Colors.ById[colorId]
+		app.notify(
+			"🎁 ¡Regalo diario! +💵"
+				.. Theme.formatNumber(amount)
+				.. (entry and (" y «" .. entry.name .. "»") or ""),
+			"gold"
+		)
+		app.celebrate()
 	end
 end
 
@@ -87,47 +123,35 @@ local function applyState(state)
 	if type(state) ~= "table" then
 		return
 	end
-	local first = app.state == nil
 	app.state = state
 	HUD.applyState(state)
+	Machine.applyState(state)
 	Shop.refresh()
-	if first and state.sold == 0 then
-		task.delay(1.5, Results.showHelp)
-	end
+	DesignPicker.refresh()
+	ColorPicker.refresh()
 end
 
--- Quita la mochila (no se usa) y prepara la interfaz.
 pcall(function()
 	StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
 end)
 
 HUD.init(app)
-Studio.init(app)
+Machine.init(app)
+DesignPicker.init(app)
+ColorPicker.init(app)
+Painter.init(app)
 Shop.init(app)
-Results.init()
-Studio.start()
 World.start()
 
 app.remotes.StateChanged.OnClientEvent:Connect(applyState)
 app.remotes.Notify.OnClientEvent:Connect(function(text, kind)
 	app.notify(text, kind)
 end)
-app.remotes.OpenOrder.OnClientEvent:Connect(function(orderId)
-	local plots = Workspace:FindFirstChild("Plots")
-	if not plots then
-		return
-	end
-	for _, plot in ipairs(plots:GetChildren()) do
-		local customers = plot:FindFirstChild("Customers")
-		if customers then
-			for _, model in ipairs(customers:GetChildren()) do
-				if model:GetAttribute("OrderId") == orderId then
-					app.openStudio(model)
-					return
-				end
-			end
-		end
-	end
+app.remotes.RollResult.OnClientEvent:Connect(function(colorId)
+	Machine.onRoll(colorId)
+end)
+app.remotes.OpenDesigns.OnClientEvent:Connect(function()
+	app.openDesigns()
 end)
 
 task.spawn(function()
@@ -136,11 +160,5 @@ task.spawn(function()
 	end)
 	if ok and state and not app.state then
 		applyState(state)
-	end
-end)
-
-player.CharacterAdded:Connect(function()
-	if Studio.isOpen() then
-		Studio.close(true)
 	end
 end)

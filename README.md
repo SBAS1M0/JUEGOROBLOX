@@ -1,110 +1,117 @@
 # 🎨 Galería Pincelada (juego de Roblox)
 
-Tienes tu propia galería de arte. Los clientes entran con un pedido, tú pintas
-la obra sobre una imagen ya dibujada (estilo «pinta por números»), la entregas
-y te pagan según lo bien y lo rápido que la hagas. Con el dinero mejoras la
-galería, subes de nivel y desbloqueas obras nuevas. Tus mejores cuadros quedan
-colgados en las paredes para que todos los vean.
+Tienes un **taller de arte** junto a tu **galería**. En el taller sacas pinturas
+de una máquina de colores (con rarezas), eliges un diseño, decides qué color va
+en cada parte y lo pintas a mano. Después lo cuelgas en tu galería y llegan
+visitantes (avatares reales de Roblox, por ejemplo tus amigos) a comprarlo.
 
 ![Mapa](docs/mapa.jpg)
 
-| Tu galería | Estudio de pintura |
+| Galería y taller | Dentro del taller |
 | --- | --- |
-| ![Galería](docs/galeria.jpg) | ![Estudio](docs/estudio.jpg) |
-| **Resultado de un pedido** | **Interfaz y pedidos** |
-| ![Resultado](docs/resultado.jpg) | ![HUD](docs/hud.jpg) |
+| ![Galería](docs/galeria.jpg) | ![Taller](docs/taller.jpg) |
 
 ## Cómo se juega
 
-1. Los clientes (muñequitos con sombrero, ¡y a veces VIP con corona 👑!) entran
-   a tu galería y esperan con un globo que muestra lo que quieren.
-2. Pulsa **Pintar** en la lista de pedidos o acércate y pulsa **E**.
-3. Pinta sobre la imagen:
-   - 🪣 **Cubeta**: rellena una zona entera de un clic.
-   - 🖌️ **Pincel** (1x1, y 2x2 o 3x3 con mejoras) para detalles.
-   - 🧽 Borrador, ↩️ deshacer y 🗑️ limpiar.
-   - Los números indican el color de cada casilla, y las casillas del color
-     que tienes seleccionado se iluminan.
-4. Pulsa **Entregar obra**. Ganas de 0 a 3 ⭐ según la precisión, y propina
-   si entregas rápido. Si el cliente se cansa de esperar, se va enfadado.
+1. **Máquina de colores**: tira para conseguir pinturas. Cada color tiene una
+   rareza que **multiplica** el valor del cuadro:
 
-### Tipos de pedido
+   | Rareza | Multiplicador |
+   | --- | --- |
+   | Básico (infinito) | x1.0 |
+   | Común | x1.1 |
+   | Poco común | x1.3 |
+   | Raro | x1.6 |
+   | Épico (degradado) | x2.2 |
+   | Legendario (degradado) | x3.5 |
+   | Mítico (arcoíris, galaxia) | x6.0 |
 
-| Modo | Qué pide el cliente |
+   Con **Auto-Rolling** la máquina tira sola. Con **Mejora** tira más rápido y
+   con más suerte.
+2. **Elige un diseño**: hay 16 diseños repartidos en 4 niveles. Los niveles
+   altos se venden más caros. Para abrir un nivel tienes que pintar todos los
+   diseños del anterior, y luego desbloquear cada diseño con dinero.
+3. **Elige tus colores**: cada área del dibujo (cielo, globo, nubes…) toma el
+   color que elijas. Verás el **valor** del cuadro en vivo: los colores raros
+   rinden más en las áreas grandes.
+4. **Pinta**: el dibujo aparece en líneas y cada figura se va rellenando
+   mientras pasas el pincel. Se muestra el % de cada área. La mejora
+   🪣 *Cubeta mágica* rellena una figura entera de un toque.
+5. **Vende**:
+   - 🖼️ **Expón** el cuadro en tu galería: un visitante entra, lo mira y lo
+     compra por un **25% más**.
+   - 💰 **Véndelo ya** si tienes prisa o la galería está llena.
+
+| Elige un diseño | Elige tus colores |
 | --- | --- |
-| 🖼️ Original | La obra con sus colores de referencia. |
-| 🔀 Remix (nivel 2) | La obra, pero cambiando un color por otro («el corazón, pero azul»). |
-| 🎨 Temática (nivel 3) | Pintarla solo con una gama: cálidos, fríos, pastel, noche o bosque. |
-| ✨ Libre | Como quieras, ¡pero con muchos colores! |
+| ![Diseños](docs/disenos.jpg) | ![Colores](docs/colores.jpg) |
+| **Pintando** | **¡Terminado!** |
+| ![Pintando](docs/pintando.jpg) | ![Terminado](docs/terminado.jpg) |
 
 ### Lo que te engancha
 
-- **12 obras** para desbloquear por nivel (corazón, hongo, helado, gatito, pez,
-  casita, flor, sandía, cohete, manzano, pulpo, luna y estrellas).
-- **Rachas 🔥**: cada entrega de 2 o más estrellas seguida suma +5% de pago (hasta +50%).
-- **Clientes VIP** que pagan x2.5 y dan doble experiencia.
-- **7 mejoras**: precios, paciencia, fama (más clientes), propinas, VIP,
-  pinceles gruesos y decoración (plantas, alfombra roja, estatua, guirnalda de
-  luces, candelabro y arco de globos que aparecen en tu galería).
-- **Regalo diario 🎁** que crece si vuelves varios días seguidos.
-- **Galería en las paredes**: tus últimas 7 obras se cuelgan enmarcadas y la
-  última aparece en el caballete.
-- Ranking con **Monedas, Nivel y Obras** en la tabla de jugadores.
+- **Colección de colores**: 30 pinturas para descubrir, con su probabilidad
+  por tirada. Las que no tienes salen como «???».
+- **Maestría** por diseño: 🥉 Bronce (3 cuadros, +5%), 🥈 Plata (8, +10%) y
+  🥇 Oro (20, +20%).
+- **8 mejoras**:
+  - Suerte y velocidad de la máquina.
+  - Pincel grande y cubeta mágica.
+  - Precios, fama (llegan más visitantes) y más paredes (hasta 7 cuadros en venta).
+  - Decoración: plantas, alfombra roja, estatua, guirnalda de luces,
+    candelabro y arco de globos.
+- **Visitantes con avatares reales**: tus amigos de Roblox (o avatares
+  conocidos) entran caminando con animaciones, admiran el cuadro, celebran
+  y te lo compran.
+- **Regalo diario 🎁**: monedas y un color raro o mejor.
 - El progreso se guarda automáticamente.
 
 ![Obras](docs/obras.jpg)
+
+![Colección](docs/coleccion.jpg)
 
 ## Cómo abrirlo en Roblox Studio
 
 ### Opción fácil
 
-1. Descarga el archivo **`GaleriaPincelada.rbxlx`** de este repositorio.
-2. Ábrelo con **Roblox Studio** (doble clic o *Archivo → Abrir*).
-3. Pulsa **Play** ▶️. Todo el mundo, los clientes y la interfaz se crean por
-   código, así que no hace falta nada más.
+1. Descarga **`GaleriaPincelada.rbxlx`**.
+2. Ábrelo con **Roblox Studio** y pulsa **Play** ▶️. Todo (mundo, visitantes,
+   interfaz) se crea por código.
 
 Para **guardar el progreso** de los jugadores:
 
 1. *Archivo → Publicar en Roblox*.
-2. *Inicio → Configuración del juego → Seguridad* → activa
-   **«Permitir que Studio acceda a los servicios de API»**.
-3. En *Configuración del juego → Lugares* pon el **máximo de jugadores en 6**
-   (hay 6 galerías; si entra un séptimo jugador puede pasear pero no tendrá galería).
+2. *Configuración del juego → Seguridad*: activa **«Permitir que Studio acceda
+   a los servicios de API»**.
+3. *Configuración del juego → Lugares*: pon el **máximo de jugadores en 6**.
 
-Sin publicar, el juego funciona igual pero no guarda (sale un aviso en la salida).
+### Opción para recibir cambios sin descargar nada (Rojo)
 
-### Opción para desarrolladores (Rojo)
-
-```bash
-rojo serve           # sincroniza el código con Studio en vivo (plugin de Rojo)
-rojo build -o GaleriaPincelada.rbxlx   # vuelve a generar el archivo del juego
-```
+1. Clona el repositorio (por ejemplo con GitHub Desktop).
+2. Instala [Rojo](https://rojo.space) y su plugin de Studio.
+3. Ejecuta `rojo serve` en la carpeta del repositorio y pulsa
+   *Rojo → Connect* en Studio.
+4. Para cada actualización solo tienes que hacer *Pull* en GitHub Desktop y
+   Studio se actualiza solo.
 
 ## Personalizar
 
-- **Nuevas obras**: en `src/shared/Templates.lua` cada obra es una cuadrícula
-  de 16x16 letras. Cada letra es un color de `src/shared/Palette.lua` y la `k`
-  es el contorno negro fijo. Copia un bloque, dibuja con letras y elige nivel,
-  precio, experiencia y paciencia.
-- **Economía**: precios, mejoras, rachas, VIP y velocidad de clientes están en
-  `src/shared/Config.lua`.
-- **Mundo**: colores de las galerías, plaza y decoraciones en
-  `src/server/Services/WorldBuilder.lua`.
+- **Diseños nuevos**: `src/shared/Designs.lua`. Cada diseño se arma con
+  figuras: `R` (rectángulo), `C` (círculo), `P` (píldora), `Heart`,
+  `Sparkle` y `Ring`, sobre un lienzo de 0 a 1. Cada figura pertenece a un área.
+- **Colores y rarezas**: `src/shared/Colors.lua`.
+- **Economía, mejoras y maestría**: `src/shared/Config.lua`.
+- **Mundo** (galería, taller, plaza): `src/server/Services/WorldBuilder.lua`.
 
 ## Estructura
 
 ```
 src/
-  shared/            Config, paleta, plantillas y puntuación (servidor y cliente)
-  server/
-    Main.server.lua  Galerías, pedidos, pagos, niveles, mejoras, regalo diario
-    Services/        Guardado (DataStore), constructor del mundo y clientes NPC
-  client/
-    Main.client.lua  Conecta la interfaz con el servidor
-    World.lua        Cuadros de la galería y globos de pedido
-    UI/              HUD, estudio de pintura, tienda, resultados y estilos
-tests/sim/           Simulador que ejecuta el juego completo fuera de Roblox
+  shared/      Colores, diseños, configuración (servidor y cliente)
+  server/      Mundo, visitantes, guardado, máquina, ventas y mejoras
+  client/      Ventanas: diseños, colores, pintura, máquina, mejoras, HUD
+tests/sim/     Simulador que ejecuta el juego completo fuera de Roblox
 ```
 
-El servidor valida todo (que el pedido exista, que el lienzo sea válido y la
-puntuación), así que los jugadores no pueden hacer trampas enviando datos falsos.
+El servidor valida todo: pinturas suficientes, diseño desbloqueado, tiempo
+mínimo de pintura y precios. Así los jugadores no pueden hacer trampas.

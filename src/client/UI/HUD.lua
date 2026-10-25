@@ -1,15 +1,10 @@
--- Interfaz principal: monedas, nivel, racha, lista de pedidos, botones y avisos.
+-- Interfaz principal: monedas, galería, botones laterales, avisos y confeti.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
-local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
-local Config = require(Shared.Config)
-local Templates = require(Shared.Templates)
-
 local Theme = require(script.Parent.Theme)
-local PixelArt = require(script.Parent.PixelArt)
 
 local HUD = {}
 
@@ -19,64 +14,46 @@ local player = Players.LocalPlayer
 local app
 local gui
 local refs = {}
-local cards = {}
 local shownCoins = nil
-
--- Avisos tipo "toast" --------------------------------------------------------------
 local toastHolder
+local confettiHolder
+
 local KIND_COLORS = {
-	info = C.Primary,
+	info = C.Mint,
 	success = C.Green,
 	error = C.Red,
-	gold = C.GoldDark,
+	gold = C.Gold,
+}
+local CONFETTI_COLORS = {
+	Color3.fromRGB(255, 120, 170),
+	Color3.fromRGB(255, 210, 80),
+	Color3.fromRGB(110, 210, 255),
+	Color3.fromRGB(150, 120, 255),
+	Color3.fromRGB(100, 220, 160),
 }
 
+-- Avisos ------------------------------------------------------------------------------------
 function HUD.notify(text, kind)
 	if not toastHolder then
 		return
 	end
-	local color = KIND_COLORS[kind] or C.Primary
+	local color = KIND_COLORS[kind] or C.Mint
 	local toast = Theme.new("Frame", {
 		Size = UDim2.new(1, 0, 0, 46),
 		BackgroundColor3 = C.Panel,
 		LayoutOrder = -math.floor(os.clock() * 100),
 		Parent = toastHolder,
-	}, {
-		Theme.corner(14),
-		Theme.stroke(color, 3),
-	})
-	Theme.new("Frame", {
-		Size = UDim2.new(0, 8, 1, -16),
-		Position = UDim2.fromOffset(8, 8),
-		BackgroundColor3 = color,
-		Parent = toast,
-	}, { Theme.corner(4) })
+	}, { Theme.corner(23), Theme.stroke(color, 2.5) })
 	Theme.label({
-		Size = UDim2.new(1, -30, 1, -12),
-		Position = UDim2.fromOffset(22, 6),
+		Size = UDim2.new(1, -28, 1, -10),
+		Position = UDim2.fromOffset(14, 5),
 		Text = text,
-		Font = Theme.Fonts.Bold,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 20,
+		MaxTextSize = 22,
 		Parent = toast,
 	})
 	Theme.pop(toast, 0.7)
-	if kind == "error" then
-		Theme.playSound("click", 0.6)
-	end
-	task.delay(3.5, function()
+	task.delay(3.6, function()
 		if toast.Parent then
-			Theme.tween(toast, 0.3, { BackgroundTransparency = 1 })
-			for _, d in ipairs(toast:GetDescendants()) do
-				if d:IsA("TextLabel") then
-					Theme.tween(d, 0.3, { TextTransparency = 1 })
-				elseif d:IsA("UIStroke") then
-					Theme.tween(d, 0.3, { Transparency = 1 })
-				elseif d:IsA("Frame") then
-					Theme.tween(d, 0.3, { BackgroundTransparency = 1 })
-				end
-			end
-			task.wait(0.35)
 			toast:Destroy()
 		end
 	end)
@@ -94,7 +71,29 @@ function HUD.notify(text, kind)
 	end
 end
 
--- Barra superior ---------------------------------------------------------------------
+function HUD.celebrate()
+	local random = Random.new()
+	for _ = 1, 70 do
+		local piece = Theme.new("Frame", {
+			Size = UDim2.fromOffset(random:NextInteger(8, 14), random:NextInteger(12, 20)),
+			Position = UDim2.new(random:NextNumber(0.05, 0.95), 0, -0.05, 0),
+			Rotation = random:NextInteger(0, 360),
+			BackgroundColor3 = CONFETTI_COLORS[random:NextInteger(1, #CONFETTI_COLORS)],
+			BorderSizePixel = 0,
+			Parent = confettiHolder,
+		}, { Theme.corner(3) })
+		local duration = random:NextNumber(1.6, 2.8)
+		Theme.tween(piece, duration, {
+			Position = UDim2.new(piece.Position.X.Scale + random:NextNumber(-0.15, 0.15), 0, 1.05, 0),
+			Rotation = piece.Rotation + random:NextInteger(-540, 540),
+		}, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		task.delay(duration, function()
+			piece:Destroy()
+		end)
+	end
+end
+
+-- Barra superior --------------------------------------------------------------------------
 local function pill(parent, props)
 	local frame = Theme.new("Frame", {
 		Name = props.Name,
@@ -102,32 +101,20 @@ local function pill(parent, props)
 		BackgroundColor3 = C.Panel,
 		LayoutOrder = props.LayoutOrder,
 		Parent = parent,
-	}, {
-		Theme.corner(22),
-		Theme.stroke(props.Color, 3),
-	})
-	local icon = Theme.new("Frame", {
-		Size = UDim2.new(0, 44, 0, 44),
-		Position = UDim2.new(0, -6, 0.5, 0),
-		AnchorPoint = Vector2.new(0, 0.5),
-		BackgroundColor3 = props.Color,
-		ZIndex = 2,
-		Parent = frame,
-	}, { Theme.corner(22), Theme.stroke(Color3.new(1, 1, 1), 3) })
+	}, { Theme.corner(22), Theme.stroke(props.Color, 2.5) })
 	Theme.label({
-		Size = UDim2.fromScale(1, 1),
+		Size = UDim2.fromOffset(40, 40),
+		Position = UDim2.fromOffset(6, 2),
 		Text = props.Icon,
-		ZIndex = 3,
 		MaxTextSize = 26,
-		Parent = icon,
+		Parent = frame,
 	})
 	local label = Theme.label({
 		Name = "Value",
-		Size = UDim2.new(1, -50, 1, -10),
-		Position = UDim2.fromOffset(44, 5),
+		Size = UDim2.new(1, -56, 1, -8),
+		Position = UDim2.fromOffset(46, 4),
 		Text = "0",
-		TextColor3 = C.Ink,
-		MaxTextSize = 26,
+		MaxTextSize = 28,
 		Parent = frame,
 	})
 	return frame, label
@@ -145,90 +132,80 @@ local function buildTopBar()
 		Theme.new("UIListLayout", {
 			FillDirection = Enum.FillDirection.Horizontal,
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
-			Padding = UDim.new(0, 18),
+			Padding = UDim.new(0, 14),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
 	})
-	local coinsFrame, coinsLabel =
-		pill(bar, { Name = "Coins", Size = UDim2.new(0, 180, 1, 0), Color = C.Gold, Icon = "💰", LayoutOrder = 1 })
-	refs.coins = coinsLabel
+	local coinsFrame, coins =
+		pill(bar, { Name = "Coins", Size = UDim2.new(0, 190, 1, 0), Color = C.Gold, Icon = "💵", LayoutOrder = 1 })
+	refs.coins = coins
 	refs.coinsFrame = coinsFrame
-
-	local levelFrame, levelLabel =
-		pill(bar, { Name = "Level", Size = UDim2.new(0, 210, 1, 0), Color = C.Primary, Icon = "⭐", LayoutOrder = 2 })
-	refs.level = levelLabel
-	levelLabel.Size = UDim2.new(1, -54, 0.55, -2)
-	levelLabel.Position = UDim2.fromOffset(46, 3)
-	local xpBack = Theme.new("Frame", {
-		Size = UDim2.new(1, -60, 0.28, 0),
-		Position = UDim2.new(0, 46, 0.62, 0),
-		BackgroundColor3 = Color3.fromRGB(232, 226, 246),
-		Parent = levelFrame,
-	}, { Theme.corner(6) })
-	refs.xpFill = Theme.new("Frame", {
-		Size = UDim2.fromScale(0, 1),
-		BackgroundColor3 = C.Primary,
-		Parent = xpBack,
-	}, { Theme.corner(6), Theme.gradient(Color3.fromRGB(150, 120, 255), Color3.fromRGB(255, 120, 190), 0) })
-
-	local streakFrame, streakLabel =
-		pill(bar, { Name = "Streak", Size = UDim2.new(0, 120, 1, 0), Color = C.Orange, Icon = "🔥", LayoutOrder = 3 })
-	refs.streak = streakLabel
-	refs.streakFrame = streakFrame
+	local _, gallery = pill(
+		bar,
+		{ Name = "Gallery", Size = UDim2.new(0, 170, 1, 0), Color = C.Pink, Icon = "🖼️", LayoutOrder = 2 }
+	)
+	refs.gallery = gallery
+	local _, sold =
+		pill(bar, { Name = "Sold", Size = UDim2.new(0, 175, 1, 0), Color = C.Mint, Icon = "🏷️", LayoutOrder = 3 })
+	refs.sold = sold
 end
 
--- Botones laterales -------------------------------------------------------------------
+-- Botones laterales -------------------------------------------------------------------------
 local function buildSideButtons()
 	local holder = Theme.new("Frame", {
 		Name = "SideButtons",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -12, 0.5, 0),
-		Size = UDim2.new(0, 96, 0, 330),
+		Size = UDim2.new(0, 92, 0, 430),
 		BackgroundTransparency = 1,
 		Parent = gui,
 	}, {
 		Theme.new("UIListLayout", {
-			Padding = UDim.new(0, 14),
+			Padding = UDim.new(0, 12),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			VerticalAlignment = Enum.VerticalAlignment.Center,
 		}),
 	})
 	local function sideButton(order, icon, text, color, onClick)
 		local button = Theme.button({
-			Size = UDim2.new(1, 0, 0, 70),
+			Size = UDim2.new(1, 0, 0, 74),
 			Text = "",
+			Soft = true,
 			Color = color,
 			LayoutOrder = order,
-			Radius = 18,
+			Radius = 20,
 			Parent = holder,
 			OnClick = onClick,
 		})
 		Theme.label({
-			Size = UDim2.new(1, 0, 0.62, 0),
+			Size = UDim2.new(1, 0, 0.6, 0),
 			Text = icon,
 			ZIndex = 4,
 			MaxTextSize = 34,
 			Parent = button.Button,
 		})
 		local caption = Theme.label({
-			Size = UDim2.new(1, 0, 0.38, 0),
-			Position = UDim2.fromScale(0, 0.62),
+			Size = UDim2.new(1, 0, 0.4, 0),
+			Position = UDim2.fromScale(0, 0.6),
 			Text = text,
-			TextColor3 = Color3.new(1, 1, 1),
 			ZIndex = 4,
-			MaxTextSize = 16,
+			MaxTextSize = 18,
 			Parent = button.Button,
 		})
-		Theme.textStroke(color:Lerp(Color3.new(0, 0, 0), 0.4), 1.5).Parent = caption
 		return button, caption
 	end
-	refs.shopButton = sideButton(1, "🛒", "Mejoras", C.Green, function()
+	sideButton(1, "🖌️", "Pintar", C.Mint, function()
+		app.openDesigns()
+	end)
+	sideButton(2, "📚", "Colores", C.Purple, function()
+		app.openCollection()
+	end)
+	sideButton(3, "🛒", "Mejoras", C.Green, function()
 		app.openShop()
 	end)
-	local daily, dailyCaption = sideButton(2, "🎁", "Regalo", C.Pink, function()
+	local daily, dailyCaption = sideButton(4, "🎁", "Regalo", C.Pink, function()
 		app.claimDaily()
 	end)
-	refs.dailyButton = daily
 	refs.dailyCaption = dailyCaption
 	refs.dailyBadge = Theme.new("Frame", {
 		Size = UDim2.fromOffset(22, 22),
@@ -245,205 +222,12 @@ local function buildSideButtons()
 		ZIndex = 7,
 		Parent = refs.dailyBadge,
 	})
-
-	sideButton(3, "🏠", "Mi galería", C.Orange, function()
+	sideButton(5, "🏠", "Mi taller", C.Orange, function()
 		app.remotes.GoHome:FireServer()
 	end)
-	sideButton(4, "❓", "Ayuda", C.Primary, function()
-		app.showHelp()
-	end)
 end
 
--- Lista de pedidos -----------------------------------------------------------------------
-local function myCustomersFolder()
-	local index = app.state and app.state.plotIndex or 0
-	if index == 0 then
-		return nil
-	end
-	local plots = Workspace:FindFirstChild("Plots")
-	local plot = plots and plots:FindFirstChild("Plot" .. index)
-	return plot and plot:FindFirstChild("Customers")
-end
-
-local function createCard(model)
-	local template, preview = app.orderPreview(model)
-	if not template then
-		return nil
-	end
-	local mode = Config.Modes[model:GetAttribute("Mode")] or Config.Modes.original
-	local vip = model:GetAttribute("VIP")
-	local card = Theme.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 92),
-		BackgroundColor3 = vip and Color3.fromRGB(255, 247, 220) or C.Panel,
-		Parent = refs.orderList,
-	}, {
-		Theme.corner(16),
-		Theme.stroke(vip and C.Gold or mode.color, 3),
-	})
-	local thumb = Theme.new("Frame", {
-		Size = UDim2.fromOffset(72, 72),
-		Position = UDim2.fromOffset(10, 10),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		Parent = card,
-	}, { Theme.corner(8), Theme.stroke(C.Ink, 2, 0.7) })
-	PixelArt.render(thumb, preview)
-	Theme.label({
-		Size = UDim2.new(1, -170, 0, 24),
-		Position = UDim2.fromOffset(92, 8),
-		Text = (vip and "👑 " or "") .. tostring(model:GetAttribute("CustomerName")),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 22,
-		Parent = card,
-	})
-	Theme.label({
-		Size = UDim2.new(1, -170, 0, 20),
-		Position = UDim2.fromOffset(92, 32),
-		Text = mode.icon .. " " .. mode.name .. " · " .. template.name,
-		Font = Theme.Fonts.Bold,
-		TextColor3 = mode.color,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 16,
-		Parent = card,
-	})
-	Theme.label({
-		Size = UDim2.new(1, -170, 0, 18),
-		Position = UDim2.fromOffset(92, 52),
-		Text = "💰 " .. Theme.formatNumber(model:GetAttribute("Reward")),
-		Font = Theme.Fonts.Bold,
-		TextColor3 = C.GoldDark,
-		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 16,
-		Parent = card,
-	})
-	local barBack = Theme.new("Frame", {
-		Size = UDim2.new(1, -176, 0, 8),
-		Position = UDim2.fromOffset(92, 74),
-		BackgroundColor3 = Color3.fromRGB(232, 226, 246),
-		Parent = card,
-	}, { Theme.corner(4) })
-	local bar = Theme.new("Frame", {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = C.Green,
-		Parent = barBack,
-	}, { Theme.corner(4) })
-	local button = Theme.button({
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -10, 0.5, -2),
-		Size = UDim2.fromOffset(72, 56),
-		Text = "🎨\nPintar",
-		Color = C.Pink,
-		MaxTextSize = 18,
-		Parent = card,
-		OnClick = function()
-			app.openStudio(model)
-		end,
-	})
-	Theme.pop(card, 0.6)
-	return { frame = card, bar = bar, model = model, button = button }
-end
-
-local function updateOrders()
-	local folder = myCustomersFolder()
-	local alive = {}
-	if folder then
-		for _, model in ipairs(folder:GetChildren()) do
-			if model:GetAttribute("State") == "waiting" then
-				alive[model] = true
-				if not cards[model] then
-					cards[model] = createCard(model)
-				end
-			end
-		end
-	end
-	local list = {}
-	for model, card in pairs(cards) do
-		if not alive[model] or not card then
-			if card then
-				card.frame:Destroy()
-			end
-			cards[model] = nil
-		else
-			local max = model:GetAttribute("MaxPatience") or 1
-			local fraction = math.clamp((model:GetAttribute("Patience") or 0) / math.max(max, 1), 0, 1)
-			card.bar.Size = UDim2.fromScale(fraction, 1)
-			card.bar.BackgroundColor3 = app.patienceColor(fraction)
-			card.fraction = fraction
-			table.insert(list, card)
-		end
-	end
-	table.sort(list, function(a, b)
-		return a.fraction < b.fraction
-	end)
-	for order, card in ipairs(list) do
-		card.frame.LayoutOrder = order
-	end
-	refs.emptyOrders.Visible = #list == 0
-	refs.ordersTitle.Text = "📋 Pedidos (" .. #list .. ")"
-end
-
-local function buildOrders()
-	local panel = Theme.new("Frame", {
-		Name = "Orders",
-		Position = UDim2.new(0, 12, 0, 70),
-		Size = UDim2.new(0, 320, 1, -150),
-		BackgroundTransparency = 1,
-		Parent = gui,
-	}, { Theme.new("UISizeConstraint", { MaxSize = Vector2.new(320, 520) }) })
-	local title = Theme.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 40),
-		BackgroundColor3 = C.Primary,
-		Parent = panel,
-	}, {
-		Theme.corner(14),
-		Theme.gradient(Color3.fromRGB(150, 120, 255), Color3.fromRGB(255, 120, 190), 0),
-		Theme.stroke(Color3.new(1, 1, 1), 3),
-	})
-	refs.ordersTitle = Theme.label({
-		Size = UDim2.new(1, -20, 1, -10),
-		Position = UDim2.fromOffset(10, 5),
-		Text = "📋 Pedidos",
-		TextColor3 = Color3.new(1, 1, 1),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 24,
-		Parent = title,
-	})
-	Theme.textStroke(C.PrimaryDark, 2).Parent = refs.ordersTitle
-
-	refs.orderList = Theme.new("ScrollingFrame", {
-		Position = UDim2.fromOffset(0, 50),
-		Size = UDim2.new(1, 0, 1, -50),
-		BackgroundTransparency = 1,
-		BorderSizePixel = 0,
-		ScrollBarThickness = 6,
-		ScrollBarImageColor3 = C.Primary,
-		AutomaticCanvasSize = Enum.AutomaticSize.Y,
-		CanvasSize = UDim2.new(),
-		Parent = panel,
-	}, {
-		Theme.new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }),
-		Theme.new(
-			"UIPadding",
-			{ PaddingTop = UDim.new(0, 4), PaddingLeft = UDim.new(0, 4), PaddingRight = UDim.new(0, 10) }
-		),
-	})
-	refs.emptyOrders = Theme.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 70),
-		BackgroundColor3 = C.Panel,
-		BackgroundTransparency = 0.15,
-		LayoutOrder = 999,
-		Parent = refs.orderList,
-	}, { Theme.corner(16), Theme.padding(10) })
-	Theme.label({
-		Size = UDim2.fromScale(1, 1),
-		Text = "Esperando clientes... ☕\n¡Ya vienen en camino!",
-		Font = Theme.Fonts.Bold,
-		TextColor3 = C.InkSoft,
-		MaxTextSize = 18,
-		Parent = refs.emptyOrders,
-	})
-end
-
--- Estado ----------------------------------------------------------------------------------
+-- Estado ------------------------------------------------------------------------------------
 local function animateCoins(target)
 	if shownCoins == nil then
 		shownCoins = target
@@ -465,8 +249,7 @@ local function animateCoins(target)
 			if shownCoins ~= target then
 				return
 			end
-			local alpha = (os.clock() - t0) / duration
-			refs.coins.Text = Theme.formatNumber(start + (target - start) * alpha)
+			refs.coins.Text = Theme.formatNumber(start + (target - start) * (os.clock() - t0) / duration)
 			RunService.RenderStepped:Wait()
 		end
 		refs.coins.Text = Theme.formatNumber(target)
@@ -475,15 +258,23 @@ end
 
 function HUD.applyState(state)
 	animateCoins(state.coins)
-	refs.level.Text = "Nivel " .. state.level
-	refs.xpFill.Size = UDim2.fromScale(math.clamp(state.xp / math.max(state.xpNext, 1), 0, 1), 1)
-	refs.streak.Text = "x" .. state.streak
-	refs.streakFrame.Visible = state.streak > 0
+	refs.gallery.Text = state.displayed .. "/" .. state.slots .. " en venta"
+	refs.sold.Text = Theme.formatNumber(state.sold) .. " vendidos"
 	refs.dailyBadge.Visible = state.dailyReady
 	refs.dailyCaption.Text = state.dailyReady and "¡Regalo!" or Theme.formatTime(state.dailyWait)
-	local nextTemplate = Templates.nextUnlock(state.level)
-	refs.nextUnlock.Text = nextTemplate and ("🔓 Nivel " .. nextTemplate.level .. ": " .. nextTemplate.name)
-		or "🏆 ¡Todas las obras desbloqueadas!"
+	if state.painting then
+		refs.hint.Text = "🎨 Tienes un cuadro a medio pintar: pulsa «Pintar» para seguir"
+	elseif state.displayed >= state.slots then
+		refs.hint.Text = "🖼️ Galería llena: espera a los visitantes o compra «Más paredes»"
+	elseif state.sold == 0 and state.displayed == 0 then
+		refs.hint.Text = "👉 Ve a la mesa de dibujo de tu taller o pulsa «Pintar»"
+	else
+		refs.hint.Text = ""
+	end
+end
+
+function HUD.setVisible(visible)
+	gui.Enabled = visible
 end
 
 function HUD.init(appRef)
@@ -491,27 +282,24 @@ function HUD.init(appRef)
 	gui = Theme.new("ScreenGui", {
 		Name = "HUD",
 		ResetOnSpawn = false,
-		IgnoreGuiInset = false,
 		DisplayOrder = 1,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 		Parent = player:WaitForChild("PlayerGui"),
 	})
 	buildTopBar()
 	buildSideButtons()
-	buildOrders()
-
-	refs.nextUnlock = Theme.label({
+	refs.hint = Theme.label({
 		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -12),
-		Size = UDim2.new(0, 420, 0, 30),
+		Position = UDim2.new(0.5, 0, 1, -14),
+		Size = UDim2.new(0, 560, 0, 30),
 		Text = "",
-		TextColor3 = Color3.new(1, 1, 1),
-		MaxTextSize = 22,
+		TextColor3 = C.Ink,
+		MaxTextSize = 24,
 		Parent = gui,
 	})
-	Theme.textStroke(C.Ink, 2.5).Parent = refs.nextUnlock
+	Theme.textStroke(Color3.new(1, 1, 1), 2.5).Parent = refs.hint
 
-	local notifyGui = Theme.new("ScreenGui", {
+	local overlay = Theme.new("ScreenGui", {
 		Name = "Notifications",
 		ResetOnSpawn = false,
 		DisplayOrder = 50,
@@ -519,10 +307,10 @@ function HUD.init(appRef)
 	})
 	toastHolder = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 64),
-		Size = UDim2.new(0, 420, 0, 260),
+		Position = UDim2.new(0.5, 0, 0, 62),
+		Size = UDim2.new(0, 460, 0, 260),
 		BackgroundTransparency = 1,
-		Parent = notifyGui,
+		Parent = overlay,
 	}, {
 		Theme.new("UIListLayout", {
 			Padding = UDim.new(0, 8),
@@ -530,9 +318,15 @@ function HUD.init(appRef)
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
 		}),
 	})
+	confettiHolder = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		ClipsDescendants = true,
+		Parent = overlay,
+	})
 
-	-- Escala la interfaz en pantallas pequeñas (móviles).
-	local scaled = { gui.TopBar, gui.SideButtons, gui.Orders, toastHolder }
+	-- Escala en pantallas pequeñas.
+	local scaled = { gui.TopBar, gui.SideButtons, toastHolder }
 	local function updateScale()
 		local camera = Workspace.CurrentCamera
 		if not camera then
@@ -545,31 +339,10 @@ function HUD.init(appRef)
 				or Theme.new("UIScale", { Name = "ViewportScale", Parent = frame })
 			uiScale.Scale = scale
 		end
-		-- La lista de pedidos ocupa el alto disponible aunque esté escalada.
-		gui.Orders.Size = UDim2.new(0, 320, 1 / scale, -150 / scale)
 	end
 	updateScale()
-	local function bindCamera()
-		local camera = Workspace.CurrentCamera
-		if camera then
-			camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
-			updateScale()
-		end
-	end
-	bindCamera()
-	Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(bindCamera)
-
-	task.spawn(function()
-		while true do
-			pcall(updateOrders)
-			task.wait(0.2)
-		end
-	end)
-end
-
-function HUD.setVisible(visible)
-	if gui then
-		gui.Enabled = visible
+	if Workspace.CurrentCamera then
+		Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
 	end
 end
 

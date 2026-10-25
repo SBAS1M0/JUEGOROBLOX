@@ -29,6 +29,16 @@ local function enc(v, typeofFn)
 			table.insert(parts, enc(c, typeofFn))
 		end
 		return "[" .. table.concat(parts, ",") .. "]"
+	elseif t == "NumberSequence" then
+		local parts = {}
+		for _, k in ipairs(v.Keypoints) do
+			if type(k) == "number" then
+				table.insert(parts, string.format("[%d,%.3f]", #parts == 0 and 0 or 1, k))
+			else
+				table.insert(parts, string.format("[%.3f,%.3f]", k.Time, k.Value))
+			end
+		end
+		return "[" .. table.concat(parts, ",") .. "]"
 	elseif t == "CFrame" then
 		local r = v.r
 		return string.format("[%.4f,%.4f,%.4f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f]", v.p.X, v.p.Y, v.p.Z,
@@ -40,7 +50,7 @@ local GUI_PROPS = { "Size", "Position", "AnchorPoint", "BackgroundColor3", "Back
 	"TextColor3", "TextScaled", "TextXAlignment", "TextYAlignment", "Font", "ZIndex", "LayoutOrder", "Rotation", "Enabled",
 	"CornerRadius", "Color", "Thickness", "Transparency", "PaddingTop", "PaddingBottom", "PaddingLeft", "PaddingRight",
 	"FillDirection", "Padding", "HorizontalAlignment", "VerticalAlignment", "SortOrder", "CellSize", "CellPadding",
-	"AspectRatio", "MaxSize", "Scale", "MaxTextSize", "ClipsDescendants", "TextWrapped", "TextTransparency", "ApplyStrokeMode", "TextSize" }
+	"AspectRatio", "MaxSize", "Scale", "MaxTextSize", "ClipsDescendants", "TextWrapped", "TextTransparency", "ApplyStrokeMode", "TextSize", "Transparency" }
 function D.gui(inst, typeofFn)
 	local fields = { '"c":' .. esc(inst.ClassName), '"n":' .. esc(inst.props.Name) }
 	for _, p in ipairs(GUI_PROPS) do

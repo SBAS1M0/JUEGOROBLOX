@@ -11,7 +11,7 @@ local Config = require(Shared.Config)
 
 local DataService = {}
 
-local STORE_NAME = "GaleriaPincelada_v1"
+local STORE_NAME = "GaleriaPincelada_v2"
 local MAX_RETRIES = 4
 
 local store = nil
@@ -32,15 +32,17 @@ end
 local function defaultData()
 	return {
 		coins = Config.START_COINS,
-		xp = 0,
-		level = 1,
+		paints = {}, -- colorId -> cantidad
+		unlocked = { globo = true }, -- diseños comprados
+		made = {}, -- diseñoId -> veces pintado
 		upgrades = {},
+		gallery = {}, -- { s = hueco, d = diseño, c = colores, v = valor }
+		autoRoll = true,
+		lastRoll = "",
 		sold = 0,
-		perfect = 0,
-		bestStreak = 0,
+		earned = 0,
 		lastDaily = 0,
 		dailyStreak = 0,
-		gallery = {},
 	}
 end
 

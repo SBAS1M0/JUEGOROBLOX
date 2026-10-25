@@ -8,8 +8,9 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
 
 local WorldBuilder = {}
+local buildWorkshop
 
-local PLOT_RADIUS = 120
+local PLOT_RADIUS = 150
 local PLAZA_RADIUS = 58
 
 local WALL_COLORS = {
@@ -650,6 +651,331 @@ local DECOR_BUILDERS = {
 }
 WorldBuilder.DECOR_LEVELS = #DECOR_BUILDERS
 
+-- Taller: mesa de dibujo, máquina de colores y estantes con botes ----------------------
+function buildWorkshop(parent, L, accent)
+	local model = Instance.new("Model")
+	model.Name = "Workshop"
+	local white = Color3.fromRGB(250, 248, 244)
+	local cx = 44
+
+	-- Suelo, paredes y techo.
+	part({
+		Size = Vector3.new(30, 1, 30),
+		CFrame = L(cx, 0.5, 0),
+		Color = Color3.fromRGB(226, 196, 160),
+		Material = Enum.Material.WoodPlanks,
+		Parent = model,
+	})
+	part({ Size = Vector3.new(30, 14, 1), CFrame = L(cx, 8, 14.5), Color = white, Parent = model })
+	part({ Size = Vector3.new(1, 14, 30), CFrame = L(cx - 14.5, 8, 0), Color = white, Parent = model })
+	part({ Size = Vector3.new(1, 14, 30), CFrame = L(cx + 14.5, 8, 0), Color = white, Parent = model })
+	for _, x in ipairs({ cx - 12.5, cx + 12.5 }) do
+		part({ Size = Vector3.new(5, 14, 1), CFrame = L(x, 8, -14.5), Color = white, Parent = model })
+	end
+	part({ Size = Vector3.new(20, 3, 1), CFrame = L(cx, 13.5, -14.5), Color = white, Parent = model })
+	part({ Size = Vector3.new(32, 1, 32), CFrame = L(cx, 15.5, 0), Color = Color3.fromRGB(70, 60, 90), Parent = model })
+	-- Techo interior blanco y toldo de rayas en la entrada.
+	part({ Size = Vector3.new(29, 0.2, 29), CFrame = L(cx, 14.9, 0), Color = white, Parent = model })
+	for i = 0, 4 do
+		local stripe = (i % 2 == 0) and accent or Color3.new(1, 1, 1)
+		part({
+			Size = Vector3.new(4, 0.3, 4.6),
+			CFrame = L(cx - 8 + i * 4, 12.4, -16.4) * CFrame.Angles(math.rad(-28), 0, 0),
+			Color = stripe,
+			Material = Enum.Material.Fabric,
+			CanCollide = false,
+			Parent = model,
+		})
+		part({
+			Size = Vector3.new(4, 0.8, 0.2),
+			CFrame = L(cx - 8 + i * 4, 11.05, -18.45),
+			Color = stripe,
+			Material = Enum.Material.Fabric,
+			CanCollide = false,
+			Parent = model,
+		})
+	end
+	-- Macetas con flores a los lados de la entrada.
+	buildPlant(model, L(cx - 12.5, 0, -17.5), 0.8)
+	buildPlant(model, L(cx + 12.5, 0, -17.5), 0.8)
+
+	-- Zócalo y moldura de color.
+	for _, data in ipairs({
+		{ Vector3.new(30, 0.8, 0.2), L(cx, 1.4, 13.95) },
+		{ Vector3.new(0.2, 0.8, 30), L(cx - 13.95, 1.4, 0) },
+		{ Vector3.new(0.2, 0.8, 30), L(cx + 13.95, 1.4, 0) },
+	}) do
+		part({ Size = data[1], CFrame = data[2], Color = accent, Parent = model })
+	end
+	-- Ventana redonda en la pared del fondo.
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.4, 6, 6),
+		CFrame = L(cx, 10, 14) * CFrame.Angles(0, math.pi / 2, 0),
+		Color = Color3.fromRGB(190, 230, 255),
+		Material = Enum.Material.Glass,
+		Transparency = 0.3,
+		Parent = model,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.3, 6.8, 6.8),
+		CFrame = L(cx, 10, 14.15) * CFrame.Angles(0, math.pi / 2, 0),
+		Color = accent,
+		Parent = model,
+	})
+
+	-- Letrero "Taller".
+	local sign = part({
+		Size = Vector3.new(12, 3, 0.4),
+		CFrame = L(cx, 17.8, -14.6),
+		Color = Color3.fromRGB(60, 48, 84),
+		Parent = model,
+	})
+	surfaceText(
+		sign,
+		Enum.NormalId.Front,
+		"🎨 Taller",
+		{ pps = 30, color = Color3.fromRGB(255, 244, 220), stroke = accent }
+	)
+
+	-- Alfombra redonda.
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.1, 14, 14),
+		CFrame = cylinderUp(L(cx, 1.05, -1)),
+		Color = accent:Lerp(Color3.new(1, 1, 1), 0.55),
+		Material = Enum.Material.Fabric,
+		CanCollide = false,
+		Parent = model,
+	})
+
+	-- Mesa de dibujo (caballete grande).
+	local easelCanvas = buildEasel(model, L(cx + 5, 1, 7) * CFrame.Angles(0, math.rad(-12), 0))
+	local drawPart = part({
+		Name = "DrawPrompt",
+		Size = Vector3.new(4, 4, 2),
+		CFrame = L(cx + 5, 4, 5.5),
+		Transparency = 1,
+		CanCollide = false,
+		Parent = model,
+	})
+	local drawPrompt = Instance.new("ProximityPrompt")
+	drawPrompt.ActionText = "Pintar un cuadro"
+	drawPrompt.ObjectText = "Mesa de dibujo"
+	drawPrompt.HoldDuration = 0
+	drawPrompt.MaxActivationDistance = 12
+	drawPrompt.RequiresLineOfSight = false
+	drawPrompt.Parent = drawPart
+	-- Taburete.
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.5, 2.6, 2.6),
+		CFrame = cylinderUp(L(cx + 5, 3.2, 2.5)),
+		Color = accent,
+		Material = Enum.Material.Fabric,
+		Parent = model,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(2.2, 0.5, 0.5),
+		CFrame = cylinderUp(L(cx + 5, 2, 2.5)),
+		Color = DARK_WOOD,
+		Parent = model,
+	})
+
+	-- Máquina de colores (mueble con cajón y bote de pintura).
+	local machine = Instance.new("Model")
+	machine.Name = "Machine"
+	local m = function(x, y, z)
+		return L(cx - 8 + x, 1 + y, 7 + z) * CFrame.Angles(0, math.rad(15), 0)
+	end
+	local body = part({
+		Name = "Body",
+		Size = Vector3.new(6, 7, 4),
+		CFrame = m(0, 3.5, 0),
+		Color = Color3.fromRGB(232, 236, 214),
+		Parent = machine,
+	})
+	part({
+		Size = Vector3.new(6.4, 0.4, 4.4),
+		CFrame = m(0, 7.2, 0),
+		Color = Color3.fromRGB(214, 220, 196),
+		Parent = machine,
+	})
+	part({
+		Size = Vector3.new(4.6, 2.6, 0.2),
+		CFrame = m(0, 5.4, -1.95),
+		Color = Color3.fromRGB(170, 200, 170),
+		Parent = machine,
+	})
+	part({
+		Size = Vector3.new(4.8, 0.3, 2.4),
+		CFrame = m(0, 4, -2.6),
+		Color = Color3.fromRGB(240, 200, 150),
+		Material = Enum.Material.Wood,
+		Parent = machine,
+	})
+	part({
+		Size = Vector3.new(5.2, 2.6, 0.2),
+		CFrame = m(0, 1.6, -2.05),
+		Color = Color3.fromRGB(240, 200, 150),
+		Material = Enum.Material.Wood,
+		Parent = machine,
+	})
+	part({
+		Size = Vector3.new(0.15, 2.2, 0.1),
+		CFrame = m(0, 1.6, -2.18),
+		Color = Color3.fromRGB(200, 160, 120),
+		Parent = machine,
+	})
+	for _, x in ipairs({ -0.5, 0.5 }) do
+		part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(0.35, 0.35, 0.35),
+			CFrame = m(x, 1.8, -2.2),
+			Color = DARK_WOOD,
+			Parent = machine,
+		})
+	end
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1.4, 0.3, 0.3),
+		CFrame = m(3.4, 4.5, 0) * CFrame.Angles(0, 0, 0),
+		Color = GOLD,
+		Material = Enum.Material.Metal,
+		Parent = machine,
+	})
+	part({
+		Size = Vector3.new(0.25, 1.6, 0.25),
+		CFrame = m(4.05, 3.8, 0),
+		Color = GOLD,
+		Material = Enum.Material.Metal,
+		Parent = machine,
+	})
+	local can = part({
+		Name = "Can",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1.8, 1.4, 1.4),
+		CFrame = cylinderUp(m(0.8, 5.1, -2.9)),
+		Color = Color3.fromRGB(160, 140, 220),
+		Parent = machine,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.2, 1.45, 1.45),
+		CFrame = cylinderUp(m(0.8, 6.05, -2.9)),
+		Color = Color3.fromRGB(200, 200, 210),
+		Material = Enum.Material.Metal,
+		Parent = machine,
+	})
+	local glow = part({
+		Name = "Glow",
+		Size = Vector3.new(6.2, 0.25, 0.2),
+		CFrame = m(0, 7.0, -2.2),
+		Color = Color3.fromRGB(160, 160, 175),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = machine,
+	})
+	local top = part({
+		Name = "Top",
+		Size = Vector3.new(1, 1, 1),
+		CFrame = m(0, 8.5, 0),
+		Transparency = 1,
+		CanCollide = false,
+		Parent = machine,
+	})
+	local machinePrompt = Instance.new("ProximityPrompt")
+	machinePrompt.ActionText = "Tirar color"
+	machinePrompt.ObjectText = "Máquina de colores"
+	machinePrompt.HoldDuration = 0
+	machinePrompt.MaxActivationDistance = 12
+	machinePrompt.RequiresLineOfSight = false
+	machinePrompt.Parent = body
+	addLight(glow, "PointLight", { Range = 10, Brightness = 1, Color = Color3.fromRGB(255, 255, 255) })
+	machine.Parent = model
+
+	-- Estantes con botes de pintura (muestran tus colores más raros).
+	local cans = {}
+	for row = 0, 2 do
+		part({
+			Size = Vector3.new(14, 0.4, 2.2),
+			CFrame = L(cx - 6, 3 + row * 3, 12.9),
+			Color = WOOD,
+			Material = Enum.Material.Wood,
+			Parent = model,
+		})
+		for i = 0, 7 do
+			local shelfCan = part({
+				Name = "ShelfCan",
+				Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(1.5, 1.2, 1.2),
+				CFrame = cylinderUp(L(cx - 12 + i * 1.7, 3.95 + row * 3, 12.9)),
+				Color = Color3.fromRGB(230, 230, 236),
+				Transparency = 0.7,
+				Parent = model,
+			})
+			table.insert(cans, shelfCan)
+		end
+	end
+
+	-- Lámparas y plantas.
+	for _, x in ipairs({ cx - 6, cx + 6 }) do
+		part({
+			Size = Vector3.new(0.15, 2.5, 0.15),
+			CFrame = L(x, 13.8, 0),
+			Color = Color3.fromRGB(40, 30, 50),
+			CanCollide = false,
+			Parent = model,
+		})
+		local bulb = part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(1.6, 1.6, 1.6),
+			CFrame = L(x, 12.3, 0),
+			Color = Color3.fromRGB(255, 236, 200),
+			Material = Enum.Material.Neon,
+			CanCollide = false,
+			Parent = model,
+		})
+		addLight(
+			bulb,
+			"PointLight",
+			{ Range = 24, Brightness = 1.3, Color = Color3.fromRGB(255, 236, 210), Shadows = true }
+		)
+	end
+	buildPlant(model, L(cx + 12, 1, 12), 1)
+	buildPlant(model, L(cx - 12.5, 1, -12), 0.9)
+
+	-- Camino hasta la calle principal.
+	part({
+		Size = Vector3.new(8, 0.4, 18),
+		CFrame = L(cx, 0.2, -23),
+		Color = Color3.fromRGB(230, 214, 190),
+		Material = Enum.Material.Cobblestone,
+		Parent = model,
+	})
+	part({
+		Size = Vector3.new(cx - 1, 0.4, 7),
+		CFrame = L((cx + 5) / 2, 0.2, -31.5),
+		Color = Color3.fromRGB(230, 214, 190),
+		Material = Enum.Material.Cobblestone,
+		Parent = model,
+	})
+
+	model.Parent = parent
+	return {
+		model = model,
+		easelCanvas = easelCanvas,
+		drawPrompt = drawPrompt,
+		machinePrompt = machinePrompt,
+		machineTop = top,
+		machineCan = can,
+		machineGlow = glow,
+		shelfCans = cans,
+	}
+end
+
 -- Galería de un jugador -----------------------------------------------------------
 local function buildPlot(parent, index, plotCF, rng)
 	local wallColor = WALL_COLORS[index]
@@ -809,75 +1135,56 @@ local function buildPlot(parent, index, plotCF, rng)
 		end
 	end
 
-	-- Mostrador.
+	-- Mostrador con caja registradora (esquina delantera derecha).
 	part({
-		Size = Vector3.new(14, 4, 3),
-		CFrame = L(0, 3, 4),
+		Size = Vector3.new(9, 4, 3),
+		CFrame = L(16, 3, -13),
 		Color = DARK_WOOD,
 		Material = Enum.Material.Wood,
 		Parent = shop,
 	})
-	part({ Size = Vector3.new(14.2, 0.6, 0.2), CFrame = L(0, 4.3, 2.45), Color = accent, Parent = shop })
+	part({ Size = Vector3.new(9.2, 0.6, 0.2), CFrame = L(16, 4.3, -14.55), Color = accent, Parent = shop })
 	part({
-		Size = Vector3.new(15, 0.5, 3.8),
-		CFrame = L(0, 5.25, 4),
+		Size = Vector3.new(9.6, 0.5, 3.6),
+		CFrame = L(16, 5.25, -13),
 		Color = CREAM,
 		Material = Enum.Material.Marble,
 		Parent = shop,
 	})
 	part({
 		Size = Vector3.new(2.2, 1.4, 1.8),
-		CFrame = L(4.5, 6.2, 4.2),
+		CFrame = L(18, 6.2, -12.8),
 		Color = Color3.fromRGB(70, 60, 90),
 		Parent = shop,
 	})
 	part({
 		Size = Vector3.new(1.8, 0.9, 0.2),
-		CFrame = L(4.5, 7.2, 4.6) * CFrame.Angles(math.rad(-20), 0, 0),
+		CFrame = L(18, 7.2, -13.4) * CFrame.Angles(math.rad(20), 0, 0),
 		Color = Color3.fromRGB(120, 255, 190),
 		Material = Enum.Material.Neon,
 		CanCollide = false,
 		Parent = shop,
 	})
-	for i = 1, 5 do
-		part({
-			Shape = Enum.PartType.Cylinder,
-			Size = Vector3.new(1.2, 0.8, 0.8),
-			CFrame = cylinderUp(L(-5.5 + i * 0.9, 6.1, 4)),
-			Color = RAINBOW[i],
-			Parent = shop,
-		})
-	end
 
-	-- Estantería con botes de pintura.
+	-- Banco acolchado para admirar los cuadros.
 	part({
-		Size = Vector3.new(8, 0.4, 2),
-		CFrame = L(-17.5, 6, 17.2),
-		Color = WOOD,
-		Material = Enum.Material.Wood,
+		Size = Vector3.new(7, 1.4, 2.6),
+		CFrame = L(-12, 1.7, 4),
+		Color = accent:Lerp(Color3.new(1, 1, 1), 0.3),
+		Material = Enum.Material.Fabric,
 		Parent = shop,
 	})
-	part({
-		Size = Vector3.new(8, 0.4, 2),
-		CFrame = L(-17.5, 3, 17.2),
-		Color = WOOD,
-		Material = Enum.Material.Wood,
-		Parent = shop,
-	})
-	for i = 1, 6 do
-		for row = 0, 1 do
-			part({
-				Shape = Enum.PartType.Cylinder,
-				Size = Vector3.new(1.4, 1.1, 1.1),
-				CFrame = cylinderUp(L(-21 + i * 1.15, 3.9 + row * 3, 17.2)),
-				Color = RAINBOW[(i + row * 3) % #RAINBOW + 1],
-				Parent = shop,
-			})
-		end
+	for _, x in ipairs({ -15, -9 }) do
+		part({ Size = Vector3.new(0.5, 1, 2.2), CFrame = L(x, 1.5, 4), Color = DARK_WOOD, Parent = shop })
 	end
 
 	-- Lámparas colgantes.
-	for _, pos in ipairs({ Vector3.new(-12, 0, -2), Vector3.new(12, 0, -2), Vector3.new(0, 0, -10) }) do
+	for _, pos in ipairs({
+		Vector3.new(-12, 0, -2),
+		Vector3.new(12, 0, -2),
+		Vector3.new(0, 0, -10),
+		Vector3.new(0, 0, 8),
+	}) do
 		part({
 			Size = Vector3.new(0.15, 3, 0.15),
 			CFrame = L(pos.X, 17.8, pos.Z),
@@ -905,29 +1212,14 @@ local function buildPlot(parent, index, plotCF, rng)
 		addLight(
 			bulb,
 			"PointLight",
-			{ Range = 22, Brightness = 1.2, Color = Color3.fromRGB(255, 220, 180), Shadows = true }
+			{ Range = 22, Brightness = 1.1, Color = Color3.fromRGB(255, 220, 180), Shadows = true }
 		)
 	end
 
 	-- Plantas interiores.
 	buildPlant(shop, L(19.5, 1, 15.5), 1)
+	buildPlant(shop, L(-19.5, 1, 15.5), 1)
 	buildPlant(shop, L(-19.5, 1, -15.5), 0.9)
-	buildPlant(shop, L(19.5, 1, -15.5), 0.9)
-
-	-- Puestos de espera con cojines.
-	local spots = {}
-	for i, x in ipairs({ -12, -6, 0, 6, 12 }) do
-		part({
-			Shape = Enum.PartType.Cylinder,
-			Size = Vector3.new(0.2, 3.2, 3.2),
-			CFrame = cylinderUp(L(x, 1.1, -3.5)),
-			Color = (i % 2 == 0) and accent or CREAM,
-			Material = Enum.Material.Fabric,
-			CanCollide = false,
-			Parent = shop,
-		})
-		spots[i] = L(x, 1, -3.5)
-	end
 
 	-- Galería en las paredes.
 	local gallery = Instance.new("Folder")
@@ -938,27 +1230,35 @@ local function buildPlot(parent, index, plotCF, rng)
 		L(0, 11.5, 17.9),
 		L(12, 11, 17.9),
 		L(-21.9, 11, 8) * CFrame.Angles(0, -math.pi / 2, 0),
-		L(-21.9, 11, -6) * CFrame.Angles(0, -math.pi / 2, 0),
 		L(21.9, 11, 8) * CFrame.Angles(0, math.pi / 2, 0),
+		L(-21.9, 11, -6) * CFrame.Angles(0, -math.pi / 2, 0),
 		L(21.9, 11, -6) * CFrame.Angles(0, math.pi / 2, 0),
 	}
-	local canvases, plaques = {}, {}
+	local canvases, plaques, standPoints = {}, {}, {}
 	for i = 1, Config.GALLERY_SIZE do
 		canvases[i], plaques[i] = buildFrame(gallery, frameCFrames[i], "Frame" .. i)
+		canvases[i]:SetAttribute("Slot", i)
+		-- Dónde se para un visitante para mirar el cuadro.
+		local front = frameCFrames[i] * CFrame.new(0, 0, -6.5)
+		standPoints[i] = CFrame.lookAt(
+			Vector3.new(front.X, plotCF.Y + 1, front.Z),
+			Vector3.new(frameCFrames[i].X, plotCF.Y + 1, frameCFrames[i].Z)
+		)
 	end
-	local easelCanvas = buildEasel(shop, L(13, 1, 11) * CFrame.Angles(0, math.rad(-25), 0))
 
 	local decor = Instance.new("Folder")
 	decor.Name = "Decor"
 	decor.Parent = model
 
-	local customers = Instance.new("Folder")
-	customers.Name = "Customers"
-	customers.Parent = model
+	local visitors = Instance.new("Folder")
+	visitors.Name = "Visitors"
+	visitors.Parent = model
 
 	-- Exterior: jardineras junto a la entrada.
 	buildFlowerBed(shop, L(-14, 0, -24.5), 16, rng)
 	buildFlowerBed(shop, L(14, 0, -24.5), 16, rng)
+
+	local workshop = buildWorkshop(model, L, accent)
 
 	model.Parent = parent
 
@@ -966,17 +1266,17 @@ local function buildPlot(parent, index, plotCF, rng)
 		index = index,
 		model = model,
 		cframe = plotCF,
-		spots = spots,
 		entrance = L(0, 0.4, -24),
 		inside = L(0, 1, -12),
 		street = L(0, 0.4, -(PLOT_RADIUS - PLAZA_RADIUS) + 4),
-		ownerSpawn = L(0, 4, 9),
+		ownerSpawn = L(44, 4, -7) * CFrame.Angles(0, math.pi, 0),
 		signLabel = signLabel,
 		canvases = canvases,
 		plaques = plaques,
-		easelCanvas = easelCanvas,
+		standPoints = standPoints,
 		decorFolder = decor,
-		customersFolder = customers,
+		visitorsFolder = visitors,
+		workshop = workshop,
 		decorBuilt = 0,
 		L = L,
 	}
@@ -1100,7 +1400,7 @@ function WorldBuilder.build()
 	-- Árboles entre galerías y alrededor del mundo.
 	for i = 0, Config.MAX_PLOTS - 1 do
 		local angle = (i + 0.5) / Config.MAX_PLOTS * math.pi * 2
-		for _, radius in ipairs({ 86, 118, 150 }) do
+		for _, radius in ipairs({ 100, 178, 215 }) do
 			local jitter = Vector3.new(rng:NextNumber(-6, 6), 0, rng:NextNumber(-6, 6))
 			local pos = Vector3.new(math.cos(angle), 0, math.sin(angle)) * radius + jitter
 			buildTree(world, CFrame.new(pos), rng:NextNumber(0.9, 1.3), rng)
@@ -1108,7 +1408,7 @@ function WorldBuilder.build()
 	end
 	for i = 1, 40 do
 		local angle = i / 40 * math.pi * 2 + rng:NextNumber(-0.05, 0.05)
-		local radius = rng:NextNumber(185, 240)
+		local radius = rng:NextNumber(235, 300)
 		buildTree(world, CFrame.new(math.cos(angle) * radius, 0, math.sin(angle) * radius), rng:NextNumber(1, 1.6), rng)
 	end
 

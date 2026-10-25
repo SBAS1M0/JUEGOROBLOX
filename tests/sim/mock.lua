@@ -577,7 +577,8 @@ local Events = {
 	UserInputService = { "InputBegan", "InputChanged", "InputEnded" },
 	Tween = { "Completed" },
 	BindableEvent = { "Event" },
-	Humanoid = { "Died" },
+	Humanoid = { "Died", "MoveToFinished", "Running" },
+	AnimationTrack = { "Stopped", "Ended" },
 }
 local CallbackProps = { RemoteFunction = { OnServerInvoke = true, OnClientInvoke = true } }
 
@@ -837,7 +838,7 @@ local function firePropChanged(inst, prop)
 	end
 end
 
-local INTERNAL = { parent = true, destroyed = true, allowWrite = true, sourcePath = true, mockModule = true, target = true, propsNil = true }
+local INTERNAL = { parent = true, destroyed = true, allowWrite = true, sourcePath = true, mockModule = true, target = true, propsNil = true, moveToken = true, welds = true }
 InstanceMT.__index = function(inst, key)
 	if INTERNAL[key] then
 		return nil
