@@ -13,7 +13,7 @@ Colors.Rarities = {
 	{ id = "raro", name = "Raro", mult = 1.6, weight = 11, color = rgb(70, 140, 250) },
 	{ id = "epico", name = "Épico", mult = 2.2, weight = 4, color = rgb(160, 90, 250) },
 	{ id = "legendario", name = "Legendario", mult = 3.5, weight = 0.9, color = rgb(250, 170, 30) },
-	{ id = "mitico", name = "Mítico", mult = 6, weight = 0.1, color = rgb(255, 80, 170) },
+	{ id = "mitico", name = "Mítico", mult = 6, weight = 0.1, color = rgb(230, 62, 72) },
 }
 Colors.RarityById = {}
 for index, rarity in ipairs(Colors.Rarities) do
@@ -186,22 +186,26 @@ function Colors.sequence(id)
 	return ColorSequence.new(Color3.new(1, 1, 1))
 end
 
--- Tirada de la máquina: suerte > 1 favorece las rarezas altas.
-function Colors.roll(luck, random)
+-- Tirada de la máquina: suerte > 1 favorece las rarezas altas. Con minIndex
+-- solo pueden salir rarezas de ese nivel o mejores (tirada garantizada).
+function Colors.roll(luck, random, minIndex)
+	minIndex = minIndex or 1
 	local total = 0
 	local weights = {}
 	for i, rarity in ipairs(Colors.Rarities) do
-		local weight = rarity.weight * luck ^ (i - 1)
+		local weight = i >= minIndex and rarity.weight * luck ^ (i - 1) or 0
 		weights[i] = weight
 		total += weight
 	end
 	local pick = random:NextNumber() * total
-	local chosen = Colors.Rarities[1]
+	local chosen = Colors.Rarities[minIndex]
 	for i, rarity in ipairs(Colors.Rarities) do
-		pick -= weights[i]
-		if pick <= 0 then
-			chosen = rarity
-			break
+		if weights[i] > 0 then
+			pick -= weights[i]
+			if pick <= 0 then
+				chosen = rarity
+				break
+			end
 		end
 	end
 	local options = Colors.ByRarity[chosen.id]

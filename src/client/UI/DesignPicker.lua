@@ -50,7 +50,7 @@ local function buildCard(design, parent)
 	local holder, body = Theme.card({
 		Name = design.id,
 		Size = UDim2.fromOffset(146, 192),
-		Radius = 20,
+		Radius = 14,
 		LayoutOrder = design.index,
 		Parent = parent,
 	})
@@ -69,24 +69,24 @@ local function buildCard(design, parent)
 		Size = UDim2.fromOffset(122, 122),
 		BackgroundColor3 = C.PanelSoft,
 		Parent = body,
-	}, { Theme.corner(16) })
+	}, { Theme.corner(10) })
 	local art = Theme.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = artBox }, {
-		Theme.corner(16),
+		Theme.corner(10),
 	})
 	DesignArt.render(art, design, { mode = "color", outline = false })
 	local lock = Theme.new("Frame", {
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = C.Shadow,
-		BackgroundTransparency = 0.35,
+		BackgroundColor3 = C.PanelSoft,
+		BackgroundTransparency = 0.15,
 		Visible = false,
 		ZIndex = 2,
 		Parent = artBox,
-	}, { Theme.corner(16) })
+	}, { Theme.corner(10) })
 	local lockIcon = Theme.label({
 		Size = UDim2.fromScale(1, 1),
 		Text = "🔒",
 		Font = Theme.Fonts.Heavy,
-		MaxTextSize = 44,
+		MaxTextSize = 30,
 		ZIndex = 2,
 		Parent = lock,
 	})
@@ -94,8 +94,8 @@ local function buildCard(design, parent)
 		Position = UDim2.fromOffset(6, 136),
 		Size = UDim2.new(1, -12, 0, 22),
 		Text = design.name,
-		Font = Theme.Fonts.Heavy,
-		MaxTextSize = 17,
+		Font = Theme.Fonts.Bold,
+		MaxTextSize = 16,
 		Parent = body,
 	})
 	local footer = Theme.new("Frame", {
@@ -107,8 +107,8 @@ local function buildCard(design, parent)
 	local medal = Theme.label({ Size = UDim2.fromOffset(22, 22), Text = "", MaxTextSize = 18, Parent = footer })
 	local bar = Theme.progress({
 		Position = UDim2.new(0, 26, 0.5, -4),
-		Size = UDim2.new(1, -66, 0, 8),
-		Gradient = "gold",
+		Size = UDim2.new(1, -66, 0, 6),
+		Gradient = "primary",
 		Parent = footer,
 	})
 	local count = Theme.label({
@@ -126,8 +126,8 @@ local function buildCard(design, parent)
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 161),
 		Size = UDim2.fromOffset(110, 24),
-		Color = C.GoldLight,
-		TextColor3 = C.GoldDark,
+		Color = C.PanelSoft,
+		TextColor3 = C.Ink,
 		Text = "",
 		MaxTextSize = 14,
 		Parent = body,
@@ -184,25 +184,26 @@ local function buildList(parent)
 			LayoutOrder = level * 2 - 1,
 			Parent = list,
 		})
-		local chip = Theme.chip({
-			Size = UDim2.fromOffset(110, 32),
-			Color = C.Primary,
-			TextColor3 = C.White,
+		local title = Theme.label({
+			Position = UDim2.fromOffset(2, 6),
+			Size = UDim2.fromOffset(112, 26),
 			Text = "Nivel " .. level,
-			MaxTextSize = 18,
+			Font = Theme.Fonts.Heavy,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			MaxTextSize = 20,
 			Parent = header,
 		})
 		local info = Theme.label({
-			Position = UDim2.fromOffset(122, 4),
-			Size = UDim2.new(1, -130, 0, 26),
-			Text = "💵 Se venden por ~" .. Theme.formatNumber(averageValue(level)),
-			Font = Theme.Fonts.Bold,
-			TextColor3 = C.MintDark,
+			Position = UDim2.fromOffset(120, 9),
+			Size = UDim2.new(1, -128, 0, 20),
+			Text = "Se venden por ~💵" .. Theme.formatNumber(averageValue(level)),
+			Font = Theme.Fonts.Medium,
+			TextColor3 = C.InkSoft,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			MaxTextSize = 18,
+			MaxTextSize = 15,
 			Parent = header,
 		})
-		levelHeaders[level] = { chip = chip, info = info }
+		levelHeaders[level] = { title = title, info = info }
 		local grid = Theme.new("Frame", {
 			Name = "Level" .. level,
 			Size = UDim2.new(1, -10, 0, 204),
@@ -227,7 +228,7 @@ local function buildDetail(parent)
 	local _, panel = Theme.card({
 		Position = UDim2.new(1, -306, 0, 14),
 		Size = UDim2.new(0, 288, 1, -28),
-		Radius = 22,
+		Radius = 16,
 		Parent = parent,
 	})
 	local artBox = Theme.new("Frame", {
@@ -236,36 +237,36 @@ local function buildDetail(parent)
 		Size = UDim2.fromOffset(176, 176),
 		BackgroundColor3 = C.PanelSoft,
 		Parent = panel,
-	}, { Theme.corner(18), Theme.stroke(C.Gold, 5) })
+	}, { Theme.corner(12), Theme.stroke(C.Border, 1) })
 	detail.art = Theme.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = artBox }, {
-		Theme.corner(16),
+		Theme.corner(12),
 	})
 	detail.lock = Theme.label({
 		Size = UDim2.fromScale(1, 1),
 		Text = "🔒",
 		Font = Theme.Fonts.Heavy,
-		BackgroundColor3 = C.Shadow,
-		BackgroundTransparency = 0.35,
-		MaxTextSize = 60,
+		BackgroundColor3 = C.PanelSoft,
+		BackgroundTransparency = 0.15,
+		MaxTextSize = 40,
 		Visible = false,
 		Parent = artBox,
 	})
-	Theme.corner(16).Parent = detail.lock
+	Theme.corner(12).Parent = detail.lock
 	detail.name = Theme.label({
 		Position = UDim2.fromOffset(12, 200),
 		Size = UDim2.new(1, -24, 0, 34),
 		Text = "",
-		Font = Theme.Fonts.Display,
-		MaxTextSize = 28,
+		Font = Theme.Fonts.Heavy,
+		MaxTextSize = 24,
 		Parent = panel,
 	})
 	detail.value = Theme.label({
 		Position = UDim2.fromOffset(12, 234),
 		Size = UDim2.new(1, -24, 0, 24),
 		Text = "",
-		Font = Theme.Fonts.Heavy,
+		Font = Theme.Fonts.Bold,
 		TextColor3 = C.MintDark,
-		MaxTextSize = 19,
+		MaxTextSize = 17,
 		Parent = panel,
 	})
 	detail.info = Theme.label({
@@ -280,9 +281,9 @@ local function buildDetail(parent)
 	local masteryBox = Theme.new("Frame", {
 		Position = UDim2.fromOffset(12, 286),
 		Size = UDim2.new(1, -24, 0, 92),
-		BackgroundColor3 = C.GoldLight,
+		BackgroundColor3 = C.PanelSoft,
 		Parent = panel,
-	}, { Theme.corner(16) })
+	}, { Theme.corner(12) })
 	detail.medal = Theme.label({
 		Position = UDim2.fromOffset(8, 8),
 		Size = UDim2.fromOffset(40, 40),
@@ -304,15 +305,15 @@ local function buildDetail(parent)
 		Size = UDim2.new(1, -62, 0, 18),
 		Text = "",
 		Font = Theme.Fonts.Medium,
-		TextColor3 = C.GoldDark,
+		TextColor3 = C.InkSoft,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		MaxTextSize = 14,
 		Parent = masteryBox,
 	})
 	detail.bar = Theme.progress({
 		Position = UDim2.fromOffset(10, 56),
-		Size = UDim2.new(1, -20, 0, 10),
-		Gradient = "gold",
+		Size = UDim2.new(1, -20, 0, 6),
+		Gradient = "primary",
 		Parent = masteryBox,
 	})
 	detail.progress = Theme.label({
@@ -336,10 +337,10 @@ local function buildDetail(parent)
 	detail.button = Theme.button({
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -14),
-		Size = UDim2.new(1, -28, 0, 58),
-		Text = "🎨 Empezar a pintar",
+		Size = UDim2.new(1, -28, 0, 50),
+		Text = "Empezar a pintar",
 		Variant = "primary",
-		Radius = 18,
+		Radius = 12,
 		Parent = panel,
 		OnClick = function()
 			DesignPicker.action()
@@ -355,7 +356,8 @@ function DesignPicker.refresh()
 	local state = app.state
 	for level, header in pairs(levelHeaders) do
 		local open = Designs.isLevelOpen(level, state.made)
-		header.chip.BackgroundColor3 = open and C.Primary or C.InkFaint
+		header.title.TextColor3 = open and C.Ink or C.InkFaint
+		header.title.Text = (open and "" or "🔒 ") .. "Nivel " .. level
 	end
 	for _, design in ipairs(Designs.List) do
 		local card = cards[design.id]
@@ -363,8 +365,7 @@ function DesignPicker.refresh()
 		local made = state.made[design.id] or 0
 		local selected = design.id == selectedId
 		card.stroke.Color = selected and C.Primary or C.Border
-		card.stroke.Thickness = selected and 3.5 or 1.5
-		card.body.BackgroundColor3 = selected and C.PrimaryLight or C.Panel
+		card.stroke.Thickness = selected and 2 or 1
 		card.art.Visible = status ~= "closed"
 		card.lock.Visible = status ~= "unlocked"
 		card.lockIcon.Text = status == "closed" and "🔒" or "🛒"
@@ -410,15 +411,15 @@ function DesignPicker.refresh()
 	end
 
 	if status == "unlocked" then
-		detail.button.SetText(state.painting and "🎨 Tienes un cuadro empezado" or "🎨 Empezar a pintar")
+		detail.button.SetText(state.painting and "Tienes un cuadro empezado" or "Empezar a pintar")
 		detail.button.SetVariant("primary")
 		detail.button.SetEnabled(not state.painting)
 	elseif status == "buyable" then
-		detail.button.SetText("🔓 Desbloquear · 💵 " .. Theme.formatNumber(design.price))
-		detail.button.SetVariant("gold")
+		detail.button.SetText("Desbloquear · 💵 " .. Theme.formatNumber(design.price))
+		detail.button.SetVariant("primary")
 		detail.button.SetEnabled(state.coins >= design.price)
 	else
-		detail.button.SetText("🔒 Pinta todo el nivel " .. (design.level - 1))
+		detail.button.SetText("Pinta todo el nivel " .. (design.level - 1))
 		detail.button.SetEnabled(false)
 	end
 end
@@ -475,8 +476,8 @@ function DesignPicker.init(appRef)
 		Name = "Window",
 		Parent = gui,
 		Size = UDim2.fromOffset(1010, 650),
-		Title = "🖌️ Elige un diseño",
-		Subtitle = "Pinta todos los diseños de un nivel para abrir el siguiente. Los niveles altos se venden más caros.",
+		Title = "Elige un diseño",
+		Subtitle = "Pinta todos los diseños de un nivel para abrir el siguiente.",
 	})
 	buildList(window.Body)
 	buildDetail(window.Body)

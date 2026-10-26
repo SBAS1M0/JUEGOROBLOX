@@ -30,8 +30,8 @@ local gui = new("ScreenGui", {
 
 local background = new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1) }, gui)
 new("UIGradient", {
-	Color = ColorSequence.new(Color3.fromRGB(150, 110, 255), Color3.fromRGB(255, 120, 186)),
-	Rotation = 35,
+	Color = ColorSequence.new(Color3.fromRGB(30, 35, 46), Color3.fromRGB(20, 24, 32)),
+	Rotation = 90,
 }, background)
 
 local center = new("Frame", {
@@ -53,25 +53,23 @@ local icon = new("TextLabel", {
 	TextScaled = true,
 }, center)
 
-local title = new("TextLabel", {
+new("TextLabel", {
 	Position = UDim2.fromScale(0, 0.38),
 	Size = UDim2.fromScale(1, 0.24),
 	BackgroundTransparency = 1,
-	Font = Enum.Font.FredokaOne,
+	Font = Enum.Font.BuilderSansExtraBold,
 	Text = "Galería Pincelada",
 	TextColor3 = Color3.new(1, 1, 1),
 	TextScaled = true,
 }, center)
-new("UIStroke", { Color = Color3.fromRGB(70, 40, 140), Thickness = 3, Transparency = 0.4 }, title)
 
 new("TextLabel", {
 	Position = UDim2.fromScale(0, 0.63),
 	Size = UDim2.fromScale(1, 0.1),
 	BackgroundTransparency = 1,
-	Font = Enum.Font.BuilderSansBold,
+	Font = Enum.Font.BuilderSansMedium,
 	Text = "Pinta · Colecciona colores · Vende tus obras",
-	TextColor3 = Color3.new(1, 1, 1),
-	TextTransparency = 0.1,
+	TextColor3 = Color3.fromRGB(170, 178, 192),
 	TextScaled = true,
 }, center)
 
@@ -79,11 +77,10 @@ local track = new("Frame", {
 	AnchorPoint = Vector2.new(0.5, 0),
 	Position = UDim2.fromScale(0.5, 0.82),
 	Size = UDim2.fromScale(0.7, 0.05),
-	BackgroundColor3 = Color3.new(1, 1, 1),
-	BackgroundTransparency = 0.6,
+	BackgroundColor3 = Color3.fromRGB(60, 68, 84),
 }, center)
 new("UICorner", { CornerRadius = UDim.new(0.5, 0) }, track)
-local fill = new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.new(1, 1, 1) }, track)
+local fill = new("Frame", { Size = UDim2.fromScale(0, 1), BackgroundColor3 = Color3.fromRGB(64, 128, 248) }, track)
 new("UICorner", { CornerRadius = UDim.new(0.5, 0) }, fill)
 
 local status = new("TextLabel", {
@@ -92,7 +89,7 @@ local status = new("TextLabel", {
 	BackgroundTransparency = 1,
 	Font = Enum.Font.BuilderSansMedium,
 	Text = "Preparando tu galería…",
-	TextColor3 = Color3.new(1, 1, 1),
+	TextColor3 = Color3.fromRGB(170, 178, 192),
 	TextScaled = true,
 }, center)
 
@@ -113,7 +110,6 @@ for i, color in ipairs(dotColors) do
 		BackgroundColor3 = color,
 	}, background)
 	new("UICorner", { CornerRadius = UDim.new(0.5, 0) }, dot)
-	new("UIStroke", { Color = Color3.new(1, 1, 1), Thickness = 2 }, dot)
 	dots[i] = dot
 end
 local animation = RunService.RenderStepped:Connect(function()

@@ -13,9 +13,9 @@ local Shop = {}
 local C = Theme.Colors
 
 local SECTIONS = {
-	{ name = "🎲 Máquina de colores", gradient = "blue", ids = { "suerte", "velocidad", "auto" } },
-	{ name = "🖌️ Pintura", gradient = "pink", ids = { "pincel", "cubeta" } },
-	{ name = "🖼️ Galería", gradient = "mint", ids = { "precio", "fama", "paredes", "decoracion" } },
+	{ name = "Máquina de colores", ids = { "suerte", "velocidad", "auto" } },
+	{ name = "Pintura", ids = { "pincel", "cubeta" } },
+	{ name = "Galería", ids = { "precio", "fama", "paredes", "decoracion" } },
 }
 
 local app
@@ -64,34 +64,36 @@ local function effectText(id, level)
 	return ""
 end
 
-local function buildCard(upgrade, order, parent, gradient)
+local function buildCard(upgrade, order, parent)
 	local _, body = Theme.card({
 		Name = upgrade.id,
 		Size = UDim2.fromOffset(372, 132),
-		Radius = 20,
+		Radius = 14,
 		LayoutOrder = order,
 		Parent = parent,
 	})
 	local icon = Theme.new("Frame", {
 		Position = UDim2.fromOffset(12, 12),
-		Size = UDim2.fromOffset(64, 64),
-		BackgroundColor3 = C.White,
+		Size = UDim2.fromOffset(60, 60),
+		BackgroundColor3 = C.PanelSoft,
 		Parent = body,
-	}, { Theme.corner(18), Theme.gradient(gradient, 90) })
-	Theme.label({ Size = UDim2.fromScale(1, 1), Text = upgrade.icon, MaxTextSize = 36, Parent = icon })
+	}, { Theme.corner(12) })
+	Theme.label({ Size = UDim2.fromScale(1, 1), Text = upgrade.icon, MaxTextSize = 30, Parent = icon })
 	Theme.label({
 		Position = UDim2.fromOffset(88, 10),
 		Size = UDim2.new(1, -170, 0, 24),
 		Text = upgrade.name,
 		Font = Theme.Fonts.Heavy,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 19,
+		MaxTextSize = 18,
 		Parent = body,
 	})
 	local level, levelLabel = Theme.chip({
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -12, 0, 12),
 		Size = UDim2.fromOffset(72, 22),
+		Color = C.PanelSoft,
+		TextColor3 = C.InkSoft,
 		Text = "",
 		MaxTextSize = 12,
 		Parent = body,
@@ -110,7 +112,7 @@ local function buildCard(upgrade, order, parent, gradient)
 		Position = UDim2.fromOffset(88, 54),
 		Size = UDim2.new(1, -100, 0, 18),
 		Text = "",
-		Font = Theme.Fonts.Heavy,
+		Font = Theme.Fonts.Bold,
 		TextColor3 = C.Primary,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		MaxTextSize = 14,
@@ -118,18 +120,18 @@ local function buildCard(upgrade, order, parent, gradient)
 	})
 	local bar = Theme.progress({
 		Position = UDim2.fromOffset(12, 98),
-		Size = UDim2.new(1, -170, 0, 10),
-		Gradient = gradient,
+		Size = UDim2.new(1, -170, 0, 6),
+		Gradient = "primary",
 		Parent = body,
 	})
 	local button = Theme.button({
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -12, 1, -12),
-		Size = UDim2.fromOffset(140, 42),
+		Size = UDim2.fromOffset(140, 40),
 		Text = "",
-		Variant = "gold",
-		Radius = 14,
-		MaxTextSize = 18,
+		Variant = "primary",
+		Radius = 12,
+		MaxTextSize = 17,
 		Parent = body,
 		OnClick = function()
 			Shop.buy(upgrade, body)
@@ -161,20 +163,20 @@ function Shop.refresh()
 	if not (state and window) then
 		return
 	end
-	window.Subtitle.Text = "Tienes 💵 " .. Theme.formatNumber(state.coins) .. " · Mejora tu taller y tu galería"
+	window.Subtitle.Text = "Tienes 💵 " .. Theme.formatNumber(state.coins)
 	for _, upgrade in ipairs(Config.Upgrades) do
 		local card = cards[upgrade.id]
 		local level = state.upgrades[upgrade.id] or 0
 		card.bar.Set(level / upgrade.max)
 		card.levelLabel.Text = "Nv " .. level .. "/" .. upgrade.max
 		if level >= upgrade.max then
-			card.effect.Text = "¡Nivel máximo!"
-			card.button.SetText("MÁX")
+			card.effect.Text = "Nivel máximo"
+			card.button.SetText("Completado")
 			card.button.SetEnabled(false)
 		else
 			local cost = Config.upgradeCost(upgrade.id, level)
 			card.effect.Text = effectText(upgrade.id, level)
-			card.button.SetText("💰 " .. Theme.formatNumber(cost))
+			card.button.SetText("💵 " .. Theme.formatNumber(cost))
 			card.button.SetEnabled(state.coins >= cost)
 		end
 	end
@@ -202,8 +204,7 @@ function Shop.init(appRef)
 		Name = "Window",
 		Parent = gui,
 		Size = UDim2.fromOffset(830, 640),
-		Gradient = "mint",
-		Title = "🛒 Mejoras",
+		Title = "Mejoras",
 	})
 	local list = Theme.new("ScrollingFrame", {
 		Position = UDim2.fromOffset(18, 12),
@@ -227,12 +228,13 @@ function Shop.init(appRef)
 	local order = 0
 	for _, section in ipairs(SECTIONS) do
 		order += 1
-		Theme.chip({
-			Size = UDim2.fromOffset(240, 32),
-			Color = C.White,
-			TextColor3 = C.Ink,
+		Theme.label({
+			Size = UDim2.new(1, 0, 0, 26),
 			Text = section.name,
-			MaxTextSize = 18,
+			Font = Theme.Fonts.Heavy,
+			TextColor3 = C.InkSoft,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			MaxTextSize = 16,
 			LayoutOrder = order,
 			Parent = list,
 		})
@@ -251,7 +253,7 @@ function Shop.init(appRef)
 			}),
 		})
 		for i, id in ipairs(section.ids) do
-			buildCard(Config.UpgradeById[id], i, grid, section.gradient)
+			buildCard(Config.UpgradeById[id], i, grid)
 		end
 	end
 end

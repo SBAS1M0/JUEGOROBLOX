@@ -24,7 +24,7 @@ local shownCoins = nil
 local toastHolder
 local confettiHolder
 
-local KIND_GRADIENT = { info = "primary", success = "mint", error = "red", gold = "gold" }
+local KIND_COLOR = { info = C.Primary, success = C.Mint, error = C.Red, gold = C.Gold }
 local CONFETTI_COLORS = {
 	Color3.fromRGB(255, 120, 170),
 	Color3.fromRGB(255, 210, 80),
@@ -45,24 +45,24 @@ function HUD.notify(text, kind)
 		Parent = toastHolder,
 	})
 	local accent = Theme.new("Frame", {
-		Position = UDim2.fromOffset(5, 5),
-		Size = UDim2.fromOffset(30, 30),
-		BackgroundColor3 = C.White,
+		Position = UDim2.fromOffset(8, 8),
+		Size = UDim2.fromOffset(24, 24),
+		BackgroundColor3 = KIND_COLOR[kind] or C.Primary,
 		Parent = body,
-	}, { Theme.round(), Theme.gradient(KIND_GRADIENT[kind] or "primary", 90) })
+	}, { Theme.round() })
 	Theme.label({
 		Size = UDim2.fromScale(1, 1),
 		Text = kind == "error" and "!" or (kind == "gold" and "★" or "✓"),
 		Font = Theme.Fonts.Heavy,
 		TextColor3 = C.White,
-		MaxTextSize = 17,
+		MaxTextSize = 14,
 		Parent = accent,
 	})
 	Theme.label({
-		Size = UDim2.new(1, -54, 1, -10),
-		Position = UDim2.fromOffset(42, 5),
+		Size = UDim2.new(1, -54, 1, -12),
+		Position = UDim2.fromOffset(42, 6),
 		Text = text,
-		Font = Theme.Fonts.Bold,
+		Font = Theme.Fonts.Medium,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		MaxTextSize = 16,
 		Parent = body,
@@ -121,21 +121,22 @@ local function pill(parent, props)
 		LayoutOrder = props.LayoutOrder,
 		Parent = parent,
 	})
-	local icon = Theme.new("Frame", {
-		Position = UDim2.fromOffset(5, 5),
-		Size = UDim2.fromOffset(32, 32),
-		BackgroundColor3 = C.White,
+	Theme.label({
+		Name = "Icon",
+		Position = UDim2.fromOffset(10, 8),
+		Size = UDim2.fromOffset(26, 26),
+		Text = props.Icon,
+		MaxTextSize = 20,
 		Parent = body,
-	}, { Theme.round(), Theme.gradient(props.Gradient, 90) })
-	Theme.label({ Size = UDim2.fromScale(1, 1), Text = props.Icon, MaxTextSize = 19, Parent = icon })
+	})
 	local label = Theme.label({
 		Name = "Value",
-		Size = UDim2.new(1, -(props.Right or 52), 1, -10),
-		Position = UDim2.fromOffset(44, 5),
+		Size = UDim2.new(1, -(props.Right or 52), 1, -14),
+		Position = UDim2.fromOffset(42, 7),
 		Text = "0",
 		Font = props.Font or Theme.Fonts.Heavy,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = props.MaxTextSize or 22,
+		MaxTextSize = props.MaxTextSize or 20,
 		Parent = body,
 	})
 	return holder, label, body
@@ -153,12 +154,10 @@ local function buildTopBar()
 	local coins, coinsLabel, coinsBody = pill(bar, {
 		Name = "Coins",
 		Size = UDim2.new(0, 190, 1, 0),
-		Gradient = "gold",
 		Icon = "💵",
 		LayoutOrder = 1,
-		Font = Theme.Fonts.Display,
-		MaxTextSize = 24,
-		Right = 86,
+		MaxTextSize = 20,
+		Right = 82,
 	})
 	refs.coins = coinsLabel
 	refs.coinsBody = coinsBody
@@ -166,14 +165,14 @@ local function buildTopBar()
 	local plus = Theme.new("TextButton", {
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -5, 0.5, 0),
-		Size = UDim2.fromOffset(32, 32),
-		BackgroundColor3 = C.White,
-		Font = Theme.Fonts.Heavy,
+		Size = UDim2.fromOffset(30, 30),
+		BackgroundColor3 = C.PanelSoft,
+		Font = Theme.Fonts.Bold,
 		Text = "+",
 		TextScaled = true,
-		TextColor3 = C.White,
+		TextColor3 = C.InkSoft,
 		Parent = coinsBody,
-	}, { Theme.round(), Theme.gradient("mint", 90), Theme.padding(5) })
+	}, { Theme.round(), Theme.padding(6) })
 	plus.Activated:Connect(function()
 		Theme.playSound("click")
 		app.openShop()
@@ -181,7 +180,6 @@ local function buildTopBar()
 	local _, gallery = pill(bar, {
 		Name = "Gallery",
 		Size = UDim2.new(0, 120, 1, 0),
-		Gradient = "pink",
 		Icon = "🖼️",
 		LayoutOrder = 2,
 		MaxTextSize = 20,
@@ -265,37 +263,35 @@ local function buildQuests()
 	refs.quests = holder
 	local header = Theme.new("Frame", {
 		Size = UDim2.new(1, 0, 0, 44),
-		BackgroundColor3 = C.White,
+		BackgroundTransparency = 1,
 		Parent = body,
-	}, { Theme.corner(20), Theme.gradient("gold", 0) })
+	})
 	Theme.new("Frame", {
-		Position = UDim2.new(0, 0, 1, -20),
-		Size = UDim2.new(1, 0, 0, 20),
-		BackgroundColor3 = C.White,
+		Position = UDim2.new(0, 12, 1, -1),
+		Size = UDim2.new(1, -24, 0, 1),
+		BackgroundColor3 = C.Border,
 		BorderSizePixel = 0,
 		Parent = header,
-	}, { Theme.gradient("gold", 0) })
-	local title = Theme.label({
-		Position = UDim2.fromOffset(14, 8),
-		Size = UDim2.new(1, -60, 0, 28),
-		Text = "📜 Misiones de hoy",
-		Font = Theme.Fonts.Display,
-		TextColor3 = C.White,
+	})
+	Theme.label({
+		Position = UDim2.fromOffset(14, 10),
+		Size = UDim2.new(1, -60, 0, 24),
+		Text = "Misiones de hoy",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.Ink,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 21,
+		MaxTextSize = 18,
 		Parent = header,
 	})
-	Theme.textStroke(C.GoldDark, 1.5, 0.3).Parent = title
 	local close = Theme.new("TextButton", {
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -8, 0.5, 0),
-		Size = UDim2.fromOffset(30, 30),
-		BackgroundColor3 = C.White,
-		BackgroundTransparency = 0.15,
-		Font = Theme.Fonts.Heavy,
+		Size = UDim2.fromOffset(28, 28),
+		BackgroundColor3 = C.PanelSoft,
+		Font = Theme.Fonts.Bold,
 		Text = "✕",
 		TextScaled = true,
-		TextColor3 = C.GoldDark,
+		TextColor3 = C.InkSoft,
 		Parent = header,
 	}, { Theme.round(), Theme.padding(8) })
 	close.Activated:Connect(function()
@@ -318,9 +314,9 @@ local function buildQuests()
 		local icon = Theme.new("Frame", {
 			Position = UDim2.fromOffset(8, 8),
 			Size = UDim2.fromOffset(28, 28),
-			BackgroundColor3 = C.GoldLight,
+			BackgroundColor3 = C.White,
 			Parent = row,
-		}, { Theme.corner(9) })
+		}, { Theme.corner(8) })
 		local iconLabel = Theme.label({ Size = UDim2.fromScale(1, 1), Text = "", MaxTextSize = 17, Parent = icon })
 		local text = Theme.label({
 			Position = UDim2.fromOffset(44, 6),
@@ -333,8 +329,8 @@ local function buildQuests()
 		})
 		local bar = Theme.progress({
 			Position = UDim2.fromOffset(10, 46),
-			Size = UDim2.new(1, -132, 0, 8),
-			Gradient = "gold",
+			Size = UDim2.new(1, -132, 0, 6),
+			Gradient = "primary",
 			Parent = row,
 		})
 		local count = Theme.label({
@@ -366,8 +362,8 @@ local function buildQuests()
 		Size = UDim2.new(1, -20, 0, 22),
 		Text = "",
 		Font = Theme.Fonts.Bold,
-		TextColor3 = C.GoldDark,
-		MaxTextSize = 14,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 13,
 		Parent = body,
 	})
 end
@@ -377,6 +373,7 @@ function HUD.toggleQuests(show)
 		show = not refs.quests.Visible
 	end
 	refs.quests.Visible = show
+	tiles.quests.SetActive(show)
 	if show then
 		Theme.popCard(refs.quests, 0.9)
 	end
@@ -420,8 +417,6 @@ local function buildTutorial()
 		Position = UDim2.new(0.5, 0, 0, 58),
 		Size = UDim2.fromOffset(420, 40),
 		Radius = 20,
-		StrokeColor = C.Primary,
-		StrokeThickness = 2,
 		Visible = false,
 		Parent = gui,
 	})
@@ -429,22 +424,22 @@ local function buildTutorial()
 	local step = Theme.new("Frame", {
 		Position = UDim2.fromOffset(6, 6),
 		Size = UDim2.fromOffset(28, 28),
-		BackgroundColor3 = C.White,
+		BackgroundColor3 = C.Primary,
 		Parent = body,
-	}, { Theme.round(), Theme.gradient("primary", 90) })
+	}, { Theme.round() })
 	refs.tutorialStep = Theme.label({
 		Size = UDim2.fromScale(1, 1),
 		Text = "1",
-		Font = Theme.Fonts.Display,
+		Font = Theme.Fonts.Heavy,
 		TextColor3 = C.White,
-		MaxTextSize = 17,
+		MaxTextSize = 15,
 		Parent = step,
 	})
 	refs.tutorialText = Theme.label({
 		Position = UDim2.fromOffset(42, 6),
 		Size = UDim2.new(1, -54, 1, -12),
 		Text = "",
-		Font = Theme.Fonts.Bold,
+		Font = Theme.Fonts.Medium,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		MaxTextSize = 16,
 		Parent = body,

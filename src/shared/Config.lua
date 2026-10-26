@@ -235,6 +235,15 @@ function Config.minPaintTime(design, levels)
 	return area * 0.85 / (width * 3.5)
 end
 
+-- Máquina: cada PITY_ROLLS tiradas sin nada Raro, la siguiente es Raro o mejor.
+Config.PITY_ROLLS = 12
+Config.PITY_RARITY = 3
+
+-- Monedas por descubrir un color nuevo (más cuanto más raro).
+function Config.discoveryBonus(rarity)
+	return math.floor(12 * rarity.mult * rarity.mult / 5 + 0.5) * 5
+end
+
 -- Coleccionistas VIP: a veces llega uno que paga el doble.
 Config.VIP_MULTIPLIER = 2
 function Config.vipChance(levels)

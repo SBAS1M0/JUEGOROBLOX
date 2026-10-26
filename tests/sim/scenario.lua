@@ -159,6 +159,8 @@ print("== Rolls at the machine")
 machinePrompt.Triggered:Fire(player)
 R.run(0.2)
 check(totalPaints(data) == 1, "machine prompt gives a paint")
+check(data.coins > Config.START_COINS, "discovery bonus for a new color (+" .. (data.coins - Config.START_COINS) .. ")")
+check(data.discovered[data.lastRoll] == true, "color saved in the collection")
 check(machinePrompt.Enabled == false, "prompt hidden while the machine spins")
 check(pg.MachineHud.RollResult.Visible, "result card shown")
 machinePrompt.Triggered:Fire(player)
@@ -182,12 +184,23 @@ for _ = 1, 6 do
 end
 R.run(3)
 
+print("== Guaranteed rare after a bad streak")
+data.pity = Config.PITY_ROLLS - 1
+rollAtMachine()
+R.run(2)
+check(Colors.rarityOf(Colors.ById[data.lastRoll]).index >= Config.PITY_RARITY, "pity roll is Raro or better")
+check(data.pity == 0, "pity counter resets")
+local pityLabel = T.findAll(pg.MachineBoard, function(d)
+	return d.ClassName == "TextLabel" and d.Text:find("seguro en") ~= nil
+end)[1]
+check(pityLabel ~= nil, "machine shows the guaranteed counter: " .. (pityLabel and pityLabel.Text or "?"))
+
 print("== Pick design at the easel")
 openDesigns()
 check(pg.DesignPicker.Window.Visible, "design picker open")
 dumpGui("picker", pg.DesignPicker)
 T.fireClick(namedButton(pg.DesignPicker, "globo"))
-click(pg.DesignPicker, "🎨 Empezar")
+click(pg.DesignPicker, "Empezar a pintar")
 R.run(0.3)
 check(not pg.DesignPicker.Window.Visible and pg.ColorPicker.Window.Visible, "color picker open")
 
@@ -215,6 +228,17 @@ local sketch = T.findAll(pg.Painter, function(d)
 end)[1]
 check(sketch ~= nil, "design shown as a sketch")
 dumpGui("painter_start", pg.Painter)
+R.run(3.2)
+local hinted = T.findAll(pg.Painter, function(d)
+	return d.ClassName == "UIStroke" and d.Parent.Name:match("^S%d") and d.Thickness > 2.3
+end)
+check(#hinted > 0, "idle player gets a hint: unpainted shapes pulse (" .. #hinted .. ")")
+local locate = T.findAll(pg.Painter, function(d)
+	return d.Name == "Locate"
+end)[1]
+check(locate ~= nil, "paint pots can locate their zone")
+T.fireClick(locate)
+R.run(0.1)
 
 print("== Paint with the brush")
 local sawDabs = false
@@ -228,7 +252,7 @@ end)
 check(sawDabs, "brush leaves paint strokes clipped to the shapes")
 R.run(1.5)
 dumpGui("painter", pg.Painter)
-local exhibit = buttonStarting(pg.Painter, "🖼️ Exponer")
+local exhibit = buttonStarting(pg.Painter, "Exponer")
 check(exhibit ~= nil and isShown(exhibit), "completion window shown")
 check(#T.findAll(pg.Painter, function(d)
 	return d.ClassName == "CanvasGroup"
@@ -272,13 +296,13 @@ check(#lot.Visitors:GetChildren() == 0, "visitor left")
 
 print("== Quick sell")
 openDesigns()
-click(pg.DesignPicker, "🎨 Empezar")
+click(pg.DesignPicker, "Empezar a pintar")
 click(pg.ColorPicker, "Empezar a pintar")
 R.run(0.2)
 sweepPaint()
 R.run(1.5)
 local coins1 = data.coins
-click(pg.Painter, "💰 Vender ya")
+click(pg.Painter, "Vender ya")
 R.run(0.3)
 check(data.coins > coins1 and data.sold == 2, "quick sold")
 
@@ -318,13 +342,13 @@ R.run(0.3)
 check(pg.Daily.Window.Visible, "daily window open")
 dumpGui("daily", pg.Daily)
 local c0 = data.coins
-click(pg.Daily, "🎁 Reclamar")
+click(pg.Daily, "Reclamar")
 R.run(0.5)
 check(data.coins > c0 and data.dailyStreak == 1, "daily claimed (streak " .. data.dailyStreak .. ")")
 check(not pg.Daily.Window.Visible, "daily window closed")
 T.fireClick(tile("daily"))
 R.run(0.2)
-check(buttonStarting(pg.Daily, "⏰") ~= nil, "daily shows countdown")
+check(buttonStarting(pg.Daily, "Vuelve en") ~= nil, "daily shows countdown")
 closeWindow(pg.Daily)
 
 print("== Unlock designs & levels")
@@ -332,13 +356,13 @@ data.coins = 10000000
 for _, id in ipairs({ "sol", "taza", "gatito" }) do
 	openDesigns()
 	T.fireClick(namedButton(pg.DesignPicker, id))
-	click(pg.DesignPicker, "🔓 Desbloquear")
+	click(pg.DesignPicker, "Desbloquear")
 	check(data.unlocked[id], "unlocked " .. id)
 	closeWindow(pg.DesignPicker)
 end
 openDesigns()
 T.fireClick(namedButton(pg.DesignPicker, "hongo"))
-check(buttonStarting(pg.DesignPicker, "🔒 Pinta") ~= nil, "level 2 locked")
+check(buttonStarting(pg.DesignPicker, "Pinta todo") ~= nil, "level 2 locked")
 closeWindow(pg.DesignPicker)
 
 print("== Shop (all upgrades)")
@@ -348,7 +372,7 @@ check(pg.Shop.Window.Visible, "shop open")
 dumpGui("shop", pg.Shop)
 for _ = 1, 16 do
 	local btns = T.findAll(pg.Shop, function(d)
-		return d.ClassName == "TextButton" and d.Text:sub(1, 4) == "💰"
+		return d.ClassName == "TextButton" and d.Text:sub(1, 4) == "💵"
 	end)
 	for _, b in ipairs(btns) do
 		T.fireClick(b)
@@ -382,7 +406,7 @@ print("== Paint level 1 with bucket")
 for _, id in ipairs({ "sol", "taza", "gatito" }) do
 	openDesigns()
 	T.fireClick(namedButton(pg.DesignPicker, id))
-	click(pg.DesignPicker, "🎨 Empezar")
+	click(pg.DesignPicker, "Empezar a pintar")
 	click(pg.ColorPicker, "✨ Mejores")
 	click(pg.ColorPicker, "Empezar a pintar")
 	R.run(0.2)
@@ -409,13 +433,13 @@ for _, id in ipairs({ "sol", "taza", "gatito" }) do
 		R.run(0.1)
 	end
 	R.run(3)
-	click(pg.Painter, "🖼️ Exponer")
+	click(pg.Painter, "Exponer")
 	R.run(0.3)
 	check(data.made[id] == 1, "painted " .. id .. " with the bucket")
 end
 openDesigns()
 T.fireClick(namedButton(pg.DesignPicker, "hongo"))
-click(pg.DesignPicker, "🔓 Desbloquear")
+click(pg.DesignPicker, "Desbloquear")
 check(data.unlocked.hongo, "level 2 design unlocked")
 closeWindow(pg.DesignPicker)
 
@@ -424,7 +448,7 @@ data.autoRoll = false
 local paintsBefore = totalPaints(data)
 openDesigns()
 T.fireClick(namedButton(pg.DesignPicker, "hongo"))
-click(pg.DesignPicker, "🎨 Empezar")
+click(pg.DesignPicker, "Empezar a pintar")
 click(pg.ColorPicker, "✨ Mejores")
 click(pg.ColorPicker, "Empezar a pintar")
 R.run(0.2)

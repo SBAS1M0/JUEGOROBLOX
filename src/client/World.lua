@@ -42,28 +42,31 @@ local function setupCanvas(canvas)
 		Size = UDim2.fromScale(0.84, 0.5),
 		Position = UDim2.fromScale(0.08, 0.25),
 		Text = "",
-		TextColor3 = Color3.fromRGB(196, 180, 170),
-		MaxTextSize = 60,
+		TextColor3 = Color3.fromRGB(176, 180, 190),
+		Font = Theme.Fonts.Medium,
+		MaxTextSize = 34,
 		Parent = art,
 	})
 	local stars = Theme.label({
 		Name = "Stars",
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -8, 1, -6),
-		Size = UDim2.fromOffset(110, 34),
+		Position = UDim2.new(1, -8, 1, -8),
+		Size = UDim2.fromOffset(84, 28),
+		BackgroundColor3 = C.Ink,
+		BackgroundTransparency = 0.25,
 		Text = "",
 		Font = Theme.Fonts.Heavy,
 		TextColor3 = C.Gold,
-		TextXAlignment = Enum.TextXAlignment.Right,
-		MaxTextSize = 30,
+		MaxTextSize = 22,
 		ZIndex = 5,
 		Parent = art,
 	})
-	Theme.textStroke(C.Shadow, 2, 0.3).Parent = stars
+	Theme.round().Parent = stars
 	local function refresh()
 		local design = Designs.get(canvas:GetAttribute("Design") or "")
 		local starCount = canvas:GetAttribute("Stars") or 0
 		stars.Text = design and string.rep("★", starCount) or ""
+		stars.Visible = stars.Text ~= ""
 		if design then
 			placeholder.Visible = false
 			DesignArt.render(art, design, {
@@ -77,7 +80,7 @@ local function setupCanvas(canvas)
 				old:Destroy()
 			end
 			placeholder.Visible = true
-			placeholder.Text = canvas:GetAttribute("Locked") and "🔒" or "🖌️\nEspacio libre"
+			placeholder.Text = canvas:GetAttribute("Locked") and "🔒" or "Espacio libre"
 		end
 	end
 	canvas:GetAttributeChangedSignal("Design"):Connect(refresh)
@@ -109,7 +112,7 @@ local function setupVisitor(model)
 		BackgroundColor3 = C.Panel,
 		Visible = false,
 		Parent = billboard,
-	}, { Theme.corner(18), Theme.stroke(model:GetAttribute("VIP") and C.Gold or C.Pink, 2.5) })
+	}, { Theme.corner(14), Theme.stroke(model:GetAttribute("VIP") and C.Gold or C.Border, 1.5) })
 	local reaction = Theme.label({
 		Size = UDim2.new(1, -16, 1, -8),
 		Position = UDim2.fromOffset(8, 4),
@@ -127,7 +130,7 @@ local function setupVisitor(model)
 		MaxTextSize = 22,
 		Parent = billboard,
 	})
-	Theme.textStroke(C.Ink, 2).Parent = name
+	Theme.textStroke(C.Ink, 1.5, 0.2).Parent = name
 	local function refresh()
 		local text = model:GetAttribute("Reaction") or ""
 		bubble.Visible = text ~= ""

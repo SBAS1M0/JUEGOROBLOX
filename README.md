@@ -1,8 +1,10 @@
 # 🎨 Galería Pincelada (juego de Roblox)
 
-Cada jugador aparece en **su propio terreno privado**: una galería de arte con
-un **taller** al lado, jardín, fuente, estanque y una calle por donde llegan
-los visitantes. En el taller sacas pinturas de una máquina de colores (con
+Cada jugador aparece en **su propio terreno privado**: una galería de arte
+moderna (volumen blanco con grandes cristaleras) con un **taller** forrado de
+madera al lado, plaza con estanque, jardín y una calle por donde llegan los
+visitantes. La interfaz es **minimalista y neutra**, pensada para todo el
+público: fondos claros, texto oscuro y un único color de acento. En el taller sacas pinturas de una máquina de colores (con
 rarezas), eliges un diseño, decides qué color va en cada parte y lo pintas a
 mano. Después lo cuelgas en tu galería y llegan visitantes (avatares reales de
 Roblox, por ejemplo tus amigos) a comprarlo.
@@ -27,7 +29,11 @@ botones a la izquierda (las misiones se despliegan solo cuando las abres).
    taller. Acércate y pulsa **E** (o toca el aviso en el móvil). Mientras la
    máquina gira el aviso desaparece y aparece una tarjeta con el color que te
    tocó. El **Auto-Rolling** es una mejora de la tienda; una vez comprada, se
-   enciende o se pausa con **F** en la propia máquina. Cada color tiene una
+   enciende o se pausa con **F** en la propia máquina.
+   - **Tirada asegurada**: si pasan 12 tiradas sin nada Raro, la siguiente es
+     Raro o mejor (el cartel de la máquina muestra cuántas faltan).
+   - **Bonus por descubrir**: cada color nuevo para tu colección te da monedas
+     (más cuanto más raro). Cada color tiene una
    rareza que **multiplica** el valor del cuadro:
 
    | Rareza | Multiplicador |
@@ -51,7 +57,9 @@ botones a la izquierda (las misiones se despliegan solo cuando las abres).
    un tono pálido de su color. La pintura se queda **justo donde pasas el
    pincel** y nunca se sale de la figura; cuando cubres casi toda una figura,
    se completa con su color final. Abajo tienes los botes de pintura de cada
-   área con su progreso. El **cronómetro con estrellas** premia la rapidez
+   área con su progreso; **tócalo y parpadean las figuras de esa zona**. Si
+   te quedas un momento sin avanzar, las figuras que faltan se resaltan solas.
+   El **cronómetro con estrellas** premia la rapidez
    (⭐⭐ +10%, ⭐⭐⭐ +25%). Con la mejora 🖌️ *Pincel grande* el trazo es más
    ancho y con 🪣 *Cubeta mágica* rellenas una figura de un toque.
 5. **Vende**:

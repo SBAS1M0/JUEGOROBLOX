@@ -187,6 +187,9 @@ local function buildState(player)
 		autoRoll = data.autoRoll and Config.hasAutoRoll(data.upgrades),
 		lastRoll = data.lastRoll,
 		rolls = data.rolls,
+		discovered = data.discovered,
+		pity = data.pity,
+		pityMax = Config.PITY_ROLLS,
 		rollInterval = Config.rollInterval(data.upgrades),
 		sold = data.sold,
 		earned = data.earned,
@@ -403,8 +406,14 @@ local function teleportHome(player)
 end
 
 -- Máquina de colores ---------------------------------------------------------------------------
+-- Suma pintura y la apunta en la colección; devuelve true si es nueva.
 local function addPaint(data, colorId, amount)
 	data.paints[colorId] = math.min(Config.MAX_PAINT_STACK, (data.paints[colorId] or 0) + amount)
+	if not data.discovered[colorId] then
+		data.discovered[colorId] = true
+		return true
+	end
+	return false
 end
 
 local function doRoll(player, auto)
@@ -412,13 +421,22 @@ local function doRoll(player, auto)
 	if not data then
 		return nil
 	end
-	local entry = Colors.roll(Config.luck(data.upgrades), rng)
-	addPaint(data, entry.id, 1)
+	-- Tras muchas tiradas sin suerte, la siguiente es Raro o mejor seguro.
+	local guaranteed = data.pity + 1 >= Config.PITY_ROLLS
+	local entry = Colors.roll(Config.luck(data.upgrades), rng, guaranteed and Config.PITY_RARITY or 1)
+	local rarity = Colors.rarityOf(entry)
+	local isNew = addPaint(data, entry.id, 1)
 	data.lastRoll = entry.id
 	data.rolls += 1
+	data.pity = rarity.index >= Config.PITY_RARITY and 0 or data.pity + 1
 	questEvent(player, data, "tirar", 1)
-	if Colors.rarityOf(entry).index >= 3 then
+	if rarity.index >= 3 then
 		questEvent(player, data, "raro", 1)
+	end
+	if isNew then
+		local bonus = Config.discoveryBonus(rarity)
+		earn(player, data, bonus)
+		notify(player, "✨ Color nuevo en tu colección: +💵" .. bonus, "gold")
 	end
 	tutorialEvent(player, data, 1, 1)
 	local plot = plotOf[player]
@@ -841,6 +859,12 @@ local function onPlayerAdded(player)
 	end
 	if not Config.hasAutoRoll(data.upgrades) then
 		data.autoRoll = false
+	end
+	-- Partidas anteriores: la colección empieza con los colores que ya tenías.
+	for colorId, count in pairs(data.paints) do
+		if count > 0 then
+			data.discovered[colorId] = true
+		end
 	end
 	ensureQuests(data)
 

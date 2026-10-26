@@ -30,13 +30,10 @@ local function buildTiles(parent)
 		local _, body = Theme.card({
 			Name = "Day" .. day,
 			Size = UDim2.fromOffset(big and 120 or 92, 150),
-			Radius = 18,
+			Radius = 14,
 			LayoutOrder = day,
 			Parent = row,
 		})
-		if big then
-			Theme.gradient(C.GoldLight, Color3.fromRGB(255, 218, 120), 90).Parent = body
-		end
 		local title = Theme.label({
 			Position = UDim2.fromOffset(4, 10),
 			Size = UDim2.new(1, -8, 0, 22),
@@ -57,17 +54,17 @@ local function buildTiles(parent)
 			Position = UDim2.fromOffset(4, 88),
 			Size = UDim2.new(1, -8, 0, 22),
 			Text = "",
-			Font = Theme.Fonts.Display,
-			TextColor3 = C.GoldDark,
-			MaxTextSize = 19,
+			Font = Theme.Fonts.Heavy,
+			TextColor3 = C.Ink,
+			MaxTextSize = 18,
 			Parent = body,
 		})
 		Theme.label({
 			Position = UDim2.fromOffset(4, 114),
 			Size = UDim2.new(1, -8, 0, 18),
-			Text = big and "+ color Épico ✨" or "+ color raro",
-			Font = Theme.Fonts.Bold,
-			TextColor3 = big and C.Purple or C.Primary,
+			Text = big and "+ color Épico" or "+ color raro",
+			Font = Theme.Fonts.Medium,
+			TextColor3 = C.InkSoft,
 			MaxTextSize = 13,
 			Parent = body,
 		})
@@ -106,18 +103,16 @@ function Daily.refresh()
 		local claimed = day < today or (day == today and not state.dailyReady)
 		local current = day == today and state.dailyReady
 		tile.check.Visible = claimed
-		if not tile.big then
-			tile.body.BackgroundColor3 = current and C.GoldLight or (claimed and C.MintLight or C.Panel)
-		end
-		tile.stroke.Color = current and C.Gold or C.Border
-		tile.stroke.Thickness = current and 3.5 or 1.5
-		tile.title.TextColor3 = current and C.GoldDark or C.InkSoft
+		tile.body.BackgroundColor3 = claimed and C.PanelSoft or C.Panel
+		tile.stroke.Color = current and C.Primary or C.Border
+		tile.stroke.Thickness = current and 2 or 1
+		tile.title.TextColor3 = current and C.Primary or C.InkSoft
 	end
 	if state.dailyReady then
-		claimButton.SetText("🎁 Reclamar día " .. today)
+		claimButton.SetText("Reclamar día " .. today)
 		claimButton.SetEnabled(true)
 	else
-		claimButton.SetText("⏰ Vuelve en " .. Theme.formatTime(state.dailyWait))
+		claimButton.SetText("Vuelve en " .. Theme.formatTime(state.dailyWait))
 		claimButton.SetEnabled(false)
 	end
 end
@@ -163,18 +158,17 @@ function Daily.init(appRef)
 		Name = "Window",
 		Parent = gui,
 		Size = UDim2.fromOffset(820, 360),
-		Gradient = "pink",
-		Title = "🎁 Regalo diario",
+		Title = "Regalo diario",
 		Subtitle = "Vuelve cada día: la recompensa crece con tu racha.",
 	})
 	buildTiles(window.Body)
 	claimButton = Theme.button({
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -18),
-		Size = UDim2.fromOffset(300, 56),
+		Size = UDim2.fromOffset(280, 48),
 		Text = "",
-		Variant = "gold",
-		Radius = 18,
+		Variant = "primary",
+		Radius = 12,
 		Parent = window.Body,
 		OnClick = function()
 			Daily.claim()

@@ -71,14 +71,13 @@ local function refreshAreas()
 	for _, row in pairs(areaRows) do
 		local areaId = row.area.id
 		local selected = areaId == selectedArea
-		row.body.BackgroundColor3 = selected and C.PrimaryLight or C.Panel
 		row.stroke.Color = selected and C.Primary or C.Border
-		row.stroke.Thickness = selected and 2.5 or 1.5
+		row.stroke.Thickness = selected and 2 or 1
 		DesignArt.swatch(row.swatch, choices[areaId])
 		local entry = Colors.ById[choices[areaId]]
 		local rarity = rarityInfo(choices[areaId])
 		row.colorName.Text = entry and entry.name or ""
-		row.colorName.TextColor3 = entry and entry.basic and C.InkSoft or rarity.color
+		row.colorName.TextColor3 = entry and entry.basic and C.InkSoft or rarity.color:Lerp(C.Ink, 0.25)
 	end
 end
 
@@ -119,11 +118,10 @@ local function refreshColors()
 		local holder, body = Theme.card({
 			Name = entry.id,
 			Size = UDim2.fromOffset(112, 128),
-			Radius = 16,
+			Radius = 12,
 			LayoutOrder = order,
-			Color = selected and C.PrimaryLight or C.Panel,
 			StrokeColor = selected and C.Primary or C.Border,
-			StrokeThickness = selected and 3 or 1.5,
+			StrokeThickness = selected and 2 or 1,
 			Parent = refs.grid,
 		})
 		local cell = Theme.new("TextButton", {
@@ -141,7 +139,7 @@ local function refreshColors()
 			Parent = body,
 		}, { Theme.round() })
 		DesignArt.swatch(swatch, entry.id)
-		Theme.stroke(entry.basic and C.Border or rarity.color, 3).Parent = swatch
+		Theme.stroke(entry.basic and C.Border or rarity.color, 2.5).Parent = swatch
 		Theme.label({
 			Position = UDim2.fromOffset(4, 72),
 			Size = UDim2.new(1, -8, 0, 18),
@@ -154,8 +152,8 @@ local function refreshColors()
 			AnchorPoint = Vector2.new(0.5, 0),
 			Position = UDim2.new(0.5, 0, 0, 94),
 			Size = UDim2.new(1, -12, 0, 22),
-			Color = entry.basic and C.PanelSoft or rarity.color,
-			TextColor3 = entry.basic and C.InkSoft or C.White,
+			Color = C.PanelSoft,
+			TextColor3 = entry.basic and C.InkSoft or rarity.color:Lerp(C.Ink, 0.3),
 			Text = entry.basic and "Básico · ∞" or (rarityLabel .. " · " .. owned(entry.id)),
 			MaxTextSize = 12,
 			Parent = body,
@@ -222,7 +220,7 @@ local function build(parent)
 	local _, left = Theme.card({
 		Position = UDim2.fromOffset(18, 14),
 		Size = UDim2.new(0, 330, 1, -28),
-		Radius = 22,
+		Radius = 16,
 		Parent = parent,
 	})
 	local previewBox = Theme.new("Frame", {
@@ -231,7 +229,7 @@ local function build(parent)
 		Size = UDim2.fromOffset(200, 200),
 		BackgroundColor3 = C.White,
 		Parent = left,
-	}, { Theme.corner(14), Theme.stroke(C.Gold, 5) })
+	}, { Theme.corner(12), Theme.stroke(C.Border, 1) })
 	refs.previewBox = Theme.new(
 		"Frame",
 		{ Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = previewBox },
@@ -264,9 +262,9 @@ local function build(parent)
 		Position = UDim2.fromOffset(366, 12),
 		Size = UDim2.new(1, -600, 0, 32),
 		Text = "",
-		Font = Theme.Fonts.Display,
+		Font = Theme.Fonts.Heavy,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 26,
+		MaxTextSize = 21,
 		Parent = parent,
 	})
 	Theme.button({
@@ -274,8 +272,9 @@ local function build(parent)
 		Position = UDim2.new(1, -20, 0, 10),
 		Size = UDim2.fromOffset(210, 40),
 		Text = "✨ Mejores colores",
-		Variant = "purple",
-		MaxTextSize = 18,
+		Variant = "ghost",
+		TextColor = C.Primary,
+		MaxTextSize = 17,
 		Parent = parent,
 		OnClick = function()
 			autoPick()
@@ -308,15 +307,15 @@ local function build(parent)
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 360, 1, -14),
 		Size = UDim2.new(1, -378, 0, 84),
-		Radius = 20,
+		Radius = 16,
 		Parent = parent,
 	})
 	Theme.label({
 		Position = UDim2.fromOffset(16, 10),
 		Size = UDim2.fromOffset(170, 18),
-		Text = "VALOR DEL CUADRO",
-		Font = Theme.Fonts.Heavy,
-		TextColor3 = C.InkFaint,
+		Text = "Valor del cuadro",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkSoft,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		MaxTextSize = 13,
 		Parent = footer,
@@ -325,10 +324,10 @@ local function build(parent)
 		Position = UDim2.fromOffset(16, 28),
 		Size = UDim2.fromOffset(110, 40),
 		Text = "x1.00",
-		Font = Theme.Fonts.Display,
-		TextColor3 = C.Primary,
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.Ink,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 34,
+		MaxTextSize = 30,
 		Parent = footer,
 	})
 	refs.value = Theme.label({
@@ -343,17 +342,17 @@ local function build(parent)
 	})
 	refs.multBar = Theme.progress({
 		Position = UDim2.fromOffset(130, 60),
-		Size = UDim2.new(1, -390, 0, 8),
+		Size = UDim2.new(1, -390, 0, 6),
 		Gradient = "primary",
 		Parent = footer,
 	})
 	refs.continue = Theme.button({
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -14, 0.5, 0),
-		Size = UDim2.fromOffset(220, 56),
-		Text = "Empezar a pintar ➜",
-		Variant = "mint",
-		Radius = 18,
+		Size = UDim2.fromOffset(210, 50),
+		Text = "Empezar a pintar",
+		Variant = "primary",
+		Radius = 12,
 		Parent = footer,
 		OnClick = function()
 			ColorPicker.confirm()
@@ -379,10 +378,8 @@ function ColorPicker.open(newDesign)
 	end
 	selectedArea = design.areas[1].id
 
-	window.Title.Text = "🎨 Elige tus colores · " .. design.name
-	window.Subtitle.Text = "Este cuadro tiene "
-		.. #design.areas
-		.. " áreas. Cada área toma el color de su pintura: ¡los colores raros valen más!"
+	window.Title.Text = "Elige tus colores · " .. design.name
+	window.Subtitle.Text = "Un color para cada una de sus " .. #design.areas .. " zonas. Los colores raros valen más."
 	preview = DesignArt.render(refs.previewBox, design, { mode = "color", colors = choices, outline = false })
 
 	for _, row in pairs(areaRows) do
@@ -392,7 +389,7 @@ function ColorPicker.open(newDesign)
 	for _, area in ipairs(design.areas) do
 		local holder, body = Theme.card({
 			Size = UDim2.new(1, 0, 0, 48),
-			Radius = 14,
+			Radius = 12,
 			LayoutOrder = area.index,
 			Parent = refs.areas,
 		})
@@ -407,7 +404,7 @@ function ColorPicker.open(newDesign)
 			Position = UDim2.fromOffset(10, 9),
 			Size = UDim2.fromOffset(30, 30),
 			Parent = body,
-		}, { Theme.round(), Theme.stroke(C.Border, 2) })
+		}, { Theme.round(), Theme.stroke(C.Border, 1) })
 		Theme.label({
 			Position = UDim2.fromOffset(48, 6),
 			Size = UDim2.new(0.5, -40, 1, -12),
@@ -486,8 +483,7 @@ function ColorPicker.init(appRef)
 		Name = "Window",
 		Parent = gui,
 		Size = UDim2.fromOffset(1010, 650),
-		Gradient = "pink",
-		Title = "🎨 Elige tus colores",
+		Title = "Elige tus colores",
 	})
 	build(window.Body)
 end

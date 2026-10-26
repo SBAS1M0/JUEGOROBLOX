@@ -69,8 +69,8 @@ function Tutorial.init(appRef)
 	app = appRef
 	highlight = Instance.new("Highlight")
 	highlight.Name = "TutorialHighlight"
-	highlight.FillColor = C.Gold
-	highlight.FillTransparency = 0.75
+	highlight.FillColor = C.Primary
+	highlight.FillTransparency = 0.8
 	highlight.OutlineColor = C.White
 	highlight.OutlineTransparency = 0
 	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
@@ -89,31 +89,30 @@ function Tutorial.init(appRef)
 	local bubble = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.fromScale(0.5, 0),
-		Size = UDim2.fromOffset(160, 42),
-		BackgroundColor3 = C.White,
+		Size = UDim2.fromOffset(150, 38),
+		BackgroundColor3 = C.Primary,
 		Parent = arrow,
-	}, { Theme.round(), Theme.gradient("gold", 90), Theme.stroke(C.White, 3) })
+	}, { Theme.round(), Theme.stroke(C.White, 2) })
 	arrowLabel = Theme.label({
 		Size = UDim2.new(1, -16, 1, -10),
 		Position = UDim2.fromOffset(8, 5),
 		Text = "",
-		Font = Theme.Fonts.Heavy,
+		Font = Theme.Fonts.Bold,
 		TextColor3 = C.White,
-		MaxTextSize = 20,
+		MaxTextSize = 18,
 		Parent = bubble,
 	})
-	Theme.textStroke(C.GoldDark, 1.5).Parent = arrowLabel
 	local pointer = Theme.label({
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 44),
 		Size = UDim2.fromOffset(60, 60),
 		Text = "⬇",
 		Font = Theme.Fonts.Heavy,
-		TextColor3 = C.Gold,
-		MaxTextSize = 54,
+		TextColor3 = C.Primary,
+		MaxTextSize = 46,
 		Parent = arrow,
 	})
-	Theme.textStroke(C.White, 3).Parent = pointer
+	Theme.textStroke(C.White, 2).Parent = pointer
 
 	-- La flecha flota arriba y abajo.
 	RunService.RenderStepped:Connect(function()

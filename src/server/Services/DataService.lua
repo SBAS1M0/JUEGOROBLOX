@@ -40,6 +40,8 @@ local function defaultData()
 		autoRoll = false,
 		lastRoll = "",
 		rolls = 0,
+		pity = 0, -- tiradas seguidas sin nada Raro o mejor
+		discovered = {}, -- colorId -> true (colección)
 		quests = {},
 		questDay = 0,
 		questBonus = false,

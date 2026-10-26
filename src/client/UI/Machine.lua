@@ -59,18 +59,18 @@ local function buildResultCard()
 	local reel = Theme.new("Frame", {
 		Position = UDim2.fromOffset(10, 10),
 		Size = UDim2.fromOffset(64, 64),
-		BackgroundColor3 = C.White,
+		BackgroundColor3 = C.PanelSoft,
 		Parent = body,
-	}, { Theme.corner(18), Theme.gradient("dark", 90) })
-	refs.reelStroke = Theme.stroke(C.InkFaint, 3)
+	}, { Theme.corner(14) })
+	refs.reelStroke = Theme.stroke(C.Border, 2)
 	refs.reelStroke.Parent = reel
 	refs.swatch = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
 		Size = UDim2.fromOffset(44, 44),
-		BackgroundColor3 = Color3.fromRGB(90, 80, 120),
+		BackgroundColor3 = C.Border,
 		Parent = reel,
-	}, { Theme.round(), Theme.stroke(C.White, 2.5, 0.2) })
+	}, { Theme.round(), Theme.stroke(C.White, 2) })
 	Theme.new("Frame", {
 		Position = UDim2.fromScale(0.2, 0.14),
 		Size = UDim2.fromScale(0.28, 0.2),
@@ -83,9 +83,9 @@ local function buildResultCard()
 		Position = UDim2.fromOffset(86, 10),
 		Size = UDim2.new(1, -98, 0, 28),
 		Text = "",
-		Font = Theme.Fonts.Display,
+		Font = Theme.Fonts.Heavy,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 24,
+		MaxTextSize = 21,
 		Parent = body,
 	})
 	local chip, chipLabel = Theme.chip({
@@ -114,7 +114,7 @@ end
 local function buildBoard()
 	board.gui = Theme.new("BillboardGui", {
 		Name = "MachineBoard",
-		Size = UDim2.fromOffset(230, 100),
+		Size = UDim2.fromOffset(230, 112),
 		StudsOffset = Vector3.new(0, 1.5, 0),
 		MaxDistance = 50,
 		LightInfluence = 0,
@@ -123,37 +123,46 @@ local function buildBoard()
 		Parent = player:WaitForChild("PlayerGui"),
 	})
 	local card = Theme.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 70),
+		Size = UDim2.new(1, 0, 0, 84),
 		BackgroundColor3 = C.White,
-		BackgroundTransparency = 0.05,
+		BackgroundTransparency = 0.04,
 		Parent = board.gui,
-	}, { Theme.corner(18), Theme.stroke(C.Border, 2) })
+	}, { Theme.corner(14), Theme.stroke(C.Border, 1) })
 	board.name = Theme.label({
 		Position = UDim2.fromOffset(10, 6),
-		Size = UDim2.new(1, -20, 0, 30),
+		Size = UDim2.new(1, -20, 0, 26),
 		Text = "",
-		Font = Theme.Fonts.Display,
-		MaxTextSize = 22,
+		Font = Theme.Fonts.Heavy,
+		MaxTextSize = 20,
 		Parent = card,
 	})
 	board.rarity = Theme.label({
-		Position = UDim2.fromOffset(10, 38),
-		Size = UDim2.new(1, -20, 0, 22),
+		Position = UDim2.fromOffset(10, 33),
+		Size = UDim2.new(1, -20, 0, 20),
 		Text = "",
-		Font = Theme.Fonts.Heavy,
-		MaxTextSize = 16,
+		Font = Theme.Fonts.Bold,
+		MaxTextSize = 15,
+		Parent = card,
+	})
+	board.pity = Theme.label({
+		Position = UDim2.fromOffset(10, 56),
+		Size = UDim2.new(1, -20, 0, 18),
+		Text = "",
+		Font = Theme.Fonts.Medium,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 13,
 		Parent = card,
 	})
 	board.auto = Theme.label({
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 76),
-		Size = UDim2.fromOffset(180, 24),
+		Position = UDim2.new(0.5, 0, 0, 89),
+		Size = UDim2.fromOffset(180, 22),
 		BackgroundColor3 = C.White,
-		BackgroundTransparency = 0.05,
+		BackgroundTransparency = 0.04,
 		Text = "",
-		Font = Theme.Fonts.Heavy,
+		Font = Theme.Fonts.Bold,
 		TextColor3 = C.MintDark,
-		MaxTextSize = 14,
+		MaxTextSize = 13,
 		Visible = false,
 		Parent = board.gui,
 	})
@@ -174,34 +183,35 @@ local function buildPopup()
 	})
 	local cardHolder, card = Theme.card({
 		Size = UDim2.fromScale(1, 1),
-		Radius = 30,
-		ShadowTransparency = 0.6,
+		Radius = 22,
+		ShadowOffset = 6,
+		ShadowTransparency = 0.8,
 		Parent = refs.popup,
 	})
 	refs.popupHolder = cardHolder
 	refs.popupStroke = card:FindFirstChildOfClass("UIStroke")
-	refs.popupStroke.Thickness = 5
 	refs.popupBand = Theme.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 70),
-		BackgroundColor3 = C.White,
+		Position = UDim2.fromOffset(24, 0),
+		Size = UDim2.new(1, -48, 0, 5),
+		BackgroundColor3 = C.Gold,
+		BorderSizePixel = 0,
 		Parent = card,
-	}, { Theme.corner(30), Theme.gradient("gold", 0) })
+	}, { Theme.round() })
 	refs.popupRarity = Theme.label({
-		Position = UDim2.fromOffset(10, 12),
-		Size = UDim2.new(1, -20, 0, 46),
+		Position = UDim2.fromOffset(10, 22),
+		Size = UDim2.new(1, -20, 0, 34),
 		Text = "",
-		Font = Theme.Fonts.Display,
-		TextColor3 = C.White,
-		MaxTextSize = 40,
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.Ink,
+		MaxTextSize = 28,
 		Parent = card,
 	})
-	Theme.textStroke(C.Shadow, 2, 0.6).Parent = refs.popupRarity
 	refs.popupSwatch = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 86),
 		Size = UDim2.fromOffset(120, 120),
 		Parent = card,
-	}, { Theme.round(), Theme.stroke(C.White, 6) })
+	}, { Theme.round(), Theme.stroke(C.Border, 1) })
 	refs.popupSparkles = {}
 	for i = 1, 6 do
 		local sparkle = Theme.label({
@@ -210,7 +220,7 @@ local function buildPopup()
 			Text = "✦",
 			Font = Theme.Fonts.Heavy,
 			TextColor3 = C.Gold,
-			MaxTextSize = 26,
+			MaxTextSize = 20,
 			Parent = card,
 		})
 		refs.popupSparkles[i] = sparkle
@@ -219,17 +229,17 @@ local function buildPopup()
 		Position = UDim2.fromOffset(10, 214),
 		Size = UDim2.new(1, -20, 0, 36),
 		Text = "",
-		Font = Theme.Fonts.Display,
-		MaxTextSize = 30,
+		Font = Theme.Fonts.Heavy,
+		MaxTextSize = 26,
 		Parent = card,
 	})
 	refs.popupMult = Theme.label({
 		Position = UDim2.fromOffset(10, 252),
-		Size = UDim2.new(1, -20, 0, 26),
+		Size = UDim2.new(1, -20, 0, 22),
 		Text = "",
-		Font = Theme.Fonts.Bold,
-		TextColor3 = C.MintDark,
-		MaxTextSize = 20,
+		Font = Theme.Fonts.Medium,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 17,
 		Parent = card,
 	})
 end
@@ -240,10 +250,9 @@ local function showPopup(colorId, isNew)
 	local rarity = Colors.rarityOf(entry)
 	popupToken += 1
 	local token = popupToken
-	refs.popupStroke.Color = rarity.color
-	local band = refs.popupBand:FindFirstChildOfClass("UIGradient")
-	band.Color = ColorSequence.new(rarity.color:Lerp(C.White, 0.25), rarity.color)
-	refs.popupRarity.Text = "¡" .. (isNew and "NUEVO · " or "") .. Theme.upper(rarity.name) .. "!"
+	refs.popupBand.BackgroundColor3 = rarity.color
+	refs.popupRarity.TextColor3 = rarity.color:Lerp(C.Ink, 0.25)
+	refs.popupRarity.Text = (isNew and "Nuevo · " or "") .. rarity.name
 	DesignArt.swatch(refs.popupSwatch, colorId)
 	refs.popupName.Text = entry.name
 	refs.popupMult.Text = "Multiplica tus cuadros x" .. string.format("%.1f", rarity.mult)
@@ -261,7 +270,7 @@ local function showPopup(colorId, isNew)
 				local angle = t * 1.6 + i / #refs.popupSparkles * math.pi * 2
 				sparkle.Position = UDim2.new(0.5, math.cos(angle) * 92, 0, 146 + math.sin(angle) * 74)
 				sparkle.Rotation = t * 120
-				sparkle.TextColor3 = rarity.color:Lerp(C.White, (math.sin(t * 5 + i) + 1) * 0.25)
+				sparkle.TextColor3 = rarity.color:Lerp(C.White, (math.sin(t * 5 + i) + 1) * 0.2)
 			end
 			task.wait()
 		end
@@ -563,19 +572,15 @@ function Machine.onRoll(colorId, auto)
 end
 
 function Machine.applyState(state)
-	if knownPaints == nil then
-		knownPaints = {}
-		for colorId, count in pairs(state.paints) do
-			if count > 0 then
-				knownPaints[colorId] = true
-			end
-		end
-	end
+	knownPaints = table.clone(state.discovered or {})
 	if not spinning then
 		showColor(state.lastRoll)
 	end
+	local left = (state.pityMax or 0) - (state.pity or 0)
+	board.pity.Text = left <= 1 and "🎯 ¡La próxima es Raro o mejor!"
+		or ("🎯 Raro o mejor seguro en " .. left .. " tiradas")
 	board.auto.Visible = state.autoUnlocked == true
-	board.auto.Text = state.autoRoll and "🤖 Auto-Rolling activo" or "⏸ Auto-Rolling en pausa"
+	board.auto.Text = state.autoRoll and "Auto-Rolling activo  [F]" or "Auto-Rolling en pausa  [F]"
 	board.auto.TextColor3 = state.autoRoll and C.MintDark or C.InkSoft
 	Machine.refreshCollection()
 end

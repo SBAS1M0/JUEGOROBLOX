@@ -22,8 +22,6 @@ local C = Theme.Colors
 local COMPLETE_AT = 0.9 -- fracción de la figura cubierta para completarla
 local DAB_SPACING = 0.5 -- distancia entre pinceladas (en radios)
 local MAX_DABS = 380 -- pinceladas por figura (la pintura sigue contando después)
-local WOOD = Color3.fromRGB(196, 140, 96)
-local WOOD_DARK = Color3.fromRGB(150, 98, 64)
 
 local app
 local gui, canvasFrame, overlay, catcher, cursor, cursorIcon
@@ -241,6 +239,7 @@ local function paintAt(x, y)
 				end
 				if newly > 0 then
 					paintedAny = true
+					current.lastProgress = os.clock()
 					info.painted += newly
 					if info.painted / info.total >= COMPLETE_AT then
 						completeShape(i, true)
@@ -334,11 +333,36 @@ local function updateCursor()
 	end
 end
 
+-- Pistas: si llevas un rato sin avanzar, las figuras sin pintar laten; al
+-- tocar un bote de la bandeja laten las de esa zona.
+local function updateHints()
+	local now = os.clock()
+	local idle = not current.done and now - (current.lastProgress or now) > 2.5
+	local areaHint = current.hintArea and now < (current.hintUntil or 0) and current.hintArea or nil
+	if not idle and not areaHint then
+		if current.hinting then
+			current.hinting = false
+			for i in ipairs(current.samples) do
+				current.art.setHint(i, 0)
+			end
+		end
+		return
+	end
+	current.hinting = true
+	local alpha = 0.5 + 0.5 * math.sin(now * 6)
+	for i, info in ipairs(current.samples) do
+		local shape = current.design.shapes[i]
+		local show = not info.complete and (areaHint == nil or shape.area == areaHint)
+		current.art.setHint(i, show and alpha or 0)
+	end
+end
+
 local function onStep(dt)
 	if not current then
 		return
 	end
 	updateCursor()
+	updateHints()
 	current.timerClock = (current.timerClock or 0) + dt
 	if current.timerClock > 0.2 then
 		current.timerClock = 0
@@ -378,9 +402,8 @@ local function buildTopBar(parent)
 		Size = UDim2.fromOffset(118, 42),
 		Text = "✕ Salir",
 		Variant = "ghost",
-		Color = C.Red,
-		TextColor = C.Red,
-		MaxTextSize = 20,
+		TextColor = C.InkSoft,
+		MaxTextSize = 18,
 		Parent = parent,
 		OnClick = function()
 			Painter.requestCancel()
@@ -391,8 +414,8 @@ local function buildTopBar(parent)
 		Position = UDim2.new(0.5, 0, 0, 6),
 		Size = UDim2.new(0.5, 0, 0, 34),
 		Text = "",
-		Font = Theme.Fonts.Display,
-		MaxTextSize = 30,
+		Font = Theme.Fonts.Heavy,
+		MaxTextSize = 26,
 		Parent = parent,
 	})
 	local row = Theme.new("Frame", {
@@ -404,8 +427,8 @@ local function buildTopBar(parent)
 	})
 	refs.progress = Theme.progress({
 		Position = UDim2.fromOffset(0, 4),
-		Size = UDim2.new(1, -56, 0, 10),
-		Gradient = "mint",
+		Size = UDim2.new(1, -56, 0, 8),
+		Gradient = "primary",
 		Parent = row,
 	})
 	refs.percent = Theme.label({
@@ -413,8 +436,8 @@ local function buildTopBar(parent)
 		Position = UDim2.fromScale(1, 0),
 		Size = UDim2.fromOffset(48, 18),
 		Text = "0%",
-		Font = Theme.Fonts.Heavy,
-		TextColor3 = C.MintDark,
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkSoft,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		MaxTextSize = 16,
 		Parent = row,
@@ -425,7 +448,7 @@ local function buildTopBar(parent)
 		AnchorPoint = Vector2.new(1, 0),
 		Position = UDim2.new(1, -16, 0, 12),
 		Size = UDim2.fromOffset(176, 44),
-		Radius = 22,
+		Radius = 14,
 		Parent = parent,
 	})
 	refs.timerCard = holder
@@ -468,7 +491,7 @@ local function buildCanvas(parent)
 		BackgroundTransparency = 1,
 		Parent = parent,
 	})
-	-- Bastidor de madera con paspartú blanco.
+	-- Lienzo sobre una tarjeta blanca con borde fino.
 	local board = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5),
@@ -478,27 +501,21 @@ local function buildCanvas(parent)
 	}, { Theme.new("UIAspectRatioConstraint", { AspectRatio = 1 }) })
 	refs.board = board
 	Theme.new("Frame", {
-		Position = UDim2.fromOffset(0, 8),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = C.Shadow,
-		BackgroundTransparency = 0.8,
+		BackgroundTransparency = 0.92,
 		Parent = board,
-	}, { Theme.corner(18) })
-	local frame = Theme.new("Frame", {
+	}, { Theme.corner(14) })
+	local mat = Theme.new("Frame", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = C.White,
 		Parent = board,
-	}, { Theme.corner(18), Theme.gradient(WOOD, WOOD_DARK, 90) })
-	local mat = Theme.new("Frame", {
-		Position = UDim2.fromOffset(12, 12),
-		Size = UDim2.new(1, -24, 1, -24),
-		BackgroundColor3 = Color3.fromRGB(253, 251, 246),
-		Parent = frame,
-	}, { Theme.corner(10) })
+	}, { Theme.corner(14), Theme.stroke(C.Border, 1) })
 	canvasFrame = Theme.new("Frame", {
 		Name = "Canvas",
-		Position = UDim2.fromOffset(10, 10),
-		Size = UDim2.new(1, -20, 1, -20),
+		Position = UDim2.fromOffset(14, 14),
+		Size = UDim2.new(1, -28, 1, -28),
 		BackgroundColor3 = C.White,
 		ClipsDescendants = true,
 		Parent = mat,
@@ -567,7 +584,7 @@ local function buildTray(parent)
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -14),
 		Size = UDim2.fromOffset(500, 108),
-		Radius = 24,
+		Radius = 16,
 		Parent = parent,
 	})
 	refs.tray = holder
@@ -630,18 +647,20 @@ local function fillTray(design, colors)
 			Position = UDim2.new(0.5, 0, 0, 8),
 			Size = UDim2.fromOffset(42, 42),
 			Parent = slot,
-		}, { Theme.round(), Theme.stroke(C.White, 3) })
+		}, { Theme.round(), Theme.stroke(C.Border, 1) })
 		DesignArt.swatch(swatch, colors[areaDef.id])
 		local check = Theme.label({
 			Size = UDim2.fromScale(1, 1),
 			Text = "✔",
 			Font = Theme.Fonts.Heavy,
+			BackgroundColor3 = C.Mint,
+			BackgroundTransparency = 0,
 			TextColor3 = C.White,
-			MaxTextSize = 22,
+			MaxTextSize = 20,
 			Visible = false,
 			Parent = swatch,
 		})
-		Theme.textStroke(C.Shadow, 1.5, 0.4).Parent = check
+		Theme.round().Parent = check
 		Theme.label({
 			Position = UDim2.fromOffset(4, 54),
 			Size = UDim2.new(1, -8, 0, 16),
@@ -657,6 +676,21 @@ local function fillTray(design, colors)
 			Gradient = "mint",
 			Parent = slot,
 		})
+		local pick = Theme.new("TextButton", {
+			Name = "Locate",
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+			Text = "",
+			ZIndex = 4,
+			Parent = slot,
+		})
+		pick.Activated:Connect(function()
+			if current then
+				Theme.playSound("click", 1.2)
+				current.hintArea = areaDef.id
+				current.hintUntil = os.clock() + 1.8
+			end
+		end)
 		current.slots[areaDef.id] = { bar = bar, check = check, stroke = slot:FindFirstChildOfClass("UIStroke") }
 	end
 	local hasBucket = Config.hasBucket(levels())
@@ -689,29 +723,27 @@ local function buildComplete()
 	refs.doneWrapper = wrapper
 	local panelCard, panel = Theme.card({
 		Size = UDim2.fromScale(1, 1),
-		Radius = 28,
-		ShadowTransparency = 0.55,
-		ShadowOffset = 10,
-		StrokeColor = C.White,
-		StrokeThickness = 3,
+		Radius = 20,
+		ShadowTransparency = 0.82,
+		ShadowOffset = 6,
+		Stroke = false,
 		Parent = wrapper,
 	})
 	refs.donePanelCard = panelCard
 	local band = Theme.new("Frame", {
 		Size = UDim2.new(1, 0, 0, 116),
-		BackgroundColor3 = C.White,
+		BackgroundTransparency = 1,
 		Parent = panel,
-	}, { Theme.corner(28), Theme.gradient("primary", 0) })
-	local title = Theme.label({
-		Position = UDim2.fromOffset(20, 12),
-		Size = UDim2.new(1, -40, 0, 42),
-		Text = "¡Cuadro terminado!",
-		Font = Theme.Fonts.Display,
-		TextColor3 = C.White,
-		MaxTextSize = 36,
+	})
+	Theme.label({
+		Position = UDim2.fromOffset(20, 16),
+		Size = UDim2.new(1, -40, 0, 34),
+		Text = "Cuadro terminado",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.Ink,
+		MaxTextSize = 28,
 		Parent = band,
 	})
-	Theme.textStroke(C.Shadow, 2, 0.7).Parent = title
 	refs.doneStars = {}
 	for i = 1, 3 do
 		local star = Theme.label({
@@ -721,10 +753,9 @@ local function buildComplete()
 			Text = "★",
 			Font = Theme.Fonts.Heavy,
 			TextColor3 = C.Gold,
-			MaxTextSize = 58,
+			MaxTextSize = 50,
 			Parent = band,
 		})
-		Theme.textStroke(C.GoldDark, 2.5).Parent = star
 		refs.doneStars[i] = star
 	end
 	local artBox = Theme.new("Frame", {
@@ -733,28 +764,28 @@ local function buildComplete()
 		Size = UDim2.fromOffset(212, 212),
 		BackgroundColor3 = C.White,
 		Parent = panel,
-	}, { Theme.corner(10), Theme.stroke(C.Gold, 8) })
+	}, { Theme.corner(4), Theme.stroke(C.Ink, 4) })
 	refs.doneArt = Theme.new(
 		"Frame",
 		{ Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = artBox },
-		{ Theme.corner(10) }
+		{ Theme.corner(4) }
 	)
 	refs.doneValue = Theme.label({
 		Position = UDim2.fromOffset(20, 356),
-		Size = UDim2.new(1, -40, 0, 36),
+		Size = UDim2.new(1, -40, 0, 34),
 		Text = "",
-		Font = Theme.Fonts.Display,
-		TextColor3 = C.MintDark,
-		MaxTextSize = 32,
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.Ink,
+		MaxTextSize = 28,
 		Parent = panel,
 	})
 	refs.doneBreakdown = Theme.label({
 		Position = UDim2.fromOffset(20, 392),
 		Size = UDim2.new(1, -40, 0, 22),
 		Text = "",
-		Font = Theme.Fonts.Bold,
+		Font = Theme.Fonts.Medium,
 		TextColor3 = C.InkSoft,
-		MaxTextSize = 16,
+		MaxTextSize = 15,
 		Parent = panel,
 	})
 	refs.doneInfo = Theme.label({
@@ -769,10 +800,10 @@ local function buildComplete()
 	refs.exhibit = Theme.button({
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 450),
-		Size = UDim2.new(1, -60, 0, 58),
+		Size = UDim2.new(1, -60, 0, 52),
 		Text = "",
-		Variant = "mint",
-		Radius = 18,
+		Variant = "primary",
+		Radius = 12,
 		Parent = panel,
 		OnClick = function()
 			Painter.finish("galeria")
@@ -781,11 +812,10 @@ local function buildComplete()
 	refs.sell = Theme.button({
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 520),
-		Size = UDim2.new(1, -60, 0, 50),
+		Size = UDim2.new(1, -60, 0, 48),
 		Text = "",
 		Variant = "ghost",
-		Color = C.Gold,
-		Radius = 18,
+		Radius = 12,
 		Parent = panel,
 		OnClick = function()
 			Painter.finish("vender")
@@ -808,7 +838,7 @@ local function buildUI()
 		Size = UDim2.new(1, 0, 1, 80),
 		BackgroundColor3 = C.White,
 		Parent = gui,
-	}, { Theme.gradient(Color3.fromRGB(252, 248, 242), Color3.fromRGB(238, 230, 250), 90) })
+	}, { Theme.gradient(C.Bg, C.Bg, 90) })
 	local root = Theme.new("Frame", {
 		Position = UDim2.fromOffset(0, 80),
 		Size = UDim2.new(1, 0, 1, -80),
@@ -899,6 +929,7 @@ function Painter.open(design, colors)
 		slots = {},
 		done = false,
 		started = os.clock(),
+		lastProgress = os.clock(),
 	}
 	stroking = false
 	lastBrush = nil
@@ -968,7 +999,7 @@ function Painter.showComplete()
 	current.value = value
 	local tier = Config.masteryFor(made)
 	DesignArt.render(refs.doneArt, design, { mode = "color", colors = current.colors, outline = false })
-	refs.doneValue.Text = "💵 Vale " .. Theme.formatNumber(value)
+	refs.doneValue.Text = "💵 " .. Theme.formatNumber(value)
 	refs.doneBreakdown.Text = string.format(
 		"Colores x%.2f  ·  Estrellas +%d%%  ·  Maestría +%d%%",
 		Config.colorMultiplier(design, current.colors),
@@ -979,13 +1010,13 @@ function Painter.showComplete()
 	refs.doneInfo.Text = free > 0 and ("Huecos libres en tu galería: " .. free)
 		or "Tu galería está llena: compra «Más paredes» 🖼️"
 	refs.exhibit.SetText(
-		"🖼️ Exponer · un visitante pagará 💵 " .. Theme.formatNumber(math.floor(value * Config.GALLERY_BONUS))
+		"Exponer en tu galería · 💵 " .. Theme.formatNumber(math.floor(value * Config.GALLERY_BONUS))
 	)
 	refs.exhibit.SetEnabled(free > 0)
-	refs.sell.SetText("💰 Vender ya · 💵 " .. Theme.formatNumber(value))
+	refs.sell.SetText("Vender ya · 💵 " .. Theme.formatNumber(value))
 	for _, star in ipairs(refs.doneStars) do
-		star.TextColor3 = C.White
-		star.TextTransparency = 0.6
+		star.TextColor3 = C.Border
+		star.TextTransparency = 0
 	end
 	updateScales()
 	refs.done.Visible = true

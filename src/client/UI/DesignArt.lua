@@ -13,8 +13,9 @@ local Designs = require(Shared.Designs)
 local DesignArt = {}
 
 local WHITE = Color3.new(1, 1, 1)
-local SKETCH_LINE = Color3.fromRGB(150, 140, 172)
-local UNPAINTED_LIGHT = Color3.fromRGB(196, 190, 214)
+local SKETCH_LINE = Color3.fromRGB(150, 156, 170)
+local UNPAINTED_LIGHT = Color3.fromRGB(196, 200, 210)
+local HINT_LINE = Color3.fromRGB(40, 104, 232)
 local FADE = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local function applyColor(frame, gradient, colorId)
@@ -217,6 +218,17 @@ function DesignArt.render(container, design, opts)
 			end
 		end
 		entry.group = nil
+	end
+
+	-- Pista: resalta el contorno de una figura sin pintar (alpha 0..1).
+	function handle.setHint(i, alpha)
+		local entry = handle.shapes[i]
+		if not entry or entry.done or not entry.line then
+			return
+		end
+		entry.line.Color = SKETCH_LINE:Lerp(HINT_LINE, alpha)
+		entry.line.Thickness = stroke + alpha * 1.5
+		entry.line.Transparency = 0.1 * (1 - alpha)
 	end
 
 	function handle.setColors(newColors)
