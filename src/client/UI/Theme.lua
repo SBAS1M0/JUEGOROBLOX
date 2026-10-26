@@ -1,6 +1,6 @@
 -- Sistema de diseño de la interfaz: colores, tipografías y componentes
--- (botones, tarjetas, ventanas, barras, insignias). Estilo minimalista:
--- colores planos, sombras suaves y un único color de acento.
+-- (botones con relieve, tarjetas, ventanas, barras, insignias). Estilo de
+-- "estudio de arte": crema, azul tinta y acentos turquesa, ámbar y coral.
 
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
@@ -11,59 +11,68 @@ local function rgb(r, g, b)
 	return Color3.fromRGB(r, g, b)
 end
 
--- Paleta neutra con un solo color de acento (azul). Pensada para todo el
--- público: fondos claros, texto oscuro y colores planos.
+-- Paleta "estudio": crema y azul tinta, con acentos turquesa, ámbar y coral.
 Theme.Colors = {
-	Bg = rgb(244, 245, 247),
+	Bg = rgb(250, 246, 238),
 	Panel = rgb(255, 255, 255),
-	PanelSoft = rgb(242, 243, 246),
-	Border = rgb(225, 228, 234),
-	Ink = rgb(26, 30, 38),
-	InkSoft = rgb(96, 104, 118),
-	InkFaint = rgb(156, 163, 175),
-	Primary = rgb(40, 104, 232),
-	PrimaryDark = rgb(28, 80, 196),
-	PrimaryLight = rgb(232, 239, 253),
-	Pink = rgb(40, 104, 232),
-	PinkLight = rgb(232, 239, 253),
-	Mint = rgb(26, 160, 108),
-	MintDark = rgb(16, 128, 84),
-	MintLight = rgb(225, 245, 236),
-	Gold = rgb(240, 168, 32),
-	GoldDark = rgb(170, 108, 0),
-	GoldLight = rgb(253, 245, 225),
-	Red = rgb(220, 64, 64),
-	RedLight = rgb(252, 232, 232),
-	Orange = rgb(234, 126, 40),
-	Blue = rgb(40, 104, 232),
-	Purple = rgb(112, 90, 214),
-	Shadow = rgb(14, 18, 28),
+	PanelSoft = rgb(247, 242, 233),
+	Border = rgb(234, 225, 210),
+	Ink = rgb(34, 42, 66),
+	InkSoft = rgb(104, 110, 130),
+	InkFaint = rgb(166, 168, 180),
+	Navy = rgb(38, 50, 84),
+	NavyDark = rgb(26, 35, 62),
+	Primary = rgb(18, 168, 148),
+	PrimaryDark = rgb(10, 128, 112),
+	PrimaryLight = rgb(218, 246, 240),
+	Pink = rgb(246, 112, 90),
+	PinkLight = rgb(255, 232, 226),
+	Coral = rgb(246, 112, 90),
+	Mint = rgb(52, 188, 116),
+	MintDark = rgb(28, 140, 82),
+	MintLight = rgb(224, 247, 234),
+	Gold = rgb(250, 176, 40),
+	GoldDark = rgb(198, 124, 10),
+	GoldLight = rgb(255, 244, 214),
+	Red = rgb(236, 86, 76),
+	RedLight = rgb(255, 230, 226),
+	Orange = rgb(244, 140, 50),
+	Blue = rgb(64, 140, 240),
+	Purple = rgb(130, 96, 220),
+	Shadow = rgb(20, 24, 40),
 	White = rgb(255, 255, 255),
 }
 local C = Theme.Colors
 
--- Colores de relleno (casi planos: el degradado es apenas perceptible).
+-- Degradados de los botones y fichas (de arriba a abajo).
 Theme.Gradients = {
-	primary = { rgb(48, 112, 240), rgb(36, 98, 226) },
-	mint = { rgb(32, 170, 116), rgb(24, 154, 104) },
-	gold = { rgb(244, 176, 44), rgb(234, 160, 28) },
-	red = { rgb(228, 74, 74), rgb(212, 58, 58) },
-	blue = { rgb(48, 112, 240), rgb(36, 98, 226) },
-	purple = { rgb(122, 100, 222), rgb(108, 86, 208) },
-	pink = { rgb(48, 112, 240), rgb(36, 98, 226) },
-	orange = { rgb(240, 138, 52), rgb(228, 122, 38) },
-	dark = { rgb(44, 50, 62), rgb(32, 37, 48) },
-	gray = { rgb(228, 231, 236), rgb(220, 224, 230) },
+	primary = { rgb(40, 196, 172), rgb(14, 156, 138) },
+	mint = { rgb(84, 214, 140), rgb(40, 172, 104) },
+	gold = { rgb(255, 204, 74), rgb(244, 160, 24) },
+	red = { rgb(255, 136, 112), rgb(236, 92, 74) },
+	coral = { rgb(255, 136, 112), rgb(236, 92, 74) },
+	blue = { rgb(96, 166, 255), rgb(52, 124, 232) },
+	purple = { rgb(156, 124, 240), rgb(118, 86, 212) },
+	pink = { rgb(255, 136, 112), rgb(236, 92, 74) },
+	orange = { rgb(255, 176, 86), rgb(240, 128, 40) },
+	navy = { rgb(60, 76, 120), rgb(36, 48, 84) },
+	dark = { rgb(60, 76, 120), rgb(36, 48, 84) },
+	gray = { rgb(214, 212, 206), rgb(192, 190, 184) },
 }
 
 Theme.Fonts = {
-	Display = Enum.Font.BuilderSansExtraBold,
+	Display = Enum.Font.FredokaOne,
 	Heavy = Enum.Font.BuilderSansExtraBold,
 	Bold = Enum.Font.BuilderSansBold,
 	Medium = Enum.Font.BuilderSansMedium,
 	Body = Enum.Font.BuilderSans,
-	Title = Enum.Font.BuilderSansExtraBold,
+	Title = Enum.Font.FredokaOne,
 }
+
+local function darker(color, amount)
+	return color:Lerp(Color3.new(0, 0, 0), amount or 0.22)
+end
+Theme.darker = darker
 
 -- Instancias ----------------------------------------------------------------------------------
 function Theme.new(className, props, children)
@@ -158,7 +167,7 @@ function Theme.label(props)
 	return label
 end
 
--- Tarjeta blanca con sombra muy suave. Devuelve el contenedor y el cuerpo.
+-- Tarjeta blanca con sombra suave. Devuelve el contenedor y el cuerpo.
 function Theme.card(props)
 	local holder = Theme.new("Frame", {
 		Name = props.Name or "Card",
@@ -170,35 +179,37 @@ function Theme.card(props)
 		Visible = props.Visible ~= false,
 		Parent = props.Parent,
 	})
-	local radius = props.Radius or 14
+	local radius = props.Radius or 16
 	Theme.new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.fromOffset(0, props.ShadowOffset or 3),
+		Position = UDim2.fromOffset(0, props.ShadowOffset or 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = C.Shadow,
-		BackgroundTransparency = props.ShadowTransparency or 0.93,
+		BackgroundTransparency = props.ShadowTransparency or 0.88,
 		Parent = holder,
 	}, { Theme.corner(radius) })
 	local body = Theme.new("Frame", {
 		Name = "Body",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = props.Color or C.Panel,
+		BackgroundTransparency = props.Transparency or 0,
 		Parent = holder,
 	}, { Theme.corner(radius) })
 	if props.Stroke ~= false then
-		Theme.stroke(props.StrokeColor or C.Border, props.StrokeThickness or 1).Parent = body
+		Theme.stroke(props.StrokeColor or C.Border, props.StrokeThickness or 1.5).Parent = body
 	end
 	return holder, body
 end
 
--- Botones -------------------------------------------------------------------------------------
--- Variant: primary, mint, gold, red, dark, ghost (blanco con borde).
+-- Botones con relieve: una cara con degradado sobre un "labio" más oscuro que
+-- se hunde al pulsar. Variant: primary, mint, gold, coral, blue, navy, ghost.
 function Theme.button(props)
 	local variant = props.Variant or (props.Soft and "ghost") or "primary"
-	local radius = props.Radius or 12
+	local radius = props.Radius or 14
+	local depth = props.Depth or 4
 	local holder = Theme.new("Frame", {
 		Name = props.Name or "Button",
-		Size = props.Size or UDim2.fromOffset(160, 44),
+		Size = props.Size or UDim2.fromOffset(160, 48),
 		Position = props.Position or UDim2.new(),
 		AnchorPoint = props.AnchorPoint or Vector2.new(),
 		BackgroundTransparency = 1,
@@ -206,21 +217,20 @@ function Theme.button(props)
 		ZIndex = props.ZIndex or 1,
 		Parent = props.Parent,
 	})
-	local shadow = Theme.new("Frame", {
+	local lip = Theme.new("Frame", {
 		Name = "Shadow",
-		Size = UDim2.fromScale(1, 1),
-		Position = UDim2.fromOffset(0, 2),
-		BackgroundColor3 = C.Shadow,
-		BackgroundTransparency = 0.9,
+		Position = UDim2.fromOffset(0, depth),
+		Size = UDim2.new(1, 0, 1, -depth),
+		BackgroundColor3 = C.Navy,
 		ZIndex = holder.ZIndex,
 		Parent = holder,
 	}, { Theme.corner(radius) })
 	local button = Theme.new("TextButton", {
 		Name = "Face",
-		Size = UDim2.fromScale(1, 1),
+		Size = UDim2.new(1, 0, 1, -depth),
 		BackgroundColor3 = C.White,
 		AutoButtonColor = false,
-		Font = props.Font or Theme.Fonts.Bold,
+		Font = props.Font or Theme.Fonts.Heavy,
 		Text = props.Text or "",
 		TextColor3 = C.White,
 		TextScaled = true,
@@ -229,42 +239,45 @@ function Theme.button(props)
 	}, {
 		Theme.corner(radius),
 		Theme.new("UIPadding", {
-			PaddingTop = UDim.new(0.22, 0),
-			PaddingBottom = UDim.new(0.22, 0),
+			PaddingTop = UDim.new(0.2, 0),
+			PaddingBottom = UDim.new(0.2, 0),
 			PaddingLeft = UDim.new(0, 10),
 			PaddingRight = UDim.new(0, 10),
 		}),
-		Theme.new("UITextSizeConstraint", { MaxTextSize = props.MaxTextSize or 20 }),
+		Theme.new("UITextSizeConstraint", { MaxTextSize = props.MaxTextSize or 22 }),
 	})
 	local gradient = Theme.new("UIGradient", { Rotation = 90, Parent = button })
 	local border = Theme.stroke(C.Border, 0)
 	border.Parent = button
-	local scale = Theme.new("UIScale", { Name = "Interact", Parent = holder })
+	local textStroke = Theme.textStroke(C.Shadow, 1.2, 0.8)
+	textStroke.Parent = button
 
 	local enabled = true
 	local function paint()
-		if not enabled then
-			local pair = Theme.Gradients.gray
-			gradient.Color = ColorSequence.new(pair[1], pair[2])
-			button.TextColor3 = C.InkFaint
-			border.Thickness = 0
-			shadow.BackgroundTransparency = 1
-		elseif variant == "ghost" then
-			gradient.Color = ColorSequence.new(C.White)
+		local v = enabled and variant or "gray"
+		if v == "ghost" then
+			gradient.Color = ColorSequence.new(C.White, C.PanelSoft)
+			lip.BackgroundColor3 = C.Border
 			button.TextColor3 = props.TextColor or C.Ink
 			border.Color = props.Color or C.Border
 			border.Thickness = 1.5
-			shadow.BackgroundTransparency = 0.95
+			textStroke.Transparency = 1
 		else
-			local pair = Theme.Gradients[variant] or Theme.Gradients.primary
+			local pair = Theme.Gradients[v] or Theme.Gradients.primary
 			gradient.Color = ColorSequence.new(pair[1], pair[2])
+			lip.BackgroundColor3 = darker(pair[2], 0.25)
 			button.TextColor3 = C.White
 			border.Thickness = 0
-			shadow.BackgroundTransparency = 0.88
+			textStroke.Transparency = v == "gray" and 1 or 0.8
 		end
+		button.TextTransparency = enabled and 0 or 0.15
 	end
 	paint()
 
+	local function press(down)
+		button.Position = UDim2.fromOffset(0, down and depth - 1 or 0)
+	end
+	local scale = Theme.new("UIScale", { Name = "Interact", Parent = holder })
 	button.MouseEnter:Connect(function()
 		if enabled then
 			Theme.tween(scale, 0.12, { Scale = 1.03 })
@@ -272,17 +285,18 @@ function Theme.button(props)
 	end)
 	button.MouseLeave:Connect(function()
 		Theme.tween(scale, 0.12, { Scale = 1 })
+		press(false)
 	end)
 	button.MouseButton1Down:Connect(function()
 		if enabled then
-			Theme.tween(scale, 0.06, { Scale = 0.97 })
+			press(true)
 		end
 	end)
 	button.MouseButton1Up:Connect(function()
-		Theme.tween(scale, 0.1, { Scale = 1 })
+		press(false)
 	end)
 
-	local api = { Holder = holder, Button = button, Shadow = shadow }
+	local api = { Holder = holder, Button = button, Shadow = lip }
 	function api.SetEnabled(value)
 		enabled = value
 		button.Active = value
@@ -306,8 +320,9 @@ function Theme.button(props)
 	return api
 end
 
--- Botón cuadrado del menú lateral (icono + texto) con insignia.
+-- Ficha cuadrada del menú lateral (icono + texto) con relieve e insignia.
 function Theme.tile(props)
+	local pair = Theme.Gradients[props.Gradient or "navy"] or Theme.Gradients.navy
 	local holder = Theme.new("Frame", {
 		Name = props.Name or "Tile",
 		Size = props.Size or UDim2.fromOffset(64, 64),
@@ -316,48 +331,49 @@ function Theme.tile(props)
 		Parent = props.Parent,
 	})
 	Theme.new("Frame", {
-		Size = UDim2.fromScale(1, 1),
-		Position = UDim2.fromOffset(0, 2),
-		BackgroundColor3 = C.Shadow,
-		BackgroundTransparency = 0.92,
+		Name = "Lip",
+		Size = UDim2.new(1, 0, 1, -4),
+		Position = UDim2.fromOffset(0, 4),
+		BackgroundColor3 = darker(pair[2], 0.3),
 		Parent = holder,
-	}, { Theme.corner(14) })
+	}, { Theme.corner(16) })
 	local face = Theme.new("TextButton", {
 		Name = "Face",
-		Size = UDim2.fromScale(1, 1),
+		Size = UDim2.new(1, 0, 1, -4),
 		BackgroundColor3 = C.White,
-		BackgroundTransparency = 0.04,
 		AutoButtonColor = false,
 		Text = "",
 		Parent = holder,
 	}, {
-		Theme.corner(14),
-		Theme.stroke(C.Border, 1),
+		Theme.corner(16),
+		Theme.gradient(pair[1], pair[2], 90),
+		Theme.stroke(C.White, 1.5, 0.55),
 	})
 	Theme.label({
 		Name = "Icon",
-		Size = UDim2.new(1, 0, 0.5, 0),
-		Position = UDim2.fromScale(0, 0.1),
+		Size = UDim2.new(1, 0, 0.56, 0),
+		Position = UDim2.fromScale(0, 0.06),
 		Text = props.Icon,
 		Font = Theme.Fonts.Bold,
-		MaxTextSize = props.IconSize or 26,
+		MaxTextSize = props.IconSize or 28,
 		Parent = face,
 	})
 	local caption = Theme.label({
 		Name = "Caption",
-		Size = UDim2.new(1, -6, 0.24, 0),
-		Position = UDim2.new(0, 3, 0.66, 0),
+		Size = UDim2.new(1, -6, 0.26, 0),
+		Position = UDim2.new(0, 3, 0.64, 0),
 		Text = props.Text,
-		Font = Theme.Fonts.Bold,
-		TextColor3 = C.InkSoft,
-		MaxTextSize = 12,
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.White,
+		MaxTextSize = 13,
 		Parent = face,
 	})
+	Theme.textStroke(C.Shadow, 1.2, 0.6).Parent = caption
 	local badge = Theme.new("Frame", {
 		Name = "Badge",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(1, -5, 0, 5),
-		Size = UDim2.fromOffset(18, 18),
+		Position = UDim2.new(1, -4, 0, 4),
+		Size = UDim2.fromOffset(20, 20),
 		BackgroundColor3 = C.Red,
 		Visible = false,
 		ZIndex = 5,
@@ -368,22 +384,25 @@ function Theme.tile(props)
 		Text = "!",
 		Font = Theme.Fonts.Heavy,
 		TextColor3 = C.White,
-		MaxTextSize = 11,
+		MaxTextSize = 12,
 		ZIndex = 6,
 		Parent = badge,
 	})
+	local ring = Theme.stroke(C.White, 0)
+	ring.Parent = face
 	local scale = Theme.new("UIScale", { Name = "Interact", Parent = holder })
 	face.MouseEnter:Connect(function()
-		Theme.tween(scale, 0.12, { Scale = 1.04 })
+		Theme.tween(scale, 0.12, { Scale = 1.06 })
 	end)
 	face.MouseLeave:Connect(function()
 		Theme.tween(scale, 0.12, { Scale = 1 })
+		face.Position = UDim2.new()
 	end)
 	face.MouseButton1Down:Connect(function()
-		Theme.tween(scale, 0.06, { Scale = 0.96 })
+		face.Position = UDim2.fromOffset(0, 3)
 	end)
 	face.MouseButton1Up:Connect(function()
-		Theme.tween(scale, 0.1, { Scale = 1 })
+		face.Position = UDim2.new()
 	end)
 	if props.OnClick then
 		face.Activated:Connect(function()
@@ -401,8 +420,8 @@ function Theme.tile(props)
 		end
 	end
 	function api.SetActive(active)
-		face.BackgroundColor3 = active and C.PrimaryLight or C.White
-		caption.TextColor3 = active and C.PrimaryDark or C.InkSoft
+		ring.Thickness = active and 3 or 0
+		ring.Color = C.White
 	end
 	return api
 end
@@ -414,7 +433,7 @@ function Theme.progress(props)
 		Size = props.Size or UDim2.new(1, 0, 0, 10),
 		Position = props.Position or UDim2.new(),
 		AnchorPoint = props.AnchorPoint or Vector2.new(),
-		BackgroundColor3 = props.TrackColor or rgb(232, 235, 240),
+		BackgroundColor3 = props.TrackColor or rgb(236, 229, 216),
 		LayoutOrder = props.LayoutOrder or 0,
 		ZIndex = props.ZIndex or 1,
 		Parent = props.Parent,
@@ -478,7 +497,7 @@ function Theme.chip(props)
 	return chip, label
 end
 
--- Ventana modal: tarjeta blanca con cabecera sencilla y línea divisoria -----------------------
+-- Ventana modal: cabecera azul tinta con icono y título, cuerpo crema -----------------------
 function Theme.window(props)
 	local holder = Theme.new("Frame", {
 		Name = props.Name or "Window",
@@ -492,7 +511,7 @@ function Theme.window(props)
 		Position = UDim2.fromOffset(0, -80),
 		Size = UDim2.new(1, 0, 1, 80),
 		BackgroundColor3 = C.Shadow,
-		BackgroundTransparency = 0.55,
+		BackgroundTransparency = 0.5,
 		Text = "",
 		AutoButtonColor = false,
 		Parent = holder,
@@ -508,75 +527,87 @@ function Theme.window(props)
 	local panelCard, panel = Theme.card({
 		Name = "PanelCard",
 		Size = UDim2.fromScale(1, 1),
-		Radius = 18,
+		Radius = 22,
 		Color = C.Bg,
-		ShadowOffset = 6,
-		ShadowTransparency = 0.82,
-		Stroke = false,
+		ShadowOffset = 8,
+		ShadowTransparency = 0.7,
+		StrokeColor = C.Navy,
+		StrokeThickness = 3,
 		Parent = wrapper,
 	})
 	panel.Name = "Panel"
 	local header = Theme.new("Frame", {
 		Name = "Header",
-		Size = UDim2.new(1, 0, 0, 72),
+		Size = UDim2.new(1, 0, 0, 74),
 		BackgroundColor3 = C.White,
 		Parent = panel,
-	}, { Theme.corner(18) })
-	-- Tapa las esquinas inferiores redondeadas de la cabecera y dibuja la línea.
+	}, { Theme.corner(22), Theme.gradient(Theme.Gradients.navy[1], Theme.Gradients.navy[2], 90) })
+	-- Tapa las esquinas inferiores redondeadas de la cabecera.
 	Theme.new("Frame", {
-		Position = UDim2.new(0, 0, 1, -18),
-		Size = UDim2.new(1, 0, 0, 18),
+		Position = UDim2.new(0, 0, 1, -22),
+		Size = UDim2.new(1, 0, 0, 22),
 		BackgroundColor3 = C.White,
 		BorderSizePixel = 0,
 		Parent = header,
-	})
-	Theme.new("Frame", {
-		Name = "Divider",
-		Position = UDim2.new(0, 0, 1, -1),
-		Size = UDim2.new(1, 0, 0, 1),
-		BackgroundColor3 = C.Border,
-		BorderSizePixel = 0,
+	}, { Theme.gradient(Theme.Gradients.navy[1]:Lerp(Theme.Gradients.navy[2], 0.7), Theme.Gradients.navy[2], 90) })
+	local accent = Theme.Gradients[props.Accent or "primary"] or Theme.Gradients.primary
+	local badge = Theme.new("Frame", {
+		Name = "IconBadge",
+		Position = UDim2.fromOffset(18, 13),
+		Size = UDim2.fromOffset(48, 48),
+		BackgroundColor3 = C.White,
+		Visible = props.Icon ~= nil,
 		Parent = header,
-	})
+	}, { Theme.corner(14), Theme.gradient(accent[1], accent[2], 90), Theme.stroke(C.White, 2, 0.5) })
+	Theme.label({ Size = UDim2.fromScale(1, 1), Text = props.Icon or "", MaxTextSize = 28, Parent = badge })
+	local textX = props.Icon and 78 or 24
 	local title = Theme.label({
 		Name = "Title",
-		Size = UDim2.new(1, -140, 0, 30),
-		Position = UDim2.fromOffset(24, 12),
+		Size = UDim2.new(1, -textX - 80, 0, 32),
+		Position = UDim2.fromOffset(textX, 10),
 		Text = props.Title or "",
 		Font = Theme.Fonts.Display,
-		TextColor3 = C.Ink,
+		TextColor3 = C.White,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 26,
+		MaxTextSize = 30,
 		Parent = header,
 	})
 	local subtitle = Theme.label({
 		Name = "Subtitle",
-		Size = UDim2.new(1, -140, 0, 18),
-		Position = UDim2.fromOffset(24, 43),
+		Size = UDim2.new(1, -textX - 80, 0, 18),
+		Position = UDim2.fromOffset(textX, 44),
 		Text = props.Subtitle or "",
 		Font = Theme.Fonts.Medium,
-		TextColor3 = C.InkSoft,
+		TextColor3 = C.White,
+		TextTransparency = 0.25,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		MaxTextSize = 15,
 		Parent = header,
 	})
+	Theme.new("Frame", {
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -18, 0, 40),
+		Size = UDim2.fromOffset(40, 40),
+		BackgroundColor3 = darker(C.Coral, 0.3),
+		Parent = header,
+	}, { Theme.round() })
 	local close = Theme.new("TextButton", {
 		Name = "Close",
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -18, 0, 36),
-		Size = UDim2.fromOffset(36, 36),
-		BackgroundColor3 = C.PanelSoft,
-		Font = Theme.Fonts.Bold,
+		Position = UDim2.new(1, -18, 0, 37),
+		Size = UDim2.fromOffset(40, 40),
+		BackgroundColor3 = C.White,
+		Font = Theme.Fonts.Heavy,
 		Text = "✕",
 		TextScaled = true,
-		TextColor3 = C.InkSoft,
+		TextColor3 = C.White,
 		AutoButtonColor = true,
 		Parent = header,
-	}, { Theme.round(), Theme.padding(10) })
+	}, { Theme.round(), Theme.padding(11), Theme.gradient(Theme.Gradients.coral[1], Theme.Gradients.coral[2], 90) })
 	local body = Theme.new("Frame", {
 		Name = "Body",
-		Position = UDim2.fromOffset(0, 72),
-		Size = UDim2.new(1, 0, 1, -72),
+		Position = UDim2.fromOffset(0, 74),
+		Size = UDim2.new(1, 0, 1, -74),
 		BackgroundTransparency = 1,
 		Parent = panel,
 	})
@@ -594,8 +625,8 @@ function Theme.window(props)
 	function api.Open()
 		holder.Visible = true
 		dim.BackgroundTransparency = 1
-		Theme.tween(dim, 0.2, { BackgroundTransparency = 0.55 })
-		Theme.pop(panelCard, 0.94)
+		Theme.tween(dim, 0.2, { BackgroundTransparency = 0.5 })
+		Theme.pop(panelCard, 0.9)
 		Theme.playSound("whoosh", 1.1)
 	end
 	function api.Close()
@@ -671,7 +702,7 @@ function Theme.pop(guiObject, scale)
 		uiScale = Theme.new("UIScale", { Name = "PopScale", Parent = guiObject })
 	end
 	uiScale.Scale = scale or 0.6
-	Theme.tween(uiScale, 0.28, { Scale = 1 }, Enum.EasingStyle.Quart)
+	Theme.tween(uiScale, 0.32, { Scale = 1 }, Enum.EasingStyle.Back)
 end
 
 -- Formato ---------------------------------------------------------------------------------------

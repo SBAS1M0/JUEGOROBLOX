@@ -159,15 +159,17 @@ function Daily.init(appRef)
 		Parent = gui,
 		Size = UDim2.fromOffset(820, 360),
 		Title = "Regalo diario",
+		Icon = "🎁",
+		Accent = "coral",
 		Subtitle = "Vuelve cada día: la recompensa crece con tu racha.",
 	})
 	buildTiles(window.Body)
 	claimButton = Theme.button({
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -18),
-		Size = UDim2.fromOffset(280, 48),
+		Size = UDim2.fromOffset(280, 52),
 		Text = "",
-		Variant = "primary",
+		Variant = "gold",
 		Radius = 12,
 		Parent = window.Body,
 		OnClick = function()

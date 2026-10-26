@@ -1,5 +1,6 @@
--- Interfaz principal, mínima: monedas y cuadros en venta arriba, una columna
--- de botones a la izquierda, misiones plegables, tutorial, avisos y confeti.
+-- Interfaz principal: monedas y cuadros en venta arriba, columna de botones a
+-- la izquierda, misiones plegables, el cuadro que llevas a la espalda, avisos
+-- y confeti.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,8 +8,10 @@ local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Designs = require(Shared.Designs)
 
 local Theme = require(script.Parent.Theme)
+local DesignArt = require(script.Parent.DesignArt)
 
 local HUD = {}
 
@@ -23,14 +26,16 @@ local questRows = {}
 local shownCoins = nil
 local toastHolder
 local confettiHolder
+local carriedKey = nil
 
-local KIND_COLOR = { info = C.Primary, success = C.Mint, error = C.Red, gold = C.Gold }
+local KIND_COLOR = { info = C.Blue, success = C.Mint, error = C.Red, gold = C.Gold }
+local KIND_ICON = { info = "i", success = "✓", error = "!", gold = "★" }
 local CONFETTI_COLORS = {
-	Color3.fromRGB(255, 120, 170),
-	Color3.fromRGB(255, 210, 80),
-	Color3.fromRGB(110, 210, 255),
-	Color3.fromRGB(150, 120, 255),
-	Color3.fromRGB(100, 220, 160),
+	Color3.fromRGB(250, 176, 40),
+	Color3.fromRGB(18, 168, 148),
+	Color3.fromRGB(64, 140, 240),
+	Color3.fromRGB(246, 112, 90),
+	Color3.fromRGB(130, 96, 220),
 }
 
 -- Avisos ------------------------------------------------------------------------------------
@@ -39,39 +44,43 @@ function HUD.notify(text, kind)
 		return
 	end
 	local holder, body = Theme.card({
-		Size = UDim2.new(1, 0, 0, 40),
-		Radius = 20,
+		Size = UDim2.new(1, 0, 0, 42),
+		Radius = 21,
+		Color = C.Navy,
+		Transparency = 0.04,
+		Stroke = false,
 		LayoutOrder = -math.floor(os.clock() * 100),
 		Parent = toastHolder,
 	})
 	local accent = Theme.new("Frame", {
-		Position = UDim2.fromOffset(8, 8),
-		Size = UDim2.fromOffset(24, 24),
-		BackgroundColor3 = KIND_COLOR[kind] or C.Primary,
+		Position = UDim2.fromOffset(7, 7),
+		Size = UDim2.fromOffset(28, 28),
+		BackgroundColor3 = KIND_COLOR[kind] or C.Blue,
 		Parent = body,
 	}, { Theme.round() })
 	Theme.label({
 		Size = UDim2.fromScale(1, 1),
-		Text = kind == "error" and "!" or (kind == "gold" and "★" or "✓"),
+		Text = KIND_ICON[kind] or "i",
 		Font = Theme.Fonts.Heavy,
 		TextColor3 = C.White,
-		MaxTextSize = 14,
+		MaxTextSize = 16,
 		Parent = accent,
 	})
 	Theme.label({
-		Size = UDim2.new(1, -54, 1, -12),
-		Position = UDim2.fromOffset(42, 6),
+		Size = UDim2.new(1, -56, 1, -12),
+		Position = UDim2.fromOffset(44, 6),
 		Text = text,
-		Font = Theme.Fonts.Medium,
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.White,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 16,
+		MaxTextSize = 17,
 		Parent = body,
 	})
 	Theme.pop(holder, 0.7)
 	if kind == "error" then
 		Theme.playSound("click", 0.6)
 	end
-	task.delay(3.5, function()
+	task.delay(3.8, function()
 		if holder.Parent then
 			holder:Destroy()
 		end
@@ -117,26 +126,31 @@ local function pill(parent, props)
 	local holder, body = Theme.card({
 		Name = props.Name,
 		Size = props.Size,
-		Radius = 21,
+		Radius = 23,
+		Color = C.Navy,
+		Transparency = 0.06,
+		StrokeColor = C.White,
+		StrokeThickness = 2,
 		LayoutOrder = props.LayoutOrder,
 		Parent = parent,
 	})
-	Theme.label({
-		Name = "Icon",
-		Position = UDim2.fromOffset(10, 8),
-		Size = UDim2.fromOffset(26, 26),
-		Text = props.Icon,
-		MaxTextSize = 20,
+	body:FindFirstChildOfClass("UIStroke").Transparency = 0.75
+	local icon = Theme.new("Frame", {
+		Position = UDim2.fromOffset(5, 5),
+		Size = UDim2.fromOffset(36, 36),
+		BackgroundColor3 = C.White,
 		Parent = body,
-	})
+	}, { Theme.round(), Theme.gradient(Theme.Gradients[props.Accent][1], Theme.Gradients[props.Accent][2], 90) })
+	Theme.label({ Size = UDim2.fromScale(1, 1), Text = props.Icon, MaxTextSize = 20, Parent = icon })
 	local label = Theme.label({
 		Name = "Value",
-		Size = UDim2.new(1, -(props.Right or 52), 1, -14),
-		Position = UDim2.fromOffset(42, 7),
+		Size = UDim2.new(1, -(props.Right or 56), 1, -12),
+		Position = UDim2.fromOffset(48, 6),
 		Text = "0",
-		Font = props.Font or Theme.Fonts.Heavy,
+		Font = Theme.Fonts.Display,
+		TextColor3 = C.White,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = props.MaxTextSize or 20,
+		MaxTextSize = props.MaxTextSize or 24,
 		Parent = body,
 	})
 	return holder, label, body
@@ -147,43 +161,42 @@ local function buildTopBar()
 		Name = "TopBar",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 8),
-		Size = UDim2.new(0, 330, 0, 42),
+		Size = UDim2.new(0, 360, 0, 46),
 		BackgroundTransparency = 1,
 		Parent = gui,
 	}, { Theme.list("h", 10, Enum.HorizontalAlignment.Center) })
-	local coins, coinsLabel, coinsBody = pill(bar, {
+	local coins, coinsLabel = pill(bar, {
 		Name = "Coins",
-		Size = UDim2.new(0, 190, 1, 0),
+		Size = UDim2.new(0, 206, 1, 0),
+		Accent = "gold",
 		Icon = "💵",
 		LayoutOrder = 1,
-		MaxTextSize = 20,
-		Right = 82,
+		Right = 92,
 	})
 	refs.coins = coinsLabel
-	refs.coinsBody = coinsBody
 	refs.coinsFrame = coins
-	local plus = Theme.new("TextButton", {
+	Theme.button({
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -5, 0.5, 0),
-		Size = UDim2.fromOffset(30, 30),
-		BackgroundColor3 = C.PanelSoft,
-		Font = Theme.Fonts.Bold,
+		Position = UDim2.new(1, -6, 0.5, 2),
+		Size = UDim2.fromOffset(36, 38),
 		Text = "+",
-		TextScaled = true,
-		TextColor3 = C.InkSoft,
-		Parent = coinsBody,
-	}, { Theme.round(), Theme.padding(6) })
-	plus.Activated:Connect(function()
-		Theme.playSound("click")
-		app.openShop()
-	end)
+		Variant = "primary",
+		Radius = 18,
+		Depth = 3,
+		MaxTextSize = 24,
+		Parent = coins:FindFirstChild("Body"),
+		OnClick = function()
+			app.openShop()
+		end,
+	})
 	local _, gallery = pill(bar, {
 		Name = "Gallery",
-		Size = UDim2.new(0, 120, 1, 0),
+		Size = UDim2.new(0, 134, 1, 0),
+		Accent = "primary",
 		Icon = "🖼️",
 		LayoutOrder = 2,
-		MaxTextSize = 20,
-		Right = 52,
+		MaxTextSize = 22,
+		Right = 56,
 	})
 	refs.gallery = gallery
 end
@@ -194,20 +207,20 @@ local function buildMenu()
 		Name = "Menu",
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 12, 0.5, 0),
-		Size = UDim2.fromOffset(66, 400),
+		Size = UDim2.fromOffset(70, 440),
 		BackgroundTransparency = 1,
 		Parent = gui,
 	}, { Theme.list("v", 10, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center) })
 	local entries = {
-		{ "shop", "🛒", "Mejoras", "mint", app.openShop },
+		{ "shop", "🛒", "Mejoras", "primary", app.openShop },
 		{ "colors", "📚", "Colores", "blue", app.openCollection },
 		{ "quests", "📜", "Misiones", "gold", HUD.toggleQuests },
-		{ "daily", "🎁", "Regalo", "pink", app.openDaily },
+		{ "daily", "🎁", "Regalo", "coral", app.openDaily },
 		{
 			"home",
 			"🏠",
 			"Taller",
-			"orange",
+			"navy",
 			function()
 				app.remotes.GoHome:FireServer()
 			end,
@@ -217,8 +230,8 @@ local function buildMenu()
 		local action = entry[5]
 		tiles[entry[1]] = Theme.tile({
 			Name = entry[1],
-			Size = UDim2.fromOffset(64, 64),
-			IconSize = 26,
+			Size = UDim2.fromOffset(68, 72),
+			IconSize = 30,
 			Icon = entry[2],
 			Text = entry[3],
 			Gradient = entry[4],
@@ -232,15 +245,15 @@ local function buildMenu()
 	-- Sonido on/off, discreto debajo de los botones.
 	local sound = Theme.new("TextButton", {
 		Name = "Settings",
-		Size = UDim2.fromOffset(38, 38),
-		BackgroundColor3 = C.White,
-		BackgroundTransparency = 0.15,
+		Size = UDim2.fromOffset(40, 40),
+		BackgroundColor3 = C.Navy,
+		BackgroundTransparency = 0.1,
 		Font = Theme.Fonts.Bold,
 		Text = "🔊",
 		TextScaled = true,
 		LayoutOrder = 99,
 		Parent = menu,
-	}, { Theme.round(), Theme.stroke(C.Border, 2), Theme.padding(8) })
+	}, { Theme.round(), Theme.stroke(C.White, 2, 0.7), Theme.padding(9) })
 	sound.Activated:Connect(function()
 		Theme.soundsEnabled = not Theme.soundsEnabled
 		sound.Text = Theme.soundsEnabled and "🔊" or "🔇"
@@ -254,73 +267,76 @@ local function buildQuests()
 	local holder, body = Theme.card({
 		Name = "Quests",
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 90, 0.5, 0),
-		Size = UDim2.fromOffset(284, 300),
+		Position = UDim2.new(0, 94, 0.5, 0),
+		Size = UDim2.fromOffset(300, 318),
 		Radius = 20,
+		Color = C.Bg,
+		StrokeColor = C.Navy,
+		StrokeThickness = 2.5,
 		Visible = false,
 		Parent = gui,
 	})
 	refs.quests = holder
 	local header = Theme.new("Frame", {
-		Size = UDim2.new(1, 0, 0, 44),
-		BackgroundTransparency = 1,
+		Size = UDim2.new(1, 0, 0, 50),
+		BackgroundColor3 = C.White,
 		Parent = body,
-	})
+	}, { Theme.corner(20), Theme.gradient(Theme.Gradients.navy[1], Theme.Gradients.navy[2], 90) })
 	Theme.new("Frame", {
-		Position = UDim2.new(0, 12, 1, -1),
-		Size = UDim2.new(1, -24, 0, 1),
-		BackgroundColor3 = C.Border,
+		Position = UDim2.new(0, 0, 1, -20),
+		Size = UDim2.new(1, 0, 0, 20),
+		BackgroundColor3 = Theme.Gradients.navy[2],
 		BorderSizePixel = 0,
 		Parent = header,
 	})
 	Theme.label({
-		Position = UDim2.fromOffset(14, 10),
-		Size = UDim2.new(1, -60, 0, 24),
-		Text = "Misiones de hoy",
-		Font = Theme.Fonts.Heavy,
-		TextColor3 = C.Ink,
+		Position = UDim2.fromOffset(16, 10),
+		Size = UDim2.new(1, -64, 0, 30),
+		Text = "📜 Misiones de hoy",
+		Font = Theme.Fonts.Display,
+		TextColor3 = C.White,
 		TextXAlignment = Enum.TextXAlignment.Left,
-		MaxTextSize = 18,
+		MaxTextSize = 22,
 		Parent = header,
 	})
 	local close = Theme.new("TextButton", {
 		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -8, 0.5, 0),
-		Size = UDim2.fromOffset(28, 28),
-		BackgroundColor3 = C.PanelSoft,
-		Font = Theme.Fonts.Bold,
+		Position = UDim2.new(1, -10, 0.5, 0),
+		Size = UDim2.fromOffset(30, 30),
+		BackgroundColor3 = C.White,
+		Font = Theme.Fonts.Heavy,
 		Text = "✕",
 		TextScaled = true,
-		TextColor3 = C.InkSoft,
+		TextColor3 = C.White,
 		Parent = header,
-	}, { Theme.round(), Theme.padding(8) })
+	}, { Theme.round(), Theme.padding(8), Theme.gradient(Theme.Gradients.coral[1], Theme.Gradients.coral[2], 90) })
 	close.Activated:Connect(function()
 		Theme.playSound("click")
 		HUD.toggleQuests(false)
 	end)
 	local list = Theme.new("Frame", {
-		Position = UDim2.fromOffset(10, 52),
-		Size = UDim2.new(1, -20, 1, -86),
+		Position = UDim2.fromOffset(10, 60),
+		Size = UDim2.new(1, -20, 1, -96),
 		BackgroundTransparency = 1,
 		Parent = body,
-	}, { Theme.list("v", 6) })
+	}, { Theme.list("v", 7) })
 	for i = 1, Config.QUESTS_PER_DAY do
-		local row = Theme.new("Frame", {
-			Size = UDim2.new(1, 0, 0, 64),
-			BackgroundColor3 = C.PanelSoft,
+		local _, row = Theme.card({
+			Size = UDim2.new(1, 0, 0, 66),
+			Radius = 14,
 			LayoutOrder = i,
 			Parent = list,
-		}, { Theme.corner(14) })
+		})
 		local icon = Theme.new("Frame", {
 			Position = UDim2.fromOffset(8, 8),
-			Size = UDim2.fromOffset(28, 28),
-			BackgroundColor3 = C.White,
+			Size = UDim2.fromOffset(32, 32),
+			BackgroundColor3 = C.GoldLight,
 			Parent = row,
-		}, { Theme.corner(8) })
-		local iconLabel = Theme.label({ Size = UDim2.fromScale(1, 1), Text = "", MaxTextSize = 17, Parent = icon })
+		}, { Theme.corner(10) })
+		local iconLabel = Theme.label({ Size = UDim2.fromScale(1, 1), Text = "", MaxTextSize = 19, Parent = icon })
 		local text = Theme.label({
-			Position = UDim2.fromOffset(44, 6),
-			Size = UDim2.new(1, -52, 0, 32),
+			Position = UDim2.fromOffset(48, 6),
+			Size = UDim2.new(1, -56, 0, 34),
 			Text = "",
 			Font = Theme.Fonts.Bold,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -328,13 +344,13 @@ local function buildQuests()
 			Parent = row,
 		})
 		local bar = Theme.progress({
-			Position = UDim2.fromOffset(10, 46),
-			Size = UDim2.new(1, -132, 0, 6),
-			Gradient = "primary",
+			Position = UDim2.fromOffset(10, 48),
+			Size = UDim2.new(1, -134, 0, 8),
+			Gradient = "gold",
 			Parent = row,
 		})
 		local count = Theme.label({
-			Position = UDim2.new(1, -118, 0, 41),
+			Position = UDim2.new(1, -120, 0, 42),
 			Size = UDim2.fromOffset(48, 18),
 			Text = "",
 			Font = Theme.Fonts.Heavy,
@@ -344,12 +360,13 @@ local function buildQuests()
 		})
 		local claim = Theme.button({
 			AnchorPoint = Vector2.new(1, 0),
-			Position = UDim2.new(1, -6, 0, 38),
-			Size = UDim2.fromOffset(62, 22),
+			Position = UDim2.new(1, -6, 0, 34),
+			Size = UDim2.fromOffset(66, 28),
 			Text = "",
 			Variant = "mint",
-			Radius = 9,
-			MaxTextSize = 12,
+			Radius = 10,
+			Depth = 3,
+			MaxTextSize = 13,
 			Parent = row,
 			OnClick = function()
 				app.claimQuest(i)
@@ -362,8 +379,8 @@ local function buildQuests()
 		Size = UDim2.new(1, -20, 0, 22),
 		Text = "",
 		Font = Theme.Fonts.Bold,
-		TextColor3 = C.InkSoft,
-		MaxTextSize = 13,
+		TextColor3 = C.GoldDark,
+		MaxTextSize = 14,
 		Parent = body,
 	})
 end
@@ -383,7 +400,7 @@ local function refreshQuests(state)
 	local claimable = 0
 	for i, rowRefs in ipairs(questRows) do
 		local quest = state.quests and state.quests[i]
-		rowRefs.row.Visible = quest ~= nil
+		rowRefs.row.Parent.Visible = quest ~= nil
 		if quest then
 			local def = Config.QuestById[quest.id]
 			rowRefs.icon.Text = def and def.icon or "❔"
@@ -401,7 +418,7 @@ local function refreshQuests(state)
 				rowRefs.claim.SetText("💵 " .. Theme.formatNumber(quest.reward))
 				rowRefs.claim.SetEnabled(done)
 			end
-			rowRefs.row.BackgroundColor3 = (done and not quest.claimed) and C.MintLight or C.PanelSoft
+			rowRefs.row.BackgroundColor3 = (done and not quest.claimed) and C.MintLight or C.Panel
 		end
 	end
 	refs.questBonus.Text = state.questBonus and "🎉 ¡Bonus de hoy reclamado!"
@@ -409,59 +426,135 @@ local function refreshQuests(state)
 	tiles.quests.SetBadge(claimable > 0 and claimable or nil)
 end
 
--- Tutorial (una sola línea) ----------------------------------------------------------------------
-local function buildTutorial()
+-- Cuadro que llevas a la espalda (almacén) ----------------------------------------------------------
+local function buildCarry()
 	local holder, body = Theme.card({
-		Name = "Tutorial",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 58),
-		Size = UDim2.fromOffset(420, 40),
+		Name = "Carry",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.fromOffset(268, 152),
 		Radius = 20,
+		Color = C.Bg,
+		StrokeColor = C.Navy,
+		StrokeThickness = 2.5,
 		Visible = false,
 		Parent = gui,
 	})
-	refs.tutorial = holder
-	local step = Theme.new("Frame", {
-		Position = UDim2.fromOffset(6, 6),
-		Size = UDim2.fromOffset(28, 28),
-		BackgroundColor3 = C.Primary,
+	refs.carry = holder
+	local header = Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 34),
+		BackgroundColor3 = C.White,
 		Parent = body,
-	}, { Theme.round() })
-	refs.tutorialStep = Theme.label({
-		Size = UDim2.fromScale(1, 1),
-		Text = "1",
+	}, { Theme.corner(20), Theme.gradient(Theme.Gradients.navy[1], Theme.Gradients.navy[2], 90) })
+	Theme.new("Frame", {
+		Position = UDim2.new(0, 0, 1, -14),
+		Size = UDim2.new(1, 0, 0, 14),
+		BackgroundColor3 = Theme.Gradients.navy[2],
+		BorderSizePixel = 0,
+		Parent = header,
+	})
+	refs.carryTitle = Theme.label({
+		Position = UDim2.fromOffset(14, 6),
+		Size = UDim2.new(1, -28, 0, 22),
+		Text = "🖼️ Llevas a la espalda",
 		Font = Theme.Fonts.Heavy,
 		TextColor3 = C.White,
-		MaxTextSize = 15,
-		Parent = step,
-	})
-	refs.tutorialText = Theme.label({
-		Position = UDim2.fromOffset(42, 6),
-		Size = UDim2.new(1, -54, 1, -12),
-		Text = "",
-		Font = Theme.Fonts.Medium,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		MaxTextSize = 16,
+		Parent = header,
+	})
+	local thumb = Theme.new("Frame", {
+		Position = UDim2.fromOffset(12, 44),
+		Size = UDim2.fromOffset(62, 62),
+		BackgroundColor3 = C.White,
 		Parent = body,
+	}, { Theme.corner(4), Theme.stroke(C.Navy, 4) })
+	refs.carryArt = Theme.new("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Parent = thumb })
+	refs.carryName = Theme.label({
+		Position = UDim2.fromOffset(86, 44),
+		Size = UDim2.new(1, -96, 0, 22),
+		Text = "",
+		Font = Theme.Fonts.Display,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 19,
+		Parent = body,
+	})
+	refs.carryInfo = Theme.label({
+		Position = UDim2.fromOffset(86, 68),
+		Size = UDim2.new(1, -96, 0, 18),
+		Text = "",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.GoldDark,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 15,
+		Parent = body,
+	})
+	refs.carryCount = Theme.label({
+		Position = UDim2.fromOffset(86, 88),
+		Size = UDim2.new(1, -96, 0, 18),
+		Text = "",
+		Font = Theme.Fonts.Medium,
+		TextColor3 = C.InkSoft,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 13,
+		Parent = body,
+	})
+	refs.carryHint = Theme.label({
+		Position = UDim2.fromOffset(12, 114),
+		Size = UDim2.new(1, -100, 0, 30),
+		Text = "Cuélgalo en un marco libre de la sala",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.PrimaryDark,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 13,
+		Parent = body,
+	})
+	refs.carryNext = Theme.button({
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -10, 0, 112),
+		Size = UDim2.fromOffset(84, 32),
+		Text = "Cambiar ▶",
+		Variant = "navy",
+		Radius = 12,
+		Depth = 3,
+		MaxTextSize = 14,
+		Parent = body,
+		OnClick = function()
+			local storage = app.state and app.state.storage or {}
+			if #storage > 1 then
+				app.remotes.SelectStored:FireServer(#storage)
+			end
+		end,
 	})
 end
 
-local function refreshTutorial(state)
-	local step = state.tutorial or 0
-	local def = Config.Tutorial[step]
-	local visible = step > 0 and def ~= nil and not app.isBusy()
-	refs.tutorial.Visible = visible
-	if def then
-		refs.tutorialStep.Text = tostring(step)
-		local suffix = def.goal > 1 and ("  " .. (state.tutorialProgress or 0) .. "/" .. def.goal) or ""
-		refs.tutorialText.Text = def.text .. suffix
+local function refreshCarry(state)
+	local storage = state.storage or {}
+	local entry = storage[1]
+	refs.carry.Visible = entry ~= nil
+	if not entry then
+		carriedKey = nil
+		return
 	end
-	if refs.lastTutorial ~= step then
-		refs.lastTutorial = step
-		if visible then
-			Theme.popCard(refs.tutorial, 0.85)
-		end
+	local design = Designs.get(entry.d)
+	local key = entry.d .. entry.c .. #storage
+	if key ~= carriedKey and design then
+		carriedKey = key
+		DesignArt.render(
+			refs.carryArt,
+			design,
+			{ mode = "color", colors = Designs.decodeColors(entry.c), outline = false }
+		)
+		Theme.popCard(refs.carry, 0.9)
 	end
+	refs.carryName.Text = design and design.name or "?"
+	refs.carryInfo.Text = string.rep("★", entry.st or 1) .. "   💵 " .. Theme.formatNumber(entry.v)
+	refs.carryCount.Text = #storage > 1 and ("Tienes " .. #storage .. " cuadros guardados")
+		or "Tu único cuadro guardado"
+	local free = (state.slots or 0) - (state.displayed or 0)
+	refs.carryHint.Text = free > 0 and "Cuélgalo en un marco libre de la sala"
+		or "Sala llena: espera una venta o compra «Más paredes»"
+	refs.carryNext.Holder.Visible = #storage > 1
 end
 
 -- Estado --------------------------------------------------------------------------------------------
@@ -499,7 +592,7 @@ function HUD.applyState(state)
 	tiles.daily.SetBadge(state.dailyReady)
 	tiles.daily.Caption.Text = state.dailyReady and "¡Regalo!" or Theme.formatTime(state.dailyWait)
 	refreshQuests(state)
-	refreshTutorial(state)
+	refreshCarry(state)
 end
 
 function HUD.setVisible(visible)
@@ -518,7 +611,7 @@ function HUD.init(appRef)
 	buildTopBar()
 	buildMenu()
 	buildQuests()
-	buildTutorial()
+	buildCarry()
 
 	local overlay = Theme.new("ScreenGui", {
 		Name = "Notifications",
@@ -528,8 +621,8 @@ function HUD.init(appRef)
 	})
 	toastHolder = Theme.new("Frame", {
 		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 106),
-		Size = UDim2.new(0, 420, 0, 150),
+		Position = UDim2.new(0.5, 0, 0, 150),
+		Size = UDim2.new(0, 460, 0, 160),
 		BackgroundTransparency = 1,
 		Parent = overlay,
 	}, { Theme.list("v", 6, Enum.HorizontalAlignment.Center) })
@@ -542,7 +635,7 @@ function HUD.init(appRef)
 	})
 
 	-- Escala en pantallas pequeñas.
-	local scaled = { gui.TopBar, refs.menu, refs.quests, refs.tutorial, toastHolder }
+	local scaled = { gui.TopBar, refs.menu, refs.quests, refs.carry, toastHolder }
 	local function updateScale()
 		local camera = Workspace.CurrentCamera
 		if not camera then

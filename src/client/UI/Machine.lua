@@ -295,8 +295,9 @@ local function buildCollection()
 		Name = "Window",
 		Parent = holderGui,
 		Size = UDim2.fromOffset(880, 600),
-		Gradient = "blue",
-		Title = "📚 Colección de pinturas",
+		Title = "Colección de pinturas",
+		Icon = "📚",
+		Accent = "blue",
 		Subtitle = "Consíguelas en la máquina del taller. Cuanto más raras, más valen tus cuadros.",
 	})
 	refs.collectionProgress = Theme.label({

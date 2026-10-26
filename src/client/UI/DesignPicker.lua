@@ -416,7 +416,7 @@ function DesignPicker.refresh()
 		detail.button.SetEnabled(not state.painting)
 	elseif status == "buyable" then
 		detail.button.SetText("Desbloquear · 💵 " .. Theme.formatNumber(design.price))
-		detail.button.SetVariant("primary")
+		detail.button.SetVariant("gold")
 		detail.button.SetEnabled(state.coins >= design.price)
 	else
 		detail.button.SetText("Pinta todo el nivel " .. (design.level - 1))
@@ -477,6 +477,8 @@ function DesignPicker.init(appRef)
 		Parent = gui,
 		Size = UDim2.fromOffset(1010, 650),
 		Title = "Elige un diseño",
+		Icon = "🖌️",
+		Accent = "primary",
 		Subtitle = "Pinta todos los diseños de un nivel para abrir el siguiente.",
 	})
 	buildList(window.Body)

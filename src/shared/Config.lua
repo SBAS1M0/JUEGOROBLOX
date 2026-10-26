@@ -13,6 +13,8 @@ Config.MAX_PAINT_STACK = 999
 
 -- Vender en la galería (a un visitante) paga más que vender al instante.
 Config.GALLERY_BONUS = 1.25
+-- Cuadros terminados que puedes guardar antes de colgarlos en la galería.
+Config.STORAGE_SIZE = 8
 Config.QUICK_SELL = 1
 
 -- Maestría por diseño: cuantas más veces lo pintas, más vale.
@@ -193,7 +195,8 @@ function Config.parTime(design, levels)
 		return 3 + #design.shapes * 0.45
 	end
 	local width = 2 * Config.brushRadius(levels)
-	local total = 2
+	-- Cambiar de color en la paleta también lleva su tiempo.
+	local total = 2 + #design.areas * 1.2
 	for _, shape in ipairs(design.shapes) do
 		if shape.visible > 0 then
 			total += 0.3 + shape.visible / (width * SWEEP_SPEED)
@@ -303,8 +306,8 @@ end
 Config.Tutorial = {
 	{ text = "Ve a la máquina de colores y tira 3 veces", target = "machine", goal = 3 },
 	{ text = "Ve a la mesa de dibujo y empieza un cuadro", target = "easel", goal = 1 },
-	{ text = "Colorea el dibujo pasando el pincel", target = nil, goal = 1 },
-	{ text = "Expón tu cuadro en la galería", target = nil, goal = 1 },
+	{ text = "Elige un color de la paleta y colorea el dibujo", target = nil, goal = 1 },
+	{ text = "Lleva el cuadro a la sala y cuélgalo en un marco libre", target = "freeFrame", goal = 1 },
 	{ text = "Espera a que un visitante compre tu cuadro", target = "gallery", goal = 1 },
 }
 Config.TUTORIAL_REWARD = 150

@@ -484,6 +484,8 @@ function ColorPicker.init(appRef)
 		Parent = gui,
 		Size = UDim2.fromOffset(1010, 650),
 		Title = "Elige tus colores",
+		Icon = "🎨",
+		Accent = "coral",
 	})
 	build(window.Body)
 end

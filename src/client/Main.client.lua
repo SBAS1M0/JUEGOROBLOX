@@ -34,6 +34,8 @@ for _, name in ipairs({
 	"BuyUpgrade",
 	"ClaimDaily",
 	"ClaimQuest",
+	"SelectStored",
+	"SkipTutorial",
 	"GoHome",
 }) do
 	app.remotes[name] = remotes:WaitForChild(name)
@@ -131,6 +133,7 @@ local function applyState(state)
 	DesignPicker.refresh()
 	ColorPicker.refresh()
 	Daily.refresh()
+	Tutorial.applyState()
 end
 
 pcall(function()

@@ -37,6 +37,7 @@ local function defaultData()
 		made = {}, -- diseñoId -> veces pintado
 		upgrades = {},
 		gallery = {}, -- { s = hueco, d = diseño, c = colores, v = valor }
+		storage = {}, -- cuadros terminados sin colgar (el primero es el que llevas)
 		autoRoll = false,
 		lastRoll = "",
 		rolls = 0,

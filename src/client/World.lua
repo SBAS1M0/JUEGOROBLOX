@@ -144,16 +144,17 @@ local function setupVisitor(model)
 	refresh()
 end
 
--- Avisos solo para el dueño del taller.
+-- Avisos (taller y marcos) solo para el dueño del terreno.
 local function updatePrompts(plot)
 	local mine = plot:GetAttribute("OwnerUserId") == player.UserId
-	local workshop = plot:FindFirstChild("Workshop")
-	if not workshop then
-		return
-	end
-	for _, descendant in ipairs(workshop:GetDescendants()) do
-		if descendant:IsA("ProximityPrompt") then
-			descendant.MaxActivationDistance = mine and 12 or 0
+	for _, folderName in ipairs({ "Workshop", "Gallery" }) do
+		local folder = plot:FindFirstChild(folderName)
+		if folder then
+			for _, descendant in ipairs(folder:GetDescendants()) do
+				if descendant:IsA("ProximityPrompt") then
+					descendant.MaxActivationDistance = mine and (folderName == "Gallery" and 10 or 12) or 0
+				end
+			end
 		end
 	end
 end
@@ -188,7 +189,29 @@ local function watchPlot(plot)
 	updatePrompts(plot)
 end
 
+-- El cuadro que llevas a la espalda.
+local function watchCharacter(character)
+	local function check(child)
+		if child.Name == "CarriedPainting" then
+			local canvas = child:WaitForChild("Canvas", 5)
+			if canvas then
+				setupCanvas(canvas)
+			end
+		end
+	end
+	for _, child in ipairs(character:GetChildren()) do
+		task.spawn(check, child)
+	end
+	character.ChildAdded:Connect(function(child)
+		task.spawn(check, child)
+	end)
+end
+
 function World.start()
+	if player.Character then
+		task.spawn(watchCharacter, player.Character)
+	end
+	player.CharacterAdded:Connect(watchCharacter)
 	local plots = Workspace:WaitForChild("Plots")
 	for _, plot in ipairs(plots:GetChildren()) do
 		task.spawn(watchPlot, plot)

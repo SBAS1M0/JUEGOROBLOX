@@ -106,45 +106,75 @@ local function openDesigns()
 	R.run(0.2)
 end
 
--- Barre el lienzo con el pincel en filas, como haría una persona.
-local function sweepPaint(onHalf)
-	local catcher = T.findAll(pg.Painter, function(d)
-		return d.Name == "PaintInput"
-	end)[1]
+local function frameOf(slot)
+	return lot.Gallery["Frame" .. slot]
+end
+local function hangOn(slot)
+	local prompt = frameOf(slot).Canvas.HangPrompt
+	check(prompt.Enabled, "frame " .. slot .. " offers «Colgar cuadro»")
+	prompt.Triggered:Fire(player)
+	R.run(0.3)
+end
+
+local catcher = T.findAll(pg.Painter, function(d)
+	return d.Name == "PaintInput"
+end)[1]
+local function move(x, y)
+	UIS.InputChanged:Fire({ UserInputType = Enum.UserInputType.MouseMovement, Position = R.v2(x * 512, y * 512) })
+	R.step(1 / 30)
+end
+-- Barre en filas una zona del lienzo, como haría una persona.
+local function sweep(x0, y0, x1, y1)
 	local r = Config.brushRadius(data.upgrades)
 	local step = r * 1.1
-	local rows = math.ceil(1 / (r * 1.4))
-	local function move(x, y)
-		UIS.InputChanged:Fire({ UserInputType = Enum.UserInputType.MouseMovement, Position = R.v2(x * 512, y * 512) })
-		R.step(1 / 30)
-	end
-	catcher.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1, Position = R.v2(0, 0) })
-	for row = 0, rows do
-		if onHalf and row == math.floor(rows / 2) then
-			onHalf()
-		end
-		local y = math.min(1, row * r * 1.4 + r * 0.5)
+	catcher.InputBegan:Fire({
+		UserInputType = Enum.UserInputType.MouseButton1,
+		Position = R.v2(x0 * 512, y0 * 512),
+	})
+	local row = 0
+	local y = y0
+	while y <= y1 + r * 0.5 do
 		local forward = row % 2 == 0
-		local x = forward and 0 or 1
-		while (forward and x <= 1) or (not forward and x >= 0) do
-			move(x, y)
+		local x = forward and x0 or x1
+		while (forward and x <= x1) or (not forward and x >= x0) do
+			move(x, math.min(y, 1))
 			x = x + (forward and step or -step)
 		end
+		row = row + 1
+		y = y + r * 1.4
 	end
 	UIS.InputEnded:Fire({ UserInputType = Enum.UserInputType.MouseButton1 }, false)
-	R.run(1)
+end
+-- Pinta color por color: elige cada bote de la paleta y barre sus figuras.
+local function paintByColor(design, afterFirst)
+	for index, area in ipairs(design.areas) do
+		T.fireClick(namedButton(pg.Painter, "Paint_" .. area.id))
+		R.run(0.1)
+		local x0, y0, x1, y1 = 1, 1, 0, 0
+		for _, shape in ipairs(design.shapes) do
+			if shape.area == area.id and shape.visible > 0 then
+				local b = 0.5 * math.sqrt(shape.w * shape.w + shape.h * shape.h)
+				x0, y0 = math.min(x0, shape.x - b), math.min(y0, shape.y - b)
+				x1, y1 = math.max(x1, shape.x + b), math.max(y1, shape.y + b)
+			end
+		end
+		sweep(math.max(0, x0), math.max(0, y0), math.min(1, x1), math.min(1, y1))
+		if index == 1 and afterFirst then
+			afterFirst(area)
+		end
+	end
+	R.run(1.5)
 end
 
 print("== Fresh start: rolling only at the machine, tutorial")
 check(data.autoRoll == false and not Config.hasAutoRoll(data.upgrades), "no auto-roll at start")
 check(S.ReplicatedStorage.Remotes:FindFirstChild("Roll") == nil, "no remote to roll from anywhere")
-check(pg.MachineHud:FindFirstChild("MachineWidget") == nil, "no machine panel on screen")
 check(not pg.MachineHud.RollResult.Visible, "roll result card hidden")
 check(autoPrompt.Enabled == false, "auto-roll prompt hidden without the upgrade")
 check(data.tutorial == 1, "tutorial starts at step 1")
-check(pg.HUD.Tutorial.Visible, "tutorial banner visible")
+check(pg.TutorialGuide.Panel.Visible, "tutorial guide panel visible")
 check(not pg.HUD.Quests.Visible, "quests start folded")
-check(pg:FindFirstChild("TutorialArrow") ~= nil, "tutorial arrow exists")
+check(not pg.HUD.Carry.Visible, "nothing carried yet")
 local highlight = T.findAll(R.workspace, function(d)
 	return d.ClassName == "Highlight"
 end)[1]
@@ -152,6 +182,7 @@ check(highlight ~= nil and highlight.Adornee == lot.Workshop.Machine, "machine h
 local spawnDistance = (player.Character.HumanoidRootPart.Position - lot.Workshop.Machine.Body.Position).Magnitude
 check(spawnDistance < 25, "player spawns in the workshop next to the machine (" .. math.floor(spawnDistance) .. ")")
 dumpGui("hud", pg.HUD)
+dumpGui("guide", pg.TutorialGuide)
 R.run(10)
 check(totalPaints(data) == 0, "machine does not roll by itself")
 
@@ -177,6 +208,10 @@ R.run(2)
 check(totalPaints(data) == 3, "three rolls (" .. totalPaints(data) .. ")")
 check(data.tutorial == 2, "tutorial advanced to step 2")
 check(highlight.Parent == nil or highlight.Adornee ~= lot.Workshop.Machine, "highlight moved")
+local path = T.findAll(R.workspace, function(d)
+	return d.ClassName == "Beam" and d.Name == "TutorialPath"
+end)[1]
+check(path ~= nil and path.Enabled, "glowing path leads to the easel")
 check(lot.Workshop.Machine.Top:GetAttribute("ColorId") ~= "", "machine shows last color")
 check(pg.MachineBoard.Enabled, "machine billboard attached")
 for _ = 1, 6 do
@@ -223,50 +258,63 @@ check((data.paints[best] or 0) == before - 1, "paint consumed")
 check(R.controlsEnabled == false, "controls disabled while painting")
 check(not pg.HUD.Enabled, "hud hidden while painting")
 check(data.tutorial == 3, "tutorial step 3 (paint)")
-local sketch = T.findAll(pg.Painter, function(d)
-	return d.ClassName == "UIStroke" and d.Parent.Name == "S1"
-end)[1]
-check(sketch ~= nil, "design shown as a sketch")
+check(pg.Painter:FindFirstChild("Coach", true).Visible, "coach asks to pick a color first")
 dumpGui("painter_start", pg.Painter)
-R.run(3.2)
-local hinted = T.findAll(pg.Painter, function(d)
-	return d.ClassName == "UIStroke" and d.Parent.Name:match("^S%d") and d.Thickness > 2.3
-end)
-check(#hinted > 0, "idle player gets a hint: unpainted shapes pulse (" .. #hinted .. ")")
-local locate = T.findAll(pg.Painter, function(d)
-	return d.Name == "Locate"
-end)[1]
-check(locate ~= nil, "paint pots can locate their zone")
-T.fireClick(locate)
-R.run(0.1)
 
-print("== Paint with the brush")
-local sawDabs = false
-sweepPaint(function()
-	local groups = T.findAll(pg.Painter, function(d)
-		return d.ClassName == "CanvasGroup"
-	end)
-	sawDabs = #groups > 0 and #groups[1]:GetChildren() > 3
+print("== Paint color by color")
+local globo = Designs.get("globo")
+sweep(0.05, 0.05, 0.95, 0.3)
+local strokes = T.findAll(pg.Painter, function(d)
+	return d.ClassName == "CanvasGroup"
+end)
+check(#strokes == 0, "without a color the brush leaves no paint")
+local firstArea
+paintByColor(globo, function(area)
+	firstArea = area
+	local painted, others = 0, 0
+	for _, d in ipairs(T.findAll(pg.Painter, function(x)
+		return x.ClassName == "CanvasGroup"
+	end)) do
+		local index = tonumber(d.Parent.Name:match("^S(%d+)$"))
+		if index and globo.shapes[index].area == area.id then
+			painted = painted + 1
+		elseif index then
+			others = others + 1
+		end
+	end
+	check(others == 0, "only shapes of the chosen color take paint")
 	dumpGui("painter_mid", pg.Painter)
 end)
-check(sawDabs, "brush leaves paint strokes clipped to the shapes")
-R.run(1.5)
+check(firstArea ~= nil, "painted the first color")
 dumpGui("painter", pg.Painter)
-local exhibit = buttonStarting(pg.Painter, "Exponer")
-check(exhibit ~= nil and isShown(exhibit), "completion window shown")
-check(#T.findAll(pg.Painter, function(d)
-	return d.ClassName == "CanvasGroup"
-end) == 0, "paint layers cleaned up once shapes are complete")
-T.fireClick(exhibit)
+local carryButton = buttonStarting(pg.Painter, "🖼️ Llevar")
+check(carryButton ~= nil and isShown(carryButton), "completion window shown")
+T.fireClick(carryButton)
 R.run(0.5)
 check(not pg.Painter.Enabled and R.controlsEnabled, "painter closed")
-check(#data.gallery == 1, "painting exhibited")
-check(data.gallery[1].st == 3, "a good sweep earns 3 stars (" .. tostring(data.gallery[1].st) .. ")")
-local canvas = lot.Gallery.Frame1.Canvas
+check(#data.storage == 1 and #data.gallery == 0, "painting stored, not sold")
+check(data.sold == 0, "nothing sold instantly")
+check(data.storage[1].st == 3, "a good painting session earns 3 stars (" .. tostring(data.storage[1].st) .. ")")
+local carried = player.Character:FindFirstChild("CarriedPainting")
+check(carried ~= nil and carried.Canvas:GetAttribute("Design") == "globo", "painting carried on the back")
+check(carried.Canvas:FindFirstChild("ArtGui") ~= nil, "carried painting shows its art")
+check(pg.HUD.Carry.Visible, "carry card shows the painting")
+check(data.tutorial == 4, "tutorial step 4 (hang it)")
+check(data.made.globo == 1, "made counter")
+dumpGui("hud_carry", pg.HUD)
+
+print("== Hang it in the exhibition room")
+check(not frameOf(1).Canvas.TakePrompt.Enabled, "empty frame has nothing to take down")
+hangOn(1)
+check(#data.storage == 0 and #data.gallery == 1, "painting hung on the wall")
+check(player.Character:FindFirstChild("CarriedPainting") == nil, "hands free again")
+check(not frameOf(1).Canvas.HangPrompt.Enabled, "occupied frame no longer offers hanging")
+check(frameOf(1).Canvas.TakePrompt.Enabled, "hung painting can be taken down")
+check(not frameOf(2).Canvas.HangPrompt.Enabled, "no hang prompts with empty hands")
+local canvas = frameOf(1).Canvas
 check(canvas:GetAttribute("Design") == "globo", "canvas shows design")
 check(canvas:GetAttribute("Stars") == 3, "canvas shows stars")
 check(#canvas.ArtGui.Art:GetDescendants() > 5, "gallery art rendered")
-check(data.made.globo == 1, "made counter")
 check(data.tutorial == 5, "tutorial step 5 (wait for a buyer)")
 
 print("== Visitor buys")
@@ -290,21 +338,33 @@ check(sawVisitor, "visitor appeared")
 check(data.sold == 1 and data.coins > coins0, "visitor bought painting (+" .. (data.coins - coins0) .. ")")
 check(#data.gallery == 0, "gallery emptied")
 check(data.tutorial == 0, "tutorial completed")
-check(not pg.HUD.Tutorial.Visible, "tutorial banner hidden")
+check(not pg.TutorialGuide.Panel.Visible, "tutorial guide hidden")
 R.run(30)
 check(#lot.Visitors:GetChildren() == 0, "visitor left")
 
-print("== Quick sell")
+print("== Store and paint another, take down, choose what to carry")
 openDesigns()
 click(pg.DesignPicker, "Empezar a pintar")
 click(pg.ColorPicker, "Empezar a pintar")
 R.run(0.2)
-sweepPaint()
-R.run(1.5)
-local coins1 = data.coins
-click(pg.Painter, "Vender ya")
+paintByColor(globo)
+click(pg.Painter, "🎨 Guardarlo")
+R.run(0.5)
+check(#data.storage == 1, "second painting stored")
+check(pg.DesignPicker.Window.Visible, "design picker reopened to paint another")
+closeWindow(pg.DesignPicker)
+hangOn(2)
+check(#data.gallery == 1 and #data.storage == 0, "hung in frame 2")
+frameOf(2).Canvas.TakePrompt.Triggered:Fire(player)
 R.run(0.3)
-check(data.coins > coins1 and data.sold == 2, "quick sold")
+check(#data.gallery == 0 and #data.storage == 1, "taken down back to storage")
+data.storage[2] = { d = "globo", c = data.storage[1].c, v = 1, st = 1 }
+S.ReplicatedStorage.Remotes.SelectStored:FireServer(2)
+R.run(0.2)
+check(data.storage[1].v == 1, "chose which painting to carry")
+table.remove(data.storage, 1)
+hangOn(3)
+check(#data.gallery == 1, "hung again")
 
 print("== Quests")
 check(#data.quests == Config.QUESTS_PER_DAY, "daily quests generated")
@@ -382,7 +442,7 @@ for _, upgrade in ipairs(Config.Upgrades) do
 	check((data.upgrades[upgrade.id] or 0) == upgrade.max, upgrade.id .. " maxed")
 end
 check(#lot.Decor:GetChildren() == 6, "decor built")
-check(lot.Gallery.Frame7.Canvas:GetAttribute("Locked") == false, "all walls unlocked")
+check(frameOf(7).Canvas:GetAttribute("Locked") == false, "all walls unlocked")
 closeWindow(pg.Shop)
 
 print("== Auto-Rolling after buying it")
@@ -402,7 +462,8 @@ autoPrompt.Triggered:Fire(player)
 R.run(0.3)
 check(data.autoRoll == true, "auto-roll on again")
 
-print("== Paint level 1 with bucket")
+print("== Paint level 1 with the bucket, color by color")
+local nextFrame = 4
 for _, id in ipairs({ "sol", "taza", "gatito" }) do
 	openDesigns()
 	T.fireClick(namedButton(pg.DesignPicker, id))
@@ -412,30 +473,37 @@ for _, id in ipairs({ "sol", "taza", "gatito" }) do
 	R.run(0.2)
 	click(pg.Painter, "🪣")
 	local design = Designs.get(id)
-	local catcher = T.findAll(pg.Painter, function(d)
-		return d.Name == "PaintInput"
-	end)[1]
-	for i = 1, #design.shapes do
-		for gx = 0, 39 do
-			local found = false
-			for gy = 0, 39 do
-				local x, y = (gx + 0.5) / 40, (gy + 0.5) / 40
-				if Designs.shapeAt(design, x, y) == i then
-					catcher.InputBegan:Fire({ UserInputType = Enum.UserInputType.MouseButton1, Position = R.v2(x * 512, y * 512) })
-					found = true
-					break
+	for _, area in ipairs(design.areas) do
+		T.fireClick(namedButton(pg.Painter, "Paint_" .. area.id))
+		for i, shape in ipairs(design.shapes) do
+			if shape.area == area.id then
+				for gx = 0, 39 do
+					local found = false
+					for gy = 0, 39 do
+						local x, y = (gx + 0.5) / 40, (gy + 0.5) / 40
+						if Designs.shapeAt(design, x, y) == i then
+							catcher.InputBegan:Fire({
+								UserInputType = Enum.UserInputType.MouseButton1,
+								Position = R.v2(x * 512, y * 512),
+							})
+							found = true
+							break
+						end
+					end
+					if found then
+						break
+					end
 				end
-			end
-			if found then
-				break
+				R.run(0.1)
 			end
 		end
-		R.run(0.1)
 	end
 	R.run(3)
-	click(pg.Painter, "Exponer")
+	click(pg.Painter, "🖼️ Llevar")
 	R.run(0.3)
 	check(data.made[id] == 1, "painted " .. id .. " with the bucket")
+	hangOn(nextFrame)
+	nextFrame = nextFrame + 1
 end
 openDesigns()
 T.fireClick(namedButton(pg.DesignPicker, "hongo"))
@@ -460,6 +528,16 @@ R.run(0.2)
 check(not pg.Painter.Enabled, "painter closed on cancel")
 check(totalPaints(data) == paintsBefore, "paints refunded (" .. paintsBefore .. " -> " .. totalPaints(data) .. ")")
 
+print("== Storage limit")
+local saved = data.storage
+data.storage = {}
+for i = 1, Config.STORAGE_SIZE do
+	data.storage[i] = { d = "globo", c = "", v = 1, st = 1 }
+end
+local ok, message = S.ReplicatedStorage.Remotes.StartPainting:InvokeServer("globo", Designs.defaultColors(globo))
+check(not ok and tostring(message):find("almacén") ~= nil, "full storage blocks a new painting")
+data.storage = saved
+
 print("== Collection & home")
 T.fireClick(tile("colors"))
 R.run(0.2)
@@ -473,7 +551,7 @@ R.run(0.5)
 local distance = (character.HumanoidRootPart.Position - lot.Workshop.Machine.Body.Position).Magnitude
 check(distance < 25, "home button brings you back to the workshop (" .. math.floor(distance) .. ")")
 
-print("== Visitors buy exhibited paintings")
+print("== Visitors buy hung paintings")
 data.autoRoll = true
 local sold0 = data.sold
 R.run(150)
@@ -481,7 +559,8 @@ dumpWorld("world2")
 check(data.sold >= sold0 + 2, "visitors keep buying (sold " .. data.sold .. ")")
 
 print("== Leave & rejoin")
-local saved = { coins = data.coins, sold = data.sold, gallery = #data.gallery }
+data.storage = { { d = "sol", c = "", v = 10, st = 2 } }
+local savedState = { coins = data.coins, sold = data.sold, gallery = #data.gallery }
 player.Parent = nil
 S.Players.PlayerRemoving:Fire(player)
 R.run(2)
@@ -493,12 +572,16 @@ S.Players.PlayerAdded:Fire(p2)
 R.makeCharacter(p2)
 R.run(2)
 local d2 = DataService.get(p2)
-check(d2 and d2.coins == saved.coins and d2.sold == saved.sold and #d2.gallery == saved.gallery, "data restored")
+check(
+	d2 and d2.coins == savedState.coins and d2.sold == savedState.sold and #d2.gallery == savedState.gallery,
+	"data restored"
+)
 check(d2.made.gatito == 1 and d2.unlocked.hongo and d2.upgrades.auto == 1, "progress restored")
+check(#d2.storage == 1 and d2.storage[1].d == "sol", "storage restored")
+check(p2.Character:FindFirstChild("CarriedPainting") ~= nil, "carried painting back on the new character")
 check(d2.tutorial == 0, "tutorial stays completed")
 local lot2 = R.workspace.Plots:FindFirstChild("Lot1")
 check(lot2 and lot2:GetAttribute("OwnerUserId") == 101, "new lot built on rejoin")
-check(lot2.Workshop.Machine.Dispenser.ProximityPrompt.Enabled, "auto prompt restored with the upgrade")
 for _, f in ipairs(R.closeCallbacks) do
 	R.task.spawn(f)
 end

@@ -205,6 +205,8 @@ function Shop.init(appRef)
 		Parent = gui,
 		Size = UDim2.fromOffset(830, 640),
 		Title = "Mejoras",
+		Icon = "🛒",
+		Accent = "primary",
 	})
 	local list = Theme.new("ScrollingFrame", {
 		Position = UDim2.fromOffset(18, 12),

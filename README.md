@@ -3,11 +3,15 @@
 Cada jugador aparece en **su propio terreno privado**: una galería de arte
 moderna (volumen blanco con grandes cristaleras) con un **taller** forrado de
 madera al lado, plaza con estanque, jardín y una calle por donde llegan los
-visitantes. La interfaz es **minimalista y neutra**, pensada para todo el
-público: fondos claros, texto oscuro y un único color de acento. En el taller sacas pinturas de una máquina de colores (con
+visitantes. En el taller sacas pinturas de una máquina de colores (con
 rarezas), eliges un diseño, decides qué color va en cada parte y lo pintas a
-mano. Después lo cuelgas en tu galería y llegan visitantes (avatares reales de
+mano, **color por color**. Después llevas el cuadro a la **sala de
+exposición**, lo cuelgas en un marco y entran visitantes (avatares reales de
 Roblox, por ejemplo tus amigos) a comprarlo.
+
+La interfaz tiene estilo de **estudio de arte**, para todo el público:
+cabeceras azul tinta, fondos crema, botones con relieve y acentos turquesa,
+ámbar y coral.
 
 ![Tu terreno](docs/mapa.jpg)
 
@@ -18,10 +22,10 @@ Roblox, por ejemplo tus amigos) a comprarlo.
 ## Cómo se juega
 
 Apareces **dentro de tu taller**, con la máquina de colores a un lado y el
-caballete al otro. Un **tutorial de 5 pasos** te guía con flechas y resaltados:
-tirar la máquina, empezar un cuadro, colorearlo, exponerlo y venderlo. La
-interfaz es mínima: tus monedas y cuadros en venta arriba y una columna de
-botones a la izquierda (las misiones se despliegan solo cuando las abres).
+caballete al otro. Un **tutorial guiado de 5 pasos** te acompaña: un panel con
+la guía (paso, instrucción y progreso; se puede saltar), un **camino luminoso**
+desde tu personaje hasta el objetivo, el objeto resaltado y una flecha encima.
+Dentro de la pantalla de pintura, unos bocadillos te dicen qué hacer.
 
 ![Inicio](docs/inicio.jpg)
 
@@ -53,28 +57,33 @@ botones a la izquierda (las misiones se despliegan solo cuando las abres).
 3. **Elige tus colores**: cada área del dibujo (cielo, globo, nubes…) toma el
    color que elijas, con el **valor del cuadro en vivo**. El botón
    ✨ *Mejores colores* elige automáticamente los que más rinden.
-4. **Colorea**: el dibujo aparece como un **boceto a lápiz** con cada zona en
-   un tono pálido de su color. La pintura se queda **justo donde pasas el
-   pincel** y nunca se sale de la figura; cuando cubres casi toda una figura,
-   se completa con su color final. Abajo tienes los botes de pintura de cada
-   área con su progreso; **tócalo y parpadean las figuras de esa zona**. Si
-   te quedas un momento sin avanzar, las figuras que faltan se resaltan solas.
+4. **Colorea color por color**: el dibujo aparece como un **boceto a lápiz**
+   con cada zona en un tono pálido de su color. Abajo tienes una **paleta de
+   pintor de madera** con un bote por color: **eliges uno** (con el ratón o
+   las teclas 1-9) y el pincel solo deja pintura en las figuras de ese color,
+   que se resaltan mientras las demás se aclaran. El trazo es continuo, con
+   vetas como el óleo, y nunca se sale de la figura; cuando cubres casi toda
+   una figura, se completa con su color final. Si te quedas un momento sin
+   avanzar, laten las figuras que te faltan.
    El **cronómetro con estrellas** premia la rapidez
    (⭐⭐ +10%, ⭐⭐⭐ +25%). Con la mejora 🖌️ *Pincel grande* el trazo es más
    ancho y con 🪣 *Cubeta mágica* rellenas una figura de un toque.
-5. **Vende**:
-   - 🖼️ **Expón** el cuadro en tu galería: un visitante entra caminando, lo
-     mira y lo compra por un **25% más**. A veces llega un **coleccionista VIP
-     👑** que paga **el doble**.
-   - 💰 **Véndelo ya** si tienes prisa o la galería está llena.
+5. **Cuélgalo en la sala de exposición**: el cuadro no se vende al
+   terminarlo. Lo **llevas a la espalda** (una tarjeta te muestra cuál), vas a
+   la sala y en cualquier marco libre pulsas **«Colgar cuadro»**. Puedes
+   guardar hasta 8 cuadros, elegir cuál llevas y **descolgar** uno para
+   cambiarlo de sitio.
+6. **Los visitantes compran**: entran caminando, miran los cuadros colgados,
+   eligen uno y lo compran. A veces llega un **coleccionista VIP 👑** que paga
+   **el doble**.
 
 | Elige un diseño | Elige tus colores |
 | --- | --- |
 | ![Diseños](docs/disenos.jpg) | ![Colores](docs/colores.jpg) |
-| **Boceto listo para colorear** | **Coloreando** |
+| **Boceto: elige un color** | **Coloreando color por color** |
 | ![Boceto](docs/boceto.jpg) | ![Coloreando](docs/pintando.jpg) |
-
-![Terminado](docs/terminado.jpg)
+| **¡Terminado!** | **Lo llevas a la sala** |
+| ![Terminado](docs/terminado.jpg) | ![Llevar](docs/llevar.jpg) |
 
 ### Lo que te engancha
 

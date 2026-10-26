@@ -37,6 +37,8 @@ local StartPainting = remote("RemoteFunction", "StartPainting")
 local CancelPainting = remote("RemoteEvent", "CancelPainting")
 local FinishPainting = remote("RemoteFunction", "FinishPainting")
 local BuyUpgrade = remote("RemoteFunction", "BuyUpgrade")
+local SelectStored = remote("RemoteEvent", "SelectStored")
+local SkipTutorial = remote("RemoteEvent", "SkipTutorial")
 local ClaimDaily = remote("RemoteFunction", "ClaimDaily")
 local ClaimQuest = remote("RemoteFunction", "ClaimQuest")
 local GoHome = remote("RemoteEvent", "GoHome")
@@ -54,6 +56,8 @@ end)
 local tryRoll
 local renderAutoPrompt
 local toggleAutoRoll
+local hangPainting
+local takeDownPainting
 
 -- Estado de la sesión --------------------------------------------------------------------
 local plotOf = {}
@@ -183,6 +187,8 @@ local function buildState(player)
 		openLevel = openLevel(data),
 		slots = Config.gallerySlots(data.upgrades),
 		displayed = #data.gallery,
+		storage = data.storage,
+		storageMax = Config.STORAGE_SIZE,
 		autoUnlocked = Config.hasAutoRoll(data.upgrades),
 		autoRoll = data.autoRoll and Config.hasAutoRoll(data.upgrades),
 		lastRoll = data.lastRoll,
@@ -316,9 +322,63 @@ local function renderGallery(plot, data)
 			canvas:SetAttribute("Colors", "")
 			canvas:SetAttribute("Price", 0)
 			canvas:SetAttribute("Stars", 0)
-			plaque.Text = i > slots and "🔒 Mejora «Más paredes»" or "Espacio libre"
+			plaque.Text = i > slots and "🔒 Mejora «Más paredes»" or "Marco libre"
+		end
+		plot.hangPrompts[i].Enabled = not design and i <= slots and #data.storage > 0
+		plot.takePrompts[i].Enabled = design ~= nil
+		if design then
+			plot.takePrompts[i].ObjectText = design.name
 		end
 	end
+end
+
+-- El cuadro que llevas a la espalda (el primero del almacén).
+local function renderCarry(player, data)
+	local character = player.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return
+	end
+	local old = character:FindFirstChild("CarriedPainting")
+	if old then
+		old:Destroy()
+	end
+	local entry = data and data.storage[1]
+	if not entry then
+		return
+	end
+	local model = Instance.new("Model")
+	model.Name = "CarriedPainting"
+	local base = root.CFrame * CFrame.new(0, 0.4, 0.95) * CFrame.Angles(math.rad(-8), math.pi, 0)
+	local back = Instance.new("Part")
+	back.Name = "Back"
+	back.Size = Vector3.new(3.4, 3.4, 0.25)
+	back.CFrame = base
+	back.Color = Color3.fromRGB(44, 48, 56)
+	back.Material = Enum.Material.Metal
+	local canvas = Instance.new("Part")
+	canvas.Name = "Canvas"
+	canvas.Size = Vector3.new(3, 3, 0.1)
+	canvas.CFrame = base * CFrame.new(0, 0, -0.16)
+	canvas.Color = Color3.fromRGB(250, 248, 242)
+	for _, piece in ipairs({ back, canvas }) do
+		piece.CanCollide = false
+		piece.CanQuery = false
+		piece.CanTouch = false
+		piece.Massless = true
+		piece.CastShadow = false
+		piece.Parent = model
+	end
+	canvas:SetAttribute("Design", entry.d)
+	canvas:SetAttribute("Colors", entry.c)
+	canvas:SetAttribute("Stars", entry.st or 1)
+	for _, piece in ipairs({ back, canvas }) do
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = piece
+		weld.Parent = piece
+	end
+	model.Parent = character
 end
 
 local function renderEasel(plot, designId, colors)
@@ -377,6 +437,18 @@ local function createPlot(player, data)
 		end
 	end)
 	renderAutoPrompt(plot, data)
+	for i = 1, Config.GALLERY_SIZE do
+		plot.hangPrompts[i].Triggered:Connect(function(who)
+			if who == player then
+				hangPainting(player, i)
+			end
+		end)
+		plot.takePrompts[i].Triggered:Connect(function(who)
+			if who == player then
+				takeDownPainting(player, i)
+			end
+		end)
+	end
 	return plot
 end
 
@@ -530,6 +602,9 @@ StartPainting.OnServerInvoke = function(player, designId, colors)
 	if session.painting then
 		return false, "Ya estás pintando un cuadro."
 	end
+	if #data.storage >= Config.STORAGE_SIZE then
+		return false, "Tu almacén está lleno: cuelga tus cuadros en la galería."
+	end
 	if not data.unlocked[designId] or not Designs.isLevelOpen(design.level, data.made) then
 		return false, "Ese diseño está bloqueado."
 	end
@@ -591,7 +666,7 @@ local function freeSlot(data)
 	return nil
 end
 
-FinishPainting.OnServerInvoke = function(player, choice)
+FinishPainting.OnServerInvoke = function(player)
 	local data = DataService.get(player)
 	local session = getSession(player)
 	local painting = session.painting
@@ -620,21 +695,11 @@ FinishPainting.OnServerInvoke = function(player, choice)
 	end
 	tutorialEvent(player, data, 3, 1)
 
-	local result = { ok = true, value = value, stars = stars, designId = design.id }
-	local slot = choice == "galeria" and freeSlot(data)
-	if slot then
-		local price = math.floor(value * Config.GALLERY_BONUS)
-		table.insert(data.gallery, { s = slot, d = design.id, c = encoded, v = price, st = stars })
-		result.displayed = true
-		result.price = price
-		result.slot = slot
-		tutorialEvent(player, data, 4, 1)
-	else
-		earn(player, data, value)
-		data.sold += 1
-		result.displayed = false
-		result.price = value
-	end
+	-- El cuadro no se vende aquí: va al almacén y lo llevas a la galería.
+	local price = math.floor(value * Config.GALLERY_BONUS)
+	table.insert(data.storage, 1, { d = design.id, c = encoded, v = price, st = stars })
+	local result = { ok = true, value = value, price = price, stars = stars, designId = design.id }
+	result.freeFrames = freeSlot(data) ~= nil
 
 	local tierAfter = Config.masteryFor(data.made[design.id])
 	if tierAfter and tierAfter ~= tierBefore then
@@ -649,10 +714,80 @@ FinishPainting.OnServerInvoke = function(player, choice)
 	if plot then
 		renderEasel(plot, design.id, encoded)
 	end
+	renderCarry(player, data)
 	refreshPlot(player)
 	pushState(player)
 	return result
 end
+
+-- Colgar y descolgar cuadros en la galería -----------------------------------------------------
+hangPainting = function(player, slot)
+	local data = DataService.get(player)
+	if not data or #data.storage == 0 then
+		return
+	end
+	if slot > Config.gallerySlots(data.upgrades) or slotEntry(data, slot) then
+		return
+	end
+	local entry = table.remove(data.storage, 1)
+	table.insert(data.gallery, { s = slot, d = entry.d, c = entry.c, v = entry.v, st = entry.st })
+	tutorialEvent(player, data, 4, 1)
+	local design = Designs.get(entry.d)
+	notify(
+		player,
+		"🖼️ Colgaste «" .. (design and design.name or "tu cuadro") .. "». ¡Pronto vendrá un visitante!",
+		"success"
+	)
+	renderCarry(player, data)
+	refreshPlot(player)
+	pushState(player)
+end
+
+takeDownPainting = function(player, slot)
+	local data = DataService.get(player)
+	if not data then
+		return
+	end
+	local entry, index = slotEntry(data, slot)
+	if not entry then
+		return
+	end
+	if #data.storage >= Config.STORAGE_SIZE then
+		notify(player, "Tu almacén está lleno.", "error")
+		return
+	end
+	table.remove(data.gallery, index)
+	table.insert(data.storage, 1, { d = entry.d, c = entry.c, v = entry.v, st = entry.st })
+	renderCarry(player, data)
+	refreshPlot(player)
+	pushState(player)
+end
+
+SkipTutorial.OnServerEvent:Connect(function(player)
+	local data = DataService.get(player)
+	if data and data.tutorial ~= 0 then
+		data.tutorial = 0
+		data.tutorialProgress = 0
+		notify(player, "Tutorial omitido. ¡Suerte con tu galería!", "info")
+		pushState(player)
+	end
+end)
+
+-- Elige qué cuadro del almacén llevas (pasa al primer puesto).
+SelectStored.OnServerEvent:Connect(function(player, index)
+	local data = DataService.get(player)
+	if not data or type(index) ~= "number" then
+		return
+	end
+	index = math.floor(index)
+	if index < 2 or index > #data.storage then
+		return
+	end
+	local entry = table.remove(data.storage, index)
+	table.insert(data.storage, 1, entry)
+	renderCarry(player, data)
+	pushState(player)
+end)
 
 -- Ventas a visitantes ---------------------------------------------------------------------------
 VisitorService.getProfile = function(player)
@@ -847,6 +982,7 @@ local function onPlayerAdded(player)
 		character:WaitForChild("HumanoidRootPart", 10)
 		task.wait(0.2)
 		teleportHome(player)
+		renderCarry(player, DataService.get(player))
 	end)
 
 	local data = DataService.load(player)

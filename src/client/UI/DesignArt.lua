@@ -1,8 +1,9 @@
 -- Dibuja un diseño (figuras) dentro de un Frame cuadrado.
 -- mode = "color": cuadro terminado.
 -- mode = "paint": boceto para colorear. Cada figura se ve en un tono pálido de
--- su color con línea de lápiz; las pinceladas (addDab) se recortan a la forma
--- de la figura con un CanvasGroup y, al completarla, el color final aparece.
+-- su color con línea de lápiz; los trazos del pincel (addStroke) se recortan a
+-- la forma de la figura con un CanvasGroup y, al completarla, aparece el color
+-- final. setFocus resalta las figuras del color que llevas en el pincel.
 
 local TweenService = game:GetService("TweenService")
 
@@ -15,7 +16,7 @@ local DesignArt = {}
 local WHITE = Color3.new(1, 1, 1)
 local SKETCH_LINE = Color3.fromRGB(150, 156, 170)
 local UNPAINTED_LIGHT = Color3.fromRGB(196, 200, 210)
-local HINT_LINE = Color3.fromRGB(40, 104, 232)
+local HINT_LINE = Color3.fromRGB(250, 176, 40)
 local FADE = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local function applyColor(frame, gradient, colorId)
@@ -85,7 +86,10 @@ function DesignArt.render(container, design, opts)
 			-- Tono pálido del color final; los colores muy claros se ven en gris
 			-- para que se note qué falta por pintar.
 			local light = 0.299 * main.R + 0.587 * main.G + 0.114 * main.B
-			base.BackgroundColor3 = light > 0.8 and main:Lerp(UNPAINTED_LIGHT, 0.6) or main:Lerp(WHITE, 0.78)
+			entry.pale = light > 0.8 and main:Lerp(UNPAINTED_LIGHT, 0.6) or main:Lerp(WHITE, 0.78)
+			entry.faint = entry.pale:Lerp(WHITE, 0.55)
+			entry.lineColor = SKETCH_LINE
+			base.BackgroundColor3 = entry.pale
 			local line = Instance.new("UIStroke")
 			line.Color = SKETCH_LINE
 			line.Thickness = stroke
@@ -139,27 +143,6 @@ function DesignArt.render(container, design, opts)
 		group.Parent = entry.base
 		entry.group = group
 		return group
-	end
-
-	-- Pincelada redonda de radio `radius` (en fracción del lienzo) en (x, y).
-	function handle.addDab(i, x, y, radius)
-		local entry = handle.shapes[i]
-		if not entry or entry.done or mode ~= "paint" then
-			return
-		end
-		local shape = entry.shape
-		local u, v = DesignArt.toLocal(shape, x, y)
-		local dab = Instance.new("Frame")
-		dab.AnchorPoint = Vector2.new(0.5, 0.5)
-		dab.Position = UDim2.fromScale(u, v)
-		dab.Size = UDim2.fromScale(2 * radius / shape.w, 2 * radius / shape.h)
-		dab.BackgroundColor3 = entry.main
-		dab.BorderSizePixel = 0
-		dab.ZIndex = zindex + 1
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0.5, 0)
-		corner.Parent = dab
-		dab.Parent = paintLayer(entry)
 	end
 
 	-- Relleno de cubeta: una mancha que crece desde (x, y) hasta cubrir la figura.
@@ -220,15 +203,69 @@ function DesignArt.render(container, design, opts)
 		entry.group = nil
 	end
 
-	-- Pista: resalta el contorno de una figura sin pintar (alpha 0..1).
+	-- Trazo continuo de pincel de (x1, y1) a (x2, y2) con grosor 2·radius,
+	-- recortado a la figura. Lleva una veta más clara para parecer óleo.
+	function handle.addStroke(i, x1, y1, x2, y2, radius, color)
+		local entry = handle.shapes[i]
+		if not entry or entry.done or mode ~= "paint" then
+			return
+		end
+		local shape = entry.shape
+		local u1, v1 = DesignArt.toLocal(shape, x1, y1)
+		local u2, v2 = DesignArt.toLocal(shape, x2, y2)
+		local du, dv = (u2 - u1) * shape.w, (v2 - v1) * shape.h
+		local length = math.sqrt(du * du + dv * dv)
+		local angle = math.deg(math.atan2(dv, du))
+		local layer = paintLayer(entry)
+		local function capsule(cu, cv, long, wide, tint, transparency)
+			local frame = Instance.new("Frame")
+			frame.AnchorPoint = Vector2.new(0.5, 0.5)
+			frame.Position = UDim2.fromScale(cu, cv)
+			frame.Size = UDim2.fromScale(long / shape.w, wide / shape.h)
+			frame.Rotation = angle
+			frame.BackgroundColor3 = tint
+			frame.BackgroundTransparency = transparency
+			frame.BorderSizePixel = 0
+			frame.ZIndex = zindex + 1
+			local corner = Instance.new("UICorner")
+			corner.CornerRadius = UDim.new(0.5, 0)
+			corner.Parent = frame
+			frame.Parent = layer
+		end
+		local base = color or entry.main
+		capsule((u1 + u2) / 2, (v1 + v2) / 2, length + 2 * radius, 2 * radius, base, 0)
+		if length > radius * 0.5 then
+			-- Veta: una línea fina más clara desplazada hacia un lado del trazo.
+			local side = (math.random() - 0.5) * radius * 0.9
+			local nx, ny = -dv / length, du / length
+			local cu = (u1 + u2) / 2 + nx * side / shape.w
+			local cv = (v1 + v2) / 2 + ny * side / shape.h
+			capsule(cu, cv, length + radius, radius * 0.35, base:Lerp(WHITE, 0.22), 0.55)
+		end
+	end
+
+	-- Resalta las figuras del color elegido y aclara las demás.
+	function handle.setFocus(areaId)
+		for _, entry in ipairs(handle.shapes) do
+			if not entry.done and entry.line then
+				local active = areaId ~= nil and entry.shape.area == areaId
+				entry.lineColor = active and entry.main:Lerp(Color3.new(0, 0, 0), 0.35) or SKETCH_LINE
+				entry.line.Color = entry.lineColor
+				entry.line.Thickness = active and stroke + 1 or stroke
+				entry.line.Transparency = active and 0 or 0.25
+				entry.base.BackgroundColor3 = (areaId == nil or active) and entry.pale or entry.faint
+			end
+		end
+	end
+
+	-- Pista: hace latir el contorno de una figura sin pintar (alpha 0..1).
 	function handle.setHint(i, alpha)
 		local entry = handle.shapes[i]
 		if not entry or entry.done or not entry.line then
 			return
 		end
-		entry.line.Color = SKETCH_LINE:Lerp(HINT_LINE, alpha)
-		entry.line.Thickness = stroke + alpha * 1.5
-		entry.line.Transparency = 0.1 * (1 - alpha)
+		entry.line.Color = entry.lineColor:Lerp(HINT_LINE, alpha)
+		entry.line.Thickness = stroke + 1 + alpha * 1.5
 	end
 
 	function handle.setColors(newColors)

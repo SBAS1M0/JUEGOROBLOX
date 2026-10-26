@@ -493,8 +493,16 @@ local function buildFrame(parent, cf, name)
 		"SpotLight",
 		{ Face = Enum.NormalId.Bottom, Angle = 75, Range = 11, Brightness = 2.2, Color = rgb(255, 242, 224) }
 	)
+	-- Avisos para colgar y descolgar (solo uno activo a la vez).
+	local hang = prompt(canvas, "Colgar cuadro", "Marco libre", 10)
+	hang.Name = "HangPrompt"
+	hang.Enabled = false
+	local take = prompt(canvas, "Descolgar", "Cuadro expuesto", 10)
+	take.Name = "TakePrompt"
+	take.HoldDuration = 0.4
+	take.Enabled = false
 	frame.Parent = parent
-	return canvas, plaqueLabel
+	return canvas, plaqueLabel, hang, take
 end
 
 local function buildEasel(parent, cf, scale)
@@ -1218,6 +1226,20 @@ local function buildGalleryInterior(model, L)
 			Parent = folder,
 		})
 	end
+
+	-- Rótulo de la sala sobre la pared del fondo.
+	local sign = part({
+		Size = Vector3.new(16, 1.8, 0.15),
+		CFrame = L(-22, CEILING - 2.4, 16.8),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		Parent = folder,
+	})
+	surfaceText(sign, Enum.NormalId.Front, "SALA DE EXPOSICIÓN", {
+		pps = 40,
+		color = rgb(255, 255, 255),
+		font = Enum.Font.BuilderSansBold,
+	})
 
 	-- Plantas en las esquinas.
 	buildPlant(folder, L(-36.5, FLOOR, 14.5), 1)
@@ -1954,9 +1976,9 @@ function WorldBuilder.buildLot(slot)
 		L(-5.4, y, 11) * CFrame.Angles(0, math.pi / 2, 0),
 		L(-5.4, y, 1) * CFrame.Angles(0, math.pi / 2, 0),
 	}
-	local canvases, plaques, standPoints = {}, {}, {}
+	local canvases, plaques, standPoints, hangPrompts, takePrompts = {}, {}, {}, {}, {}
 	for i = 1, Config.GALLERY_SIZE do
-		canvases[i], plaques[i] = buildFrame(gallery, frameCFrames[i], "Frame" .. i)
+		canvases[i], plaques[i], hangPrompts[i], takePrompts[i] = buildFrame(gallery, frameCFrames[i], "Frame" .. i)
 		canvases[i]:SetAttribute("Slot", i)
 		-- Dónde se para un visitante para mirar el cuadro.
 		local front = frameCFrames[i] * CFrame.new(0, 0, -7)
@@ -1985,6 +2007,8 @@ function WorldBuilder.buildLot(slot)
 		gateLabel = gateLabel,
 		canvases = canvases,
 		plaques = plaques,
+		hangPrompts = hangPrompts,
+		takePrompts = takePrompts,
 		standPoints = standPoints,
 		-- Recorrido de los visitantes: de la acera a la galería y de vuelta.
 		route = {
