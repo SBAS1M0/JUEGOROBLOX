@@ -1,8 +1,9 @@
--- Estudio de pintura. El dibujo aparece como un boceto y se pinta color por
--- color, como en la vida real: eliges un bote de la paleta de madera y el
--- pincel solo deja pintura en las figuras de ese color. El trazo se queda
--- donde pasas (con vetas, como el óleo) y cada figura se completa al cubrir
--- casi toda su superficie. Cuanto más rápido terminas, más estrellas.
+-- Estudio de pintura. El dibujo aparece como un boceto numerado y se pinta
+-- color por color, como en la vida real: eliges un bote de la paleta de
+-- madera y las zonas de ese color se iluminan (más color, contorno que late y
+-- su número destacado) mientras las demás se quedan casi en blanco. El pincel
+-- solo deja pintura en esas zonas, con vetas como el óleo, y cada figura se
+-- completa al cubrir casi toda su superficie. Cuanto más rápido, más estrellas.
 
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
@@ -97,6 +98,69 @@ local function buildSamples(design, radius)
 		list[i] = info
 	end
 	return list
+end
+
+-- Dónde va el número de cada figura: el punto visible más alejado de sus
+-- bordes (así no tapa detalles y siempre queda dentro de la zona).
+local LABEL_GRID = 48
+local labelCache = {}
+local function labelSpots(design)
+	if labelCache[design.id] then
+		return labelCache[design.id]
+	end
+	local n = LABEL_GRID
+	local owner = {}
+	for gy = 0, n - 1 do
+		for gx = 0, n - 1 do
+			owner[gy * n + gx] = Designs.shapeAt(design, (gx + 0.5) / n, (gy + 0.5) / n) or 0
+		end
+	end
+	local spots = {}
+	for i in ipairs(design.shapes) do
+		-- Distancia (en celdas) al borde más cercano de la figura.
+		local dist = {}
+		local queue = {}
+		for gy = 0, n - 1 do
+			for gx = 0, n - 1 do
+				local index = gy * n + gx
+				if owner[index] ~= i then
+					dist[index] = 0
+					table.insert(queue, index)
+				elseif gx == 0 or gy == 0 or gx == n - 1 or gy == n - 1 then
+					dist[index] = 1
+					table.insert(queue, index)
+				end
+			end
+		end
+		local head = 1
+		while head <= #queue do
+			local index = queue[head]
+			head += 1
+			local gx, gy = index % n, index // n
+			local d = dist[index] + 1
+			for _, offset in ipairs({ { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }) do
+				local nx, ny = gx + offset[1], gy + offset[2]
+				if nx >= 0 and ny >= 0 and nx < n and ny < n then
+					local other = ny * n + nx
+					if dist[other] == nil then
+						dist[other] = d
+						table.insert(queue, other)
+					end
+				end
+			end
+		end
+		local best, bestIndex = 0, nil
+		for index, d in pairs(dist) do
+			if owner[index] == i and d > best then
+				best, bestIndex = d, index
+			end
+		end
+		if bestIndex then
+			spots[i] = { x = (bestIndex % n + 0.5) / n, y = (bestIndex // n + 0.5) / n, r = best / n }
+		end
+	end
+	labelCache[design.id] = spots
+	return spots
 end
 
 local function areaPercent(areaId)
@@ -230,6 +294,7 @@ end
 
 -- Pintar ---------------------------------------------------------------------------------------
 local completeIfDone
+local buildLabels
 
 local function completeShape(i, animate)
 	local info = current.samples[i]
@@ -386,6 +451,7 @@ local function selectArea(areaId)
 	current.activeArea = areaId
 	current.art.setFocus(areaId)
 	current.lastProgress = os.clock()
+	current.flashAt = os.clock()
 	lastBrush = nil
 	Theme.playSound("click", 1.25)
 	refreshLabels()
@@ -416,27 +482,40 @@ local function updateCursor()
 	cursorTip.Text = tool == "bucket" and "🪣" or "🖌️"
 end
 
--- Pistas: si llevas un rato sin avanzar, laten las figuras que faltan del
--- color elegido (o, sin color, la paleta).
+-- Resaltado: las zonas del color elegido laten siempre (más fuerte al
+-- elegirlo y si llevas un rato sin avanzar) y sus números se agrandan.
+-- Sin color elegido, brilla la paleta.
 local function updateHints()
 	local now = os.clock()
 	local idle = not current.done and now - (current.lastProgress or now) > 2.5
-	if not idle or not current.activeArea or areaPercent(current.activeArea) >= 0.999 then
-		if current.hinting then
-			current.hinting = false
-			for i in ipairs(current.samples) do
-				current.art.setHint(i, 0)
-			end
+	refs.paletteGlow.Thickness = (not current.done and not current.activeArea) and (2 + 2 * math.abs(math.sin(now * 4)))
+		or 0
+	local alpha = 0
+	if current.activeArea and not current.done then
+		local wave = 0.5 + 0.5 * math.sin(now * 5)
+		alpha = idle and wave or wave * 0.45
+		local flash = 1 - (now - (current.flashAt or 0)) / 0.9
+		if flash > 0 then
+			alpha = math.max(alpha, flash * (0.5 + 0.5 * math.sin(now * 18)))
 		end
-		refs.paletteGlow.Thickness = (not current.done and idle and not current.activeArea)
-				and (2 + 2 * math.abs(math.sin(now * 4)))
-			or 0
-		return
 	end
-	current.hinting = true
-	local alpha = 0.5 + 0.5 * math.sin(now * 6)
 	for i, info in ipairs(current.samples) do
-		current.art.setHint(i, (not info.complete and info.area == current.activeArea) and alpha or 0)
+		local active = not info.complete and info.area == current.activeArea
+		current.art.setHint(i, active and alpha or 0)
+	end
+	for _, label in ipairs(current.labels or {}) do
+		local info = current.samples[label.index]
+		local active = not current.done and info.area == current.activeArea
+		if info.complete then
+			label.frame.Visible = false
+		else
+			label.frame.Visible = true
+			label.frame.BackgroundTransparency = active and 0 or 1
+			label.text.TextColor3 = active and C.Ink or C.InkFaint
+			label.text.TextTransparency = (current.activeArea == nil or active) and 0 or 0.35
+			label.ring.Thickness = active and 2.5 or 0
+			label.scale.Scale = active and (1.1 + alpha * 0.2) or 0.8
+		end
 	end
 end
 
@@ -676,6 +755,48 @@ local function buildCanvas(parent)
 	end)
 end
 
+-- Números sobre el boceto: cada zona lleva el número de su color en la paleta.
+function buildLabels(design, colors)
+	for _, label in ipairs(current.labels or {}) do
+		label.frame:Destroy()
+	end
+	current.labels = {}
+	local numberOf = {}
+	for i, areaDef in ipairs(design.areas) do
+		numberOf[areaDef.id] = i
+	end
+	for i, spot in pairs(labelSpots(design)) do
+		local info = current.samples[i]
+		if spot.r >= 0.03 and not info.complete then
+			local area = design.shapes[i].area
+			local size = math.clamp(spot.r * 1.3, 0.042, 0.075)
+			local frame = Theme.new("Frame", {
+				Name = "Number" .. i,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(spot.x, spot.y),
+				Size = UDim2.fromScale(size, size),
+				BackgroundColor3 = C.White,
+				BackgroundTransparency = 1,
+				ZIndex = 7,
+				Parent = overlay,
+			}, { Theme.round() })
+			local ring = Theme.stroke(Colors.mainColor(colors[area]):Lerp(Color3.new(0, 0, 0), 0.3), 0)
+			ring.Parent = frame
+			local text = Theme.label({
+				Size = UDim2.fromScale(1, 1),
+				Text = tostring(numberOf[area] or ""),
+				Font = Theme.Fonts.Heavy,
+				TextColor3 = C.InkFaint,
+				MaxTextSize = 30,
+				ZIndex = 7,
+				Parent = frame,
+			})
+			local scale = Theme.new("UIScale", { Scale = 0.8, Parent = frame })
+			table.insert(current.labels, { index = i, frame = frame, text = text, ring = ring, scale = scale })
+		end
+	end
+end
+
 -- Paleta de pintor de madera con un bote de pintura por color.
 local function buildPalette(parent)
 	local holder = Theme.new("Frame", {
@@ -806,6 +927,20 @@ local function fillPalette(design, colors)
 		}, { Theme.round() })
 		local ring = Theme.stroke(C.White, 0)
 		ring.Parent = blob
+		local number = Theme.label({
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.new(0, -4, 1, 4),
+			Size = UDim2.fromOffset(22, 22),
+			Text = tostring(i),
+			Font = Theme.Fonts.Heavy,
+			BackgroundColor3 = C.White,
+			BackgroundTransparency = 0,
+			TextColor3 = C.Ink,
+			MaxTextSize = 14,
+			Parent = blob,
+		})
+		Theme.round().Parent = number
+		Theme.stroke(WOOD_DARK, 1.5).Parent = number
 		local check = Theme.label({
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.new(1, 4, 0, -4),
@@ -1113,6 +1248,7 @@ function Painter.open(design, colors)
 			current.art.complete(i, false)
 		end
 	end
+	buildLabels(design, colors)
 	fillPalette(design, colors)
 	refs.title.Text = design.name
 	refs.done.Visible = false
@@ -1171,14 +1307,15 @@ function Painter.showComplete()
 	local price = math.floor(value * Config.GALLERY_BONUS)
 	local tier = Config.masteryFor(made)
 	DesignArt.render(refs.doneArt, design, { mode = "color", colors = current.colors, outline = false })
-	refs.doneValue.Text = "💵 " .. Theme.formatNumber(price)
+	refs.doneValue.Text = "Precio medio: 💵 " .. Theme.formatNumber(price)
 	refs.doneBreakdown.Text = string.format(
 		"Colores x%.2f  ·  Estrellas +%d%%  ·  Maestría +%d%%",
 		Config.colorMultiplier(design, current.colors),
 		math.floor(Config.STAR_BONUS[stars] * 100),
 		math.floor((tier and tier.bonus or 0) * 100)
 	)
-	refs.doneInfo.Text = "Cuélgalo en un marco libre de la sala: un visitante lo comprará."
+	refs.doneInfo.Text =
+		"Llévalo a un stand de la sala y ponle tu precio: los visitantes te harán ofertas en la caja."
 	local stored = state and state.storage and #state.storage or 0
 	refs.another.SetEnabled(stored + 1 < Config.STORAGE_SIZE)
 	for _, star in ipairs(refs.doneStars) do
@@ -1208,7 +1345,7 @@ function Painter.showComplete()
 	end)
 end
 
--- Entrega el cuadro: va al almacén y lo llevas a la espalda hasta colgarlo.
+-- Entrega el cuadro: va al almacén y lo llevas a la espalda hasta exponerlo.
 function Painter.finish(paintAnother)
 	if finishing or not current then
 		return
@@ -1233,15 +1370,13 @@ function Painter.finish(paintAnother)
 	end
 	local design = Designs.get(result.designId)
 	Painter.close()
-	if result.freeFrames then
+	if result.freeStands then
 		app.notify(
-			"🖼️ Llevas «"
-				.. (design and design.name or "tu cuadro")
-				.. "»: cuélgalo en un marco libre de la sala",
+			"🖼️ Llevas «" .. (design and design.name or "tu cuadro") .. "»: exponlo en un stand libre de la sala",
 			"success"
 		)
 	else
-		app.notify("Tu sala está llena: espera a que vendan un cuadro o compra «Más paredes»", "info")
+		app.notify("Todos tus stands están ocupados: compra otro stand en la sala (＋).", "info")
 	end
 	if result.mastery then
 		app.notify("🏅 ¡Maestría de " .. result.mastery .. " en este diseño!", "gold")

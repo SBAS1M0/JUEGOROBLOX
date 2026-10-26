@@ -23,7 +23,7 @@ local STEP_TITLES = {
 	"La sala de exposición",
 	"Tu primera venta",
 }
-local ARROW_TEXT = { "¡Tira aquí!", "¡Pinta aquí!", nil, "¡Cuélgalo aquí!", "¡Tu cuadro!" }
+local ARROW_TEXT = { "¡Tira aquí!", "¡Pinta aquí!", nil, "¡Expón aquí!", "¡La caja!" }
 
 local app
 local gui
@@ -57,20 +57,27 @@ local function findTarget(name)
 	elseif name == "easel" then
 		local easel = workshop and workshop:FindFirstChild("Easel")
 		return easel, easel and easel:FindFirstChild("Canvas")
-	elseif name == "freeFrame" or name == "gallery" then
-		if not gallery then
+	elseif name == "freeStand" then
+		local spots = gallery and gallery:FindFirstChild("Spots")
+		local stands = gallery and gallery:FindFirstChild("Stands")
+		if not (spots and stands) then
 			return nil, nil
 		end
-		for i = 1, Config.GALLERY_SIZE do
-			local frame = gallery:FindFirstChild("Frame" .. i)
-			local canvas = frame and frame:FindFirstChild("Canvas")
-			if canvas and not canvas:GetAttribute("Locked") then
-				local hung = (canvas:GetAttribute("Design") or "") ~= ""
-				if (name == "freeFrame" and not hung) or (name == "gallery" and hung) then
-					return frame, canvas
-				end
+		for i = 1, #spots:GetChildren() do
+			local anchor = spots:FindFirstChild("Spot" .. i)
+			if
+				anchor
+				and anchor:GetAttribute("Open")
+				and anchor:GetAttribute("Owned")
+				and not anchor:GetAttribute("HasPainting")
+			then
+				return stands:FindFirstChild("Stand" .. i), anchor
 			end
 		end
+	elseif name == "caja" then
+		local interior = plot:FindFirstChild("GalleryInterior")
+		local caja = interior and interior:FindFirstChild("Caja")
+		return caja, caja and caja:FindFirstChild("Register")
 	end
 	return nil, nil
 end

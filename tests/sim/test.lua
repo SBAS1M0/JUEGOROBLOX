@@ -64,6 +64,11 @@ check(plots == nil or #plots:GetChildren() == 0, "no lots before anyone joins")
 check(S.ReplicatedStorage:FindFirstChild("Remotes") ~= nil, "remotes created")
 
 print("== Player joins")
+-- Partida guardada de antes (para probar migraciones).
+if SEED_DATA then
+	R.storeData.GaleriaPincelada_v2 = R.storeData.GaleriaPincelada_v2 or {}
+	R.storeData.GaleriaPincelada_v2.player_101 = SEED_DATA
+end
 local player = R.makePlayer(101, "Simon")
 R.localPlayer = player
 S.Players.allowWrite = true

@@ -66,22 +66,76 @@ function D.gui(inst, typeofFn)
 	table.insert(fields, '"k":[' .. table.concat(kids, ",") .. "]")
 	return "{" .. table.concat(fields, ",") .. "}"
 end
-function D.parts(root, typeofFn, isA, out)
+-- artFn(part) puede devolver el JSON de un cuadro dibujado en la pieza.
+function D.parts(root, typeofFn, isA, out, artFn)
 	out = out or {}
 	for _, c in ipairs(root.children) do
 		if isA(c.ClassName, "BasePart") then
 			local tr = c.Transparency
 			if tr < 0.98 then
-				table.insert(out, string.format('{"c":%s,"s":%s,"cf":%s,"col":%s,"t":%s,"m":%s,"shape":%s,"mesh":%s}',
+				local art = artFn and artFn(c)
+				table.insert(out, string.format('{"c":%s,"s":%s,"cf":%s,"col":%s,"t":%s,"m":%s,"shape":%s,"mesh":%s,"art":%s}',
 					esc(c.ClassName), enc(c.Size, typeofFn), enc(c.CFrame, typeofFn), enc(c.Color, typeofFn), enc(tr, typeofFn),
 					esc(c.Material and c.Material.Name or "Plastic"), c.ClassName == "Part" and esc(c.Shape and c.Shape.Name or "Block") or '"Block"',
-					c:FindFirstChildOfClass("SpecialMesh") and '"Sphere"' or "null"))
+					c:FindFirstChildOfClass("SpecialMesh") and '"Sphere"' or "null", art or "null"))
 			end
 		end
-		D.parts(c, typeofFn, isA, out)
+		D.parts(c, typeofFn, isA, out, artFn)
 	end
 	return out
 end
+
+-- Figuras de un cuadro (para pintarlo en las capturas del mundo).
+function D.artOf(part, Designs, Colors)
+	if part.Name ~= "Canvas" then
+		return nil
+	end
+	local design = Designs.get(part:GetAttribute("Design") or "")
+	if not design then
+		return nil
+	end
+	local colors = Designs.defaultColors(design)
+	for areaId, colorId in pairs(Designs.decodeColors(part:GetAttribute("Colors"))) do
+		colors[areaId] = colorId
+	end
+	local function c(col)
+		return string.format("[%d,%d,%d]", math.floor(col.R * 255 + 0.5), math.floor(col.G * 255 + 0.5), math.floor(col.B * 255 + 0.5))
+	end
+	local shapes = {}
+	for _, s in ipairs(design.shapes) do
+		local entry = Colors.ById[colors[s.area]]
+		local cols = {}
+		if entry and entry.gradient then
+			for _, g in ipairs(entry.gradient) do
+				table.insert(cols, c(g))
+			end
+		else
+			cols = { c(entry and entry.color or Colors.mainColor(colors[s.area])) }
+		end
+		table.insert(shapes, string.format('{"x":%f,"y":%f,"w":%f,"h":%f,"rot":%f,"r":%f,"c":[%s]}', s.x, s.y, s.w, s.h, s.rot, s.r, table.concat(cols, ",")))
+	end
+	return "[" .. table.concat(shapes, ",") .. "]"
+end
+-- Piezas y rellenos de terreno del mundo (para world_render.py).
+function D.world(R, path, artFn)
+	local list = D.parts(R.workspace, R.globals.typeof, R.isA, nil, artFn)
+	D.write(path .. ".json", "[" .. table.concat(list, ",") .. "]")
+	local fills = {}
+	for _, f in ipairs(R.terrainFills) do
+		if f.kind == "block" then
+			local p, sz = f.cframe.Position, f.size
+			table.insert(fills, string.format('{"k":"block","m":"%s","p":[%.2f,%.2f,%.2f],"s":[%.2f,%.2f,%.2f]}', f.material, p.X, p.Y, p.Z, sz.X, sz.Y, sz.Z))
+		elseif f.kind == "ball" then
+			local p = f.center
+			table.insert(fills, string.format('{"k":"ball","m":"%s","p":[%.2f,%.2f,%.2f],"r":%.2f}', f.material, p.X, p.Y, p.Z, f.radius))
+		else
+			local p = f.cframe.Position
+			table.insert(fills, string.format('{"k":"cylinder","m":"%s","p":[%.2f,%.2f,%.2f],"h":%.2f,"r":%.2f}', f.material, p.X, p.Y, p.Z, f.height, f.radius))
+		end
+	end
+	D.write(path .. "_terrain.json", "[" .. table.concat(fills, ",") .. "]")
+end
+
 function D.write(path, s)
 	local f = io.open(path, "w"); f:write(s); f:close()
 end

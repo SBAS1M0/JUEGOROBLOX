@@ -63,8 +63,9 @@ def draw(n, x, y, w, h, clip, scale=1, origin=(0,0)):
         shadow = ""
         for st in kids(n):
             if st["c"] == "UIStroke" and st.get("ApplyStrokeMode") == "Contextual":
-                t = st.get("Thickness",1); c = rgb(st.get("Color",[0,0,0]))
-                shadow = f"text-shadow:{' ,'.join(f'{dx}px {dy}px 0 {c}' for dx in (-t,0,t) for dy in (-t,0,t))};"
+                t = st.get("Thickness",1); alpha = 1-st.get("Transparency",0); c = rgb(st.get("Color",[0,0,0]), alpha)
+                if t > 0 and alpha > 0.02:
+                    shadow = f"text-shadow:{' ,'.join(f'{dx}px {dy}px 0 {c}' for dx in (-t,0,t) for dy in (-t,0,t))};"
         ha = {"Left":"flex-start","Right":"flex-end"}.get(n.get("TextXAlignment"),"center")
         ta = {"Left":"left","Right":"right"}.get(n.get("TextXAlignment"),"center")
         va = {"Top":"flex-start","Bottom":"flex-end"}.get(n.get("TextYAlignment"),"center")

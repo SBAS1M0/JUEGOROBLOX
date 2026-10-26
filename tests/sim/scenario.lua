@@ -1,6 +1,7 @@
 -- Partida completa: tutorial, máquina de colores manual, elegir diseño y colores,
--- pintar con estrellas, exponer y vender, misiones, regalo diario, mejoras
--- (incluido Auto-Rolling), cancelar, salir y volver.
+-- pintar con estrellas, exponer en stands con tu precio, ofertas en la caja,
+-- comprar y mejorar stands, ampliar la sala, mezclador de colores, misiones,
+-- regalo diario, mejoras (incluido Auto-Rolling), cancelar, salir y volver.
 local T = dofile(SIM_DIR .. "/test.lua")
 local R, check, player = T.R, T.check, T.player
 local G = R.globals
@@ -16,23 +17,9 @@ local function dumpGui(name, gui)
 	D.write(SIM_DIR .. "/out_" .. name .. ".json", D.gui(gui, G.typeof))
 end
 local function dumpWorld(name)
-	local list = D.parts(R.workspace, G.typeof, R.isA)
-	D.write(SIM_DIR .. "/out_" .. name .. ".json", "[" .. table.concat(list, ",") .. "]")
-	-- Terreno: rellenos en orden (el render los aproxima con primitivas).
-	local fills = {}
-	for _, f in ipairs(R.terrainFills) do
-		if f.kind == "block" then
-			local p, sz = f.cframe.Position, f.size
-			table.insert(fills, string.format('{"k":"block","m":"%s","p":[%.2f,%.2f,%.2f],"s":[%.2f,%.2f,%.2f]}', f.material, p.X, p.Y, p.Z, sz.X, sz.Y, sz.Z))
-		elseif f.kind == "ball" then
-			local p = f.center
-			table.insert(fills, string.format('{"k":"ball","m":"%s","p":[%.2f,%.2f,%.2f],"r":%.2f}', f.material, p.X, p.Y, p.Z, f.radius))
-		else
-			local p = f.cframe.Position
-			table.insert(fills, string.format('{"k":"cylinder","m":"%s","p":[%.2f,%.2f,%.2f],"h":%.2f,"r":%.2f}', f.material, p.X, p.Y, p.Z, f.height, f.radius))
-		end
-	end
-	D.write(SIM_DIR .. "/out_" .. name .. "_terrain.json", "[" .. table.concat(fills, ",") .. "]")
+	D.world(R, SIM_DIR .. "/out_" .. name, function(part)
+		return D.artOf(part, Designs, Colors)
+	end)
 end
 local function buttonStarting(root, prefix)
 	for _, d in ipairs(root:GetDescendants()) do
@@ -106,13 +93,28 @@ local function openDesigns()
 	R.run(0.2)
 end
 
-local function frameOf(slot)
-	return lot.Gallery["Frame" .. slot]
+local Exhibition = R.require(S.ReplicatedStorage.Shared.Exhibition)
+local function spotOf(i)
+	return lot.Gallery.Spots["Spot" .. i]
 end
-local function hangOn(slot)
-	local prompt = frameOf(slot).Canvas.HangPrompt
-	check(prompt.Enabled, "frame " .. slot .. " offers «Colgar cuadro»")
+local function standOf(i)
+	return lot.Gallery.Stands:FindFirstChild("Stand" .. i)
+end
+local function openStand(i)
+	local prompt = spotOf(i).StandPrompt
+	check(prompt.Enabled, "stand " .. i .. " has a prompt (" .. prompt.ActionText .. ")")
 	prompt.Triggered:Fire(player)
+	R.run(0.3)
+end
+-- Expone el primer cuadro del almacén en el stand i (con un atajo de precio).
+local function exhibitOn(i, preset)
+	openStand(i)
+	check(pg.StandPanel.Window.Visible, "stand panel open")
+	if preset then
+		click(pg.StandPanel, preset)
+		R.run(0.1)
+	end
+	click(pg.StandPanel, "🖼️ Exponer")
 	R.run(0.3)
 end
 
@@ -284,6 +286,23 @@ paintByColor(globo, function(area)
 	end
 	check(others == 0, "only shapes of the chosen color take paint")
 	dumpGui("painter_mid", pg.Painter)
+	-- Al elegir el siguiente color sus zonas se resaltan con su número.
+	local nextArea = globo.areas[2]
+	T.fireClick(namedButton(pg.Painter, "Paint_" .. nextArea.id))
+	R.run(0.5)
+	local numbers = T.findAll(pg.Painter, function(d)
+		return d.Name:match("^Number%d+$") ~= nil and d.Visible
+	end)
+	check(#numbers > 0, "zones show their color number (" .. #numbers .. ")")
+	local strong = 0
+	for _, label in ipairs(numbers) do
+		local index = tonumber(label.Name:match("%d+"))
+		if globo.shapes[index].area == nextArea.id and label.BackgroundTransparency == 0 then
+			strong = strong + 1
+		end
+	end
+	check(strong > 0, "numbers of the chosen color stand out")
+	dumpGui("painter_focus", pg.Painter)
 end)
 check(firstArea ~= nil, "painted the first color")
 dumpGui("painter", pg.Painter)
@@ -303,46 +322,93 @@ check(data.tutorial == 4, "tutorial step 4 (hang it)")
 check(data.made.globo == 1, "made counter")
 dumpGui("hud_carry", pg.HUD)
 
-print("== Hang it in the exhibition room")
-check(not frameOf(1).Canvas.TakePrompt.Enabled, "empty frame has nothing to take down")
-hangOn(1)
-check(#data.storage == 0 and #data.gallery == 1, "painting hung on the wall")
+print("== Exhibit it on a stand with your own price")
+check(Exhibition.countStands(data.stands) == 1 and data.stands[1] == 1, "starts with one free stand (an easel)")
+check(standOf(1) ~= nil and standOf(1):FindFirstChild("Canvas", true) ~= nil, "free easel built in the room")
+check(spotOf(2):GetAttribute("Open") and not spotOf(2):GetAttribute("Owned"), "other spots are for sale")
+check(spotOf(2).StandPrompt.ActionText == "Comprar stand", "empty spot offers to buy a stand")
+check(spotOf(2):FindFirstChild("SpotTag") ~= nil and spotOf(2).SpotTag.Enabled, "empty spot shows the ＋ Stand tag")
+check(spotOf(1).StandPrompt.ActionText == "Exponer cuadro", "stand offers to exhibit the carried painting")
+openStand(1)
+check(pg.StandPanel.Window.Visible, "stand panel opens")
+local market = Exhibition.marketPrice(data.storage[1].v, 1)
+local marketLabel = T.findAll(pg.StandPanel, function(d)
+	return d.ClassName == "TextLabel" and d.Text:find("Precio medio: ") ~= nil
+end)[1]
+check(marketLabel ~= nil and marketLabel.Text:find(tostring(market), 1, true) ~= nil, "panel shows the average price: " .. (marketLabel and marketLabel.Text or "?"))
+click(pg.StandPanel, "+")
+click(pg.StandPanel, "+")
+R.run(0.1)
+local bandText = Exhibition.band(Exhibition.clampPrice(market + 2 * Exhibition.priceStep(market), market) / market).text
+local bandLabel = T.findAll(pg.StandPanel, function(d)
+	return d.ClassName == "TextLabel" and d.Text == bandText
+end)[1]
+check(bandLabel ~= nil, "meter explains how fast it will sell: " .. bandText)
+dumpGui("stand", pg.StandPanel)
+local expected = Exhibition.clampPrice(market + 2 * Exhibition.priceStep(market), market)
+click(pg.StandPanel, "🖼️ Exponer")
+R.run(0.3)
+check(not pg.StandPanel.Window.Visible, "panel closes after exhibiting")
+check(#data.storage == 0 and #data.gallery == 1, "painting on the stand")
+check(data.gallery[1].p == expected, "your price is used (" .. data.gallery[1].p .. " vs market " .. market .. ")")
 check(player.Character:FindFirstChild("CarriedPainting") == nil, "hands free again")
-check(not frameOf(1).Canvas.HangPrompt.Enabled, "occupied frame no longer offers hanging")
-check(frameOf(1).Canvas.TakePrompt.Enabled, "hung painting can be taken down")
-check(not frameOf(2).Canvas.HangPrompt.Enabled, "no hang prompts with empty hands")
-local canvas = frameOf(1).Canvas
+local canvas = standOf(1):FindFirstChild("Canvas", true)
 check(canvas:GetAttribute("Design") == "globo", "canvas shows design")
-check(canvas:GetAttribute("Stars") == 3, "canvas shows stars")
-check(#canvas.ArtGui.Art:GetDescendants() > 5, "gallery art rendered")
-check(data.tutorial == 5, "tutorial step 5 (wait for a buyer)")
+check(canvas:GetAttribute("Price") == expected, "canvas shows your price")
+check(#canvas.ArtGui.Art:GetDescendants() > 5, "stand art rendered")
+check(canvas.ArtGui.Art.PriceTag.Visible, "price tag on the painting")
+check(spotOf(1).StandPrompt.ActionText == "Gestionar", "stand now offers to manage the painting")
+check(data.tutorial == 5, "tutorial step 5 (offer at the caja)")
 
-print("== Visitor buys")
+print("== A visitor goes to the caja and makes an offer")
 local coins0 = data.coins
-local sawVisitor = false
-for _ = 1, 90 do
-	R.run(1)
+local sawVisitor, offerCard = false, nil
+for _ = 1, 120 do
+	R.run(0.5)
 	if #lot.Visitors:GetChildren() > 0 then
 		sawVisitor = true
-		local v = lot.Visitors:GetChildren()[1]
-		local reaction = v:GetAttribute("Reaction") or ""
-		if reaction:find("💰") then
-			dumpWorld("world")
-		end
 	end
-	if data.sold >= 1 then
+	offerCard = T.findAll(pg.Offers, function(d)
+		return d.Name:match("^Offer%d+$") ~= nil
+	end)[1]
+	if offerCard then
 		break
 	end
 end
 check(sawVisitor, "visitor appeared")
-check(data.sold == 1 and data.coins > coins0, "visitor bought painting (+" .. (data.coins - coins0) .. ")")
-check(#data.gallery == 0, "gallery emptied")
+check(offerCard ~= nil, "offer card shown")
+local visitor = lot.Visitors:GetChildren()[1]
+check(visitor ~= nil and (visitor:GetAttribute("Reaction") or ""):find("Te doy") ~= nil, "visitor asks at the caja: " .. tostring(visitor and visitor:GetAttribute("Reaction")))
+local queueSpot = lot.GalleryInterior.Caja
+check((visitor.HumanoidRootPart.Position - queueSpot.Register.Position).Magnitude < 10, "visitor is at the caja")
+dumpGui("offer", pg.Offers)
+dumpWorld("world")
+local counterButton = buttonStarting(pg.Offers, "Pedir")
+check(counterButton ~= nil, "counter-offer button")
+local counterPrice = tonumber((counterButton.Text:gsub("[^%d]", "")))
+T.fireClick(counterButton)
+R.run(4)
+check(data.sold == 1, "deal closed after the counter-offer")
+check(data.coins - coins0 >= counterPrice - 1, "paid the counter price (+" .. (data.coins - coins0) .. ")")
+check(#data.gallery == 0, "stand emptied")
 check(data.tutorial == 0, "tutorial completed")
 check(not pg.TutorialGuide.Panel.Visible, "tutorial guide hidden")
-R.run(30)
+check(visitor:FindFirstChild("BoughtPainting") ~= nil, "buyer carries the painting out")
+R.run(40)
 check(#lot.Visitors:GetChildren() == 0, "visitor left")
+check(#T.findAll(pg.Offers, function(d)
+	return d.Name:match("^Offer%d+$") ~= nil
+end) == 0, "offer card closed")
 
-print("== Store and paint another, take down, choose what to carry")
+print("== Buy a stand, store and paint another, manage it")
+data.coins = data.coins + 200
+local coinsBefore = data.coins
+local standCost = Exhibition.standCost(1)
+spotOf(2).StandPrompt.Triggered:Fire(player)
+R.run(0.3)
+check(data.stands[2] == 1 and data.coins == coinsBefore - standCost, "bought a second stand for " .. standCost)
+check(standOf(2):FindFirstChild("Canvas", true) ~= nil, "second easel appears")
+check(not spotOf(2).SpotTag.Enabled, "tag hidden once bought")
 openDesigns()
 click(pg.DesignPicker, "Empezar a pintar")
 click(pg.ColorPicker, "Empezar a pintar")
@@ -353,9 +419,15 @@ R.run(0.5)
 check(#data.storage == 1, "second painting stored")
 check(pg.DesignPicker.Window.Visible, "design picker reopened to paint another")
 closeWindow(pg.DesignPicker)
-hangOn(2)
-check(#data.gallery == 1 and #data.storage == 0, "hung in frame 2")
-frameOf(2).Canvas.TakePrompt.Triggered:Fire(player)
+exhibitOn(2)
+check(#data.gallery == 1 and #data.storage == 0, "exhibited on stand 2")
+openStand(2)
+click(pg.StandPanel, "+50%")
+click(pg.StandPanel, "💾 Guardar")
+R.run(0.3)
+local onStand = data.gallery[1]
+check(onStand.p == Exhibition.roundPrice(Exhibition.marketPrice(onStand.v, 1) * 1.5), "price changed to +50% (" .. onStand.p .. ")")
+click(pg.StandPanel, "↩ Retirar")
 R.run(0.3)
 check(#data.gallery == 0 and #data.storage == 1, "taken down back to storage")
 data.storage[2] = { d = "globo", c = data.storage[1].c, v = 1, st = 1 }
@@ -363,8 +435,47 @@ S.ReplicatedStorage.Remotes.SelectStored:FireServer(2)
 R.run(0.2)
 check(data.storage[1].v == 1, "chose which painting to carry")
 table.remove(data.storage, 1)
-hangOn(3)
-check(#data.gallery == 1, "hung again")
+exhibitOn(2, "Precio medio")
+check(#data.gallery == 1, "exhibited again")
+
+print("== Upgrade a stand")
+data.coins = data.coins + 5000
+openStand(2)
+click(pg.StandPanel, "Mejorar")
+R.run(0.3)
+check(data.stands[2] == 2, "stand upgraded to a gallery panel")
+check(standOf(2):GetAttribute("Tier") == 2, "stand rebuilt with the new quality")
+check(standOf(2):FindFirstChild("Canvas", true):GetAttribute("Design") == "globo", "painting kept on the upgraded stand")
+click(pg.StandPanel, "Mejorar")
+R.run(0.3)
+check(data.stands[2] == 3, "stand upgraded to the luxury showcase")
+dumpGui("stand_full", pg.StandPanel)
+closeWindow(pg.StandPanel)
+
+print("== Color mixer")
+data.paints.coco = 2
+data.paints.arena = 1
+lot.Workshop.Mixer.Body.MixPrompt.Triggered:Fire(player)
+R.run(0.3)
+check(pg.Mixer.Window.Visible, "mixer window open")
+click(pg.Mixer, "Auto")
+R.run(0.1)
+dumpGui("mixer", pg.Mixer)
+local uncommonBefore = 0
+for _, entry in ipairs(Colors.ByRarity.pococomun) do
+	uncommonBefore = uncommonBefore + (data.paints[entry.id] or 0)
+end
+click(pg.Mixer, "🧪")
+R.run(0.5)
+local uncommonAfter = 0
+for _, entry in ipairs(Colors.ByRarity.pococomun) do
+	uncommonAfter = uncommonAfter + (data.paints[entry.id] or 0)
+end
+check((data.paints.coco or 0) == 0 and (data.paints.arena or 0) == 0 or totalPaints(data) > 0, "common paints used")
+check(uncommonAfter == uncommonBefore + 1, "mixer gives one Poco común color")
+check(not pg.Mixer.Window.Visible, "mixer closes to reveal the color")
+local ok2 = S.ReplicatedStorage.Remotes.MixColors:InvokeServer("comun", { coco = 99 })
+check(ok2 == false, "cannot mix paints you don't have")
 
 print("== Quests")
 check(#data.quests == Config.QUESTS_PER_DAY, "daily quests generated")
@@ -442,8 +553,32 @@ for _, upgrade in ipairs(Config.Upgrades) do
 	check((data.upgrades[upgrade.id] or 0) == upgrade.max, upgrade.id .. " maxed")
 end
 check(#lot.Decor:GetChildren() == 6, "decor built")
-check(frameOf(7).Canvas:GetAttribute("Locked") == false, "all walls unlocked")
+check(lot.GalleryInterior.Caja:FindFirstChild("Cajero") ~= nil, "cashier behind the counter")
 closeWindow(pg.Shop)
+
+print("== Expand the gallery")
+data.coins = 10000000
+check(lot.Gallery.Rooms:FindFirstChild("Expansion2") ~= nil, "hoarding closes the next room")
+local hoarding = lot.Gallery.Rooms.Expansion2.Sign.ExpandPrompt
+hoarding.Triggered:Fire(player)
+R.run(0.3)
+check(data.rooms == 1, "cannot expand without enough stands")
+for i = 3, 6 do
+	spotOf(i).StandPrompt.Triggered:Fire(player)
+	R.run(0.2)
+end
+check(Exhibition.countStands(data.stands) == 6, "six stands bought")
+check(standOf(3):FindFirstChild("Canvas", true) ~= nil, "wall frame stand built")
+hoarding.Triggered:Fire(player)
+R.run(1.5)
+check(data.rooms == 2, "gallery expanded")
+check(lot.Gallery.Rooms:FindFirstChild("Room2") ~= nil, "new room built")
+check(lot.Gallery.Rooms:FindFirstChild("Expansion2") == nil, "hoarding removed")
+check(lot.Gallery.Rooms:FindFirstChild("Expansion3") ~= nil, "next hoarding appears in the new room")
+check(spotOf(9):GetAttribute("Open") and spotOf(9).StandPrompt.Enabled, "new room has spots for stands")
+spotOf(9).StandPrompt.Triggered:Fire(player)
+R.run(0.3)
+check(data.stands[9] == 1, "stand bought in the new room")
 
 print("== Auto-Rolling after buying it")
 check(data.autoRoll == true, "auto-roll enabled on purchase")
@@ -463,7 +598,7 @@ R.run(0.3)
 check(data.autoRoll == true, "auto-roll on again")
 
 print("== Paint level 1 with the bucket, color by color")
-local nextFrame = 4
+local nextFrame = 3
 for _, id in ipairs({ "sol", "taza", "gatito" }) do
 	openDesigns()
 	T.fireClick(namedButton(pg.DesignPicker, id))
@@ -502,7 +637,7 @@ for _, id in ipairs({ "sol", "taza", "gatito" }) do
 	click(pg.Painter, "🖼️ Llevar")
 	R.run(0.3)
 	check(data.made[id] == 1, "painted " .. id .. " with the bucket")
-	hangOn(nextFrame)
+	exhibitOn(nextFrame, "Rápido")
 	nextFrame = nextFrame + 1
 end
 openDesigns()
@@ -560,6 +695,8 @@ check(data.sold >= sold0 + 2, "visitors keep buying (sold " .. data.sold .. ")")
 
 print("== Leave & rejoin")
 data.storage = { { d = "sol", c = "", v = 10, st = 2 } }
+-- Sin Auto-Rolling para que las monedas no cambien al volver a entrar.
+data.autoRoll = false
 local savedState = { coins = data.coins, sold = data.sold, gallery = #data.gallery }
 player.Parent = nil
 S.Players.PlayerRemoving:Fire(player)

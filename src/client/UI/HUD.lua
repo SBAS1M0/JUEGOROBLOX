@@ -28,8 +28,8 @@ local toastHolder
 local confettiHolder
 local carriedKey = nil
 
-local KIND_COLOR = { info = C.Blue, success = C.Mint, error = C.Red, gold = C.Gold }
-local KIND_ICON = { info = "i", success = "✓", error = "!", gold = "★" }
+local KIND_COLOR = { info = C.Blue, success = C.Mint, error = C.Red, gold = C.Gold, sale = C.Mint }
+local KIND_ICON = { info = "i", success = "✓", error = "!", gold = "★", sale = "💵" }
 local CONFETTI_COLORS = {
 	Color3.fromRGB(250, 176, 40),
 	Color3.fromRGB(18, 168, 148),
@@ -79,6 +79,9 @@ function HUD.notify(text, kind)
 	Theme.pop(holder, 0.7)
 	if kind == "error" then
 		Theme.playSound("click", 0.6)
+	elseif kind == "sale" then
+		Theme.playSound("success", 0.8)
+		Theme.popCard(refs.coinsFrame, 0.85)
 	end
 	task.delay(3.8, function()
 		if holder.Parent then
@@ -502,7 +505,7 @@ local function buildCarry()
 	refs.carryHint = Theme.label({
 		Position = UDim2.fromOffset(12, 114),
 		Size = UDim2.new(1, -100, 0, 30),
-		Text = "Cuélgalo en un marco libre de la sala",
+		Text = "Exponlo en un stand de la sala y ponle precio",
 		Font = Theme.Fonts.Bold,
 		TextColor3 = C.PrimaryDark,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -548,12 +551,12 @@ local function refreshCarry(state)
 		Theme.popCard(refs.carry, 0.9)
 	end
 	refs.carryName.Text = design and design.name or "?"
-	refs.carryInfo.Text = string.rep("★", entry.st or 1) .. "   💵 " .. Theme.formatNumber(entry.v)
+	refs.carryInfo.Text = string.rep("★", entry.st or 1) .. "   Precio medio 💵 " .. Theme.formatNumber(entry.v)
 	refs.carryCount.Text = #storage > 1 and ("Tienes " .. #storage .. " cuadros guardados")
 		or "Tu único cuadro guardado"
-	local free = (state.slots or 0) - (state.displayed or 0)
-	refs.carryHint.Text = free > 0 and "Cuélgalo en un marco libre de la sala"
-		or "Sala llena: espera una venta o compra «Más paredes»"
+	local free = (state.standCount or 0) - (state.displayed or 0)
+	refs.carryHint.Text = free > 0 and "Exponlo en un stand de la sala y ponle precio"
+		or "Stands llenos: compra otro stand (＋) en la sala"
 	refs.carryNext.Holder.Visible = #storage > 1
 end
 
@@ -588,7 +591,7 @@ end
 
 function HUD.applyState(state)
 	animateCoins(state.coins)
-	refs.gallery.Text = state.displayed .. "/" .. state.slots
+	refs.gallery.Text = state.displayed .. "/" .. (state.standCount or 0)
 	tiles.daily.SetBadge(state.dailyReady)
 	tiles.daily.Caption.Text = state.dailyReady and "¡Regalo!" or Theme.formatTime(state.dailyWait)
 	refreshQuests(state)

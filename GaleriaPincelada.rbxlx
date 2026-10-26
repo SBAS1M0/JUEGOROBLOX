@@ -232,132 +232,189 @@ local function rgb(r, g, b)
 end
 
 Colors.Rarities = {
-	{ id = "comun", name = "Común", mult = 1.1, weight = 58, color = rgb(160, 160, 175) },
-	{ id = "pococomun", name = "Poco común", mult = 1.3, weight = 26, color = rgb(70, 190, 110) },
-	{ id = "raro", name = "Raro", mult = 1.6, weight = 11, color = rgb(70, 140, 250) },
-	{ id = "epico", name = "Épico", mult = 2.2, weight = 4, color = rgb(160, 90, 250) },
-	{ id = "legendario", name = "Legendario", mult = 3.5, weight = 0.9, color = rgb(250, 170, 30) },
-	{ id = "mitico", name = "Mítico", mult = 6, weight = 0.1, color = rgb(230, 62, 72) },
+	{ id = "comun", name = "Común", finish = "Mate", mult = 1.1, weight = 58, color = rgb(150, 156, 172) },
+	{ id = "pococomun", name = "Poco común", finish = "Satinado", mult = 1.3, weight = 26, color = rgb(52, 188, 116) },
+	{ id = "raro", name = "Raro", finish = "Brillante", mult = 1.6, weight = 11, color = rgb(64, 140, 240) },
+	{ id = "epico", name = "Épico", finish = "Degradado", mult = 2.2, weight = 4, color = rgb(150, 86, 240) },
+	{
+		id = "legendario",
+		name = "Legendario",
+		finish = "Metálico",
+		mult = 3.5,
+		weight = 0.9,
+		color = rgb(250, 170, 30),
+	},
+	{ id = "mitico", name = "Mítico", finish = "Mágico", mult = 6, weight = 0.1, color = rgb(236, 64, 110) },
 }
 Colors.RarityById = {}
 for index, rarity in ipairs(Colors.Rarities) do
 	rarity.index = index
 	Colors.RarityById[rarity.id] = rarity
 end
-Colors.BASIC_RARITY = { id = "basico", name = "Básico", mult = 1, index = 0, color = rgb(190, 175, 165) }
+Colors.BASIC_RARITY =
+	{ id = "basico", name = "Básico", finish = "Mate", mult = 1, index = 0, color = rgb(190, 175, 165) }
 
 -- color: un solo Color3. gradient: varios Color3 (se pinta con degradado).
+-- Los nombres y tonos están pensados para combinar bien entre sí.
 Colors.List = {
 	-- Básicos (infinitos)
 	{ id = "blanco", name = "Blanco", basic = true, color = rgb(255, 255, 255) },
-	{ id = "crema", name = "Crema", basic = true, color = rgb(255, 244, 222) },
-	{ id = "gris", name = "Gris", basic = true, color = rgb(170, 172, 185) },
-	{ id = "negro", name = "Carbón", basic = true, color = rgb(62, 54, 72) },
-	{ id = "rojo", name = "Rojo", basic = true, color = rgb(238, 78, 86) },
-	{ id = "naranja", name = "Naranja", basic = true, color = rgb(255, 156, 64) },
-	{ id = "amarillo", name = "Amarillo", basic = true, color = rgb(255, 214, 80) },
-	{ id = "durazno", name = "Durazno", basic = true, color = rgb(255, 205, 170) },
-	{ id = "verde", name = "Verde", basic = true, color = rgb(110, 200, 100) },
-	{ id = "verdeoscuro", name = "Verde pino", basic = true, color = rgb(52, 140, 92) },
-	{ id = "celeste", name = "Celeste", basic = true, color = rgb(140, 210, 250) },
-	{ id = "azul", name = "Azul", basic = true, color = rgb(70, 125, 230) },
-	{ id = "marino", name = "Azul noche", basic = true, color = rgb(46, 54, 116) },
-	{ id = "morado", name = "Morado", basic = true, color = rgb(160, 104, 226) },
-	{ id = "rosa", name = "Rosa", basic = true, color = rgb(255, 150, 196) },
-	{ id = "cafe", name = "Café", basic = true, color = rgb(150, 98, 64) },
+	{ id = "crema", name = "Crema", basic = true, color = rgb(255, 243, 220) },
+	{ id = "gris", name = "Gris", basic = true, color = rgb(168, 172, 186) },
+	{ id = "negro", name = "Carbón", basic = true, color = rgb(54, 52, 68) },
+	{ id = "rojo", name = "Rojo", basic = true, color = rgb(236, 70, 80) },
+	{ id = "naranja", name = "Naranja", basic = true, color = rgb(255, 148, 56) },
+	{ id = "amarillo", name = "Amarillo", basic = true, color = rgb(255, 210, 66) },
+	{ id = "durazno", name = "Durazno", basic = true, color = rgb(255, 200, 164) },
+	{ id = "verde", name = "Verde", basic = true, color = rgb(100, 196, 92) },
+	{ id = "verdeoscuro", name = "Verde pino", basic = true, color = rgb(42, 132, 88) },
+	{ id = "celeste", name = "Celeste", basic = true, color = rgb(126, 204, 250) },
+	{ id = "azul", name = "Azul", basic = true, color = rgb(60, 118, 228) },
+	{ id = "marino", name = "Azul noche", basic = true, color = rgb(40, 50, 112) },
+	{ id = "morado", name = "Morado", basic = true, color = rgb(150, 96, 222) },
+	{ id = "rosa", name = "Rosa", basic = true, color = rgb(255, 138, 190) },
+	{ id = "cafe", name = "Café", basic = true, color = rgb(146, 94, 62) },
 
-	-- Común
+	-- Común: pasteles suaves (acabado mate)
 	{ id = "coco", name = "Leche de coco", rarity = "comun", color = rgb(250, 246, 236) },
-	{ id = "arena", name = "Arena", rarity = "comun", color = rgb(232, 210, 168) },
-	{ id = "mentasuave", name = "Menta suave", rarity = "comun", color = rgb(184, 240, 214) },
-	{ id = "cieloclaro", name = "Cielo claro", rarity = "comun", color = rgb(196, 230, 255) },
-	{ id = "lavanda", name = "Lavanda", rarity = "comun", color = rgb(214, 198, 248) },
-	{ id = "algodon", name = "Algodón rosa", rarity = "comun", color = rgb(255, 206, 226) },
-	{ id = "limonada", name = "Limonada", rarity = "comun", color = rgb(255, 244, 150) },
-	{ id = "mantequilla", name = "Mantequilla", rarity = "comun", color = rgb(255, 228, 160) },
+	{ id = "arena", name = "Arena", rarity = "comun", color = rgb(234, 212, 170) },
+	{ id = "mentasuave", name = "Menta suave", rarity = "comun", color = rgb(178, 238, 210) },
+	{ id = "cieloclaro", name = "Cielo claro", rarity = "comun", color = rgb(190, 228, 255) },
+	{ id = "lavanda", name = "Lavanda", rarity = "comun", color = rgb(212, 196, 250) },
+	{ id = "algodon", name = "Algodón rosa", rarity = "comun", color = rgb(255, 204, 226) },
+	{ id = "limonada", name = "Limonada", rarity = "comun", color = rgb(255, 242, 140) },
+	{ id = "mantequilla", name = "Mantequilla", rarity = "comun", color = rgb(255, 226, 156) },
+	{ id = "melocoton", name = "Melocotón", rarity = "comun", color = rgb(255, 186, 150) },
+	{ id = "niebla", name = "Niebla", rarity = "comun", color = rgb(204, 214, 228) },
 
-	-- Poco común
-	{ id = "coral", name = "Coral", rarity = "pococomun", color = rgb(255, 128, 110) },
-	{ id = "pistacho", name = "Pistacho", rarity = "pococomun", color = rgb(196, 226, 140) },
-	{ id = "turquesa", name = "Turquesa", rarity = "pococomun", color = rgb(64, 206, 196) },
-	{ id = "mostaza", name = "Mostaza", rarity = "pococomun", color = rgb(222, 176, 40) },
-	{ id = "ciruela", name = "Ciruela", rarity = "pococomun", color = rgb(140, 64, 120) },
-	{ id = "terracota", name = "Terracota", rarity = "pococomun", color = rgb(204, 106, 72) },
-	{ id = "salvia", name = "Salvia", rarity = "pococomun", color = rgb(150, 182, 150) },
+	-- Poco común: colores vivos (acabado satinado)
+	{ id = "coral", name = "Coral", rarity = "pococomun", color = rgb(255, 122, 104) },
+	{ id = "pistacho", name = "Pistacho", rarity = "pococomun", color = rgb(190, 224, 128) },
+	{ id = "turquesa", name = "Turquesa", rarity = "pococomun", color = rgb(48, 204, 192) },
+	{ id = "mostaza", name = "Mostaza", rarity = "pococomun", color = rgb(226, 174, 32) },
+	{ id = "ciruela", name = "Ciruela", rarity = "pococomun", color = rgb(140, 58, 120) },
+	{ id = "terracota", name = "Terracota", rarity = "pococomun", color = rgb(206, 100, 66) },
+	{ id = "salvia", name = "Salvia", rarity = "pococomun", color = rgb(142, 180, 146) },
+	{ id = "frambuesa", name = "Frambuesa", rarity = "pococomun", color = rgb(228, 56, 120) },
+	{ id = "petroleo", name = "Azul petróleo", rarity = "pococomun", color = rgb(22, 112, 130) },
 
-	-- Raro
-	{ id = "arandano", name = "Arándano negro", rarity = "raro", color = rgb(78, 66, 140) },
-	{ id = "esmeralda", name = "Esmeralda", rarity = "raro", color = rgb(30, 170, 110) },
-	{ id = "zafiro", name = "Zafiro", rarity = "raro", color = rgb(36, 84, 200) },
-	{ id = "cereza", name = "Cereza", rarity = "raro", color = rgb(200, 30, 70) },
-	{ id = "mandarina", name = "Mandarina", rarity = "raro", color = rgb(255, 120, 20) },
-	{ id = "helecho", name = "Helecho dorado", rarity = "raro", color = rgb(140, 190, 60) },
+	-- Raro: tonos joya (acabado brillante)
+	{ id = "arandano", name = "Arándano negro", rarity = "raro", color = rgb(74, 60, 142) },
+	{ id = "esmeralda", name = "Esmeralda", rarity = "raro", color = rgb(16, 170, 108) },
+	{ id = "zafiro", name = "Zafiro", rarity = "raro", color = rgb(30, 80, 204) },
+	{ id = "cereza", name = "Cereza", rarity = "raro", color = rgb(204, 24, 66) },
+	{ id = "mandarina", name = "Mandarina", rarity = "raro", color = rgb(255, 118, 14) },
+	{ id = "helecho", name = "Helecho dorado", rarity = "raro", color = rgb(136, 190, 50) },
+	{ id = "amatista", name = "Amatista", rarity = "raro", color = rgb(150, 70, 214) },
+	{ id = "cobalto", name = "Cobalto eléctrico", rarity = "raro", color = rgb(0, 132, 255) },
 
-	-- Épico
+	-- Épico: degradados
 	{
 		id = "lava",
 		name = "Flujo de lava",
 		rarity = "epico",
-		gradient = { rgb(255, 210, 60), rgb(255, 90, 30), rgb(170, 20, 40) },
+		gradient = { rgb(255, 214, 70), rgb(255, 96, 30), rgb(178, 18, 44) },
 	},
 	{
 		id = "aurora",
 		name = "Aurora boreal",
 		rarity = "epico",
-		gradient = { rgb(80, 240, 180), rgb(80, 160, 250), rgb(180, 100, 250) },
+		gradient = { rgb(80, 244, 180), rgb(70, 160, 252), rgb(182, 96, 252) },
 	},
 	{
 		id = "oceano",
 		name = "Océano profundo",
 		rarity = "epico",
-		gradient = { rgb(60, 200, 240), rgb(30, 90, 200), rgb(20, 40, 110) },
+		gradient = { rgb(70, 214, 244), rgb(30, 96, 206), rgb(18, 36, 110) },
 	},
 	{
 		id = "cobre",
 		name = "Hervidor de cobre",
 		rarity = "epico",
-		gradient = { rgb(250, 190, 140), rgb(200, 110, 60), rgb(140, 70, 40) },
+		gradient = { rgb(252, 196, 146), rgb(206, 112, 58), rgb(140, 66, 36) },
+	},
+	{
+		id = "sakura",
+		name = "Flor de cerezo",
+		rarity = "epico",
+		gradient = { rgb(255, 228, 238), rgb(255, 156, 196), rgb(226, 84, 150) },
+	},
+	{
+		id = "selva",
+		name = "Selva tropical",
+		rarity = "epico",
+		gradient = { rgb(196, 244, 96), rgb(40, 176, 96), rgb(8, 92, 74) },
+	},
+	{
+		id = "golosina",
+		name = "Algodón de azúcar",
+		rarity = "epico",
+		gradient = { rgb(255, 184, 222), rgb(204, 180, 255), rgb(150, 220, 255) },
 	},
 
-	-- Legendario
+	-- Legendario: metálicos con destello
 	{
 		id = "oro",
 		name = "Oro puro",
 		rarity = "legendario",
-		gradient = { rgb(255, 236, 140), rgb(240, 180, 40), rgb(255, 230, 120), rgb(200, 140, 20) },
+		gradient = { rgb(255, 240, 150), rgb(240, 180, 40), rgb(255, 234, 128), rgb(196, 136, 16) },
 	},
 	{
 		id = "plata",
 		name = "Plata lunar",
 		rarity = "legendario",
-		gradient = { rgb(250, 252, 255), rgb(170, 180, 200), rgb(235, 240, 250), rgb(140, 150, 175) },
+		gradient = { rgb(252, 253, 255), rgb(168, 178, 200), rgb(236, 240, 250), rgb(136, 146, 172) },
 	},
 	{
 		id = "atardecer",
 		name = "Atardecer",
 		rarity = "legendario",
-		gradient = { rgb(255, 220, 110), rgb(255, 130, 120), rgb(170, 90, 200) },
+		gradient = { rgb(255, 222, 110), rgb(255, 128, 118), rgb(168, 86, 200) },
+	},
+	{
+		id = "rosaoro",
+		name = "Oro rosa",
+		rarity = "legendario",
+		gradient = { rgb(255, 222, 210), rgb(232, 148, 138), rgb(255, 228, 214), rgb(186, 104, 104) },
+	},
+	{
+		id = "nacar",
+		name = "Nácar",
+		rarity = "legendario",
+		gradient = { rgb(255, 252, 246), rgb(224, 214, 255), rgb(212, 255, 242), rgb(255, 226, 240) },
 	},
 
-	-- Mítico
+	-- Mítico: colores mágicos que se mueven
 	{
 		id = "arcoiris",
 		name = "Arcoíris",
 		rarity = "mitico",
 		gradient = {
-			rgb(255, 90, 110),
-			rgb(255, 180, 60),
-			rgb(255, 235, 80),
-			rgb(90, 220, 120),
-			rgb(80, 160, 255),
-			rgb(170, 100, 255),
+			rgb(255, 84, 108),
+			rgb(255, 176, 56),
+			rgb(255, 234, 76),
+			rgb(84, 220, 120),
+			rgb(76, 158, 255),
+			rgb(168, 98, 255),
 		},
 	},
 	{
 		id = "galaxia",
 		name = "Galaxia",
 		rarity = "mitico",
-		gradient = { rgb(30, 20, 80), rgb(120, 50, 200), rgb(255, 110, 200), rgb(60, 40, 140) },
+		gradient = { rgb(26, 18, 80), rgb(118, 48, 204), rgb(255, 108, 204), rgb(56, 38, 144) },
+	},
+	{
+		id = "fenix",
+		name = "Fuego de fénix",
+		rarity = "mitico",
+		gradient = { rgb(255, 244, 130), rgb(255, 146, 36), rgb(234, 40, 60), rgb(150, 18, 96) },
+	},
+	{
+		id = "holograma",
+		name = "Holograma",
+		rarity = "mitico",
+		gradient = { rgb(120, 255, 240), rgb(255, 120, 236), rgb(255, 246, 120), rgb(120, 200, 255) },
 	},
 }
 
@@ -394,6 +451,50 @@ function Colors.mainColor(id)
 		return entry.gradient[math.ceil(#entry.gradient / 2)]
 	end
 	return entry.color
+end
+
+function Colors.finishOf(id)
+	local entry = Colors.ById[id]
+	return Colors.rarityOf(entry).finish
+end
+
+local WHITE = rgb(255, 255, 255)
+local BLACK = rgb(0, 0, 0)
+
+-- Cómo se pinta un color según su acabado. Devuelve el color de fondo, el
+-- degradado (UIGradient) y la animación: "shine" (destello metálico que
+-- recorre la figura) o "spin" (los colores giran).
+function Colors.look(id)
+	local entry = Colors.ById[id]
+	if not entry then
+		return WHITE, ColorSequence.new(WHITE), nil
+	end
+	if entry.gradient then
+		local animation = entry.rarity == "mitico" and "spin" or (entry.rarity == "legendario" and "shine" or nil)
+		return WHITE, Colors.sequence(id), animation
+	end
+	local c = entry.color
+	if entry.rarity == "raro" then
+		-- Esmalte: reflejo marcado arriba y sombra abajo.
+		return WHITE,
+			ColorSequence.new({
+				ColorSequenceKeypoint.new(0, c:Lerp(WHITE, 0.5)),
+				ColorSequenceKeypoint.new(0.2, c:Lerp(WHITE, 0.12)),
+				ColorSequenceKeypoint.new(0.55, c),
+				ColorSequenceKeypoint.new(1, c:Lerp(BLACK, 0.2)),
+			}),
+			nil
+	elseif entry.rarity == "pococomun" then
+		-- Satinado: un brillo suave.
+		return WHITE,
+			ColorSequence.new({
+				ColorSequenceKeypoint.new(0, c:Lerp(WHITE, 0.2)),
+				ColorSequenceKeypoint.new(0.6, c),
+				ColorSequenceKeypoint.new(1, c:Lerp(BLACK, 0.08)),
+			}),
+			nil
+	end
+	return c, ColorSequence.new(WHITE), nil
 end
 
 -- ColorSequence para UIGradient (blanco si es color liso).
@@ -436,6 +537,30 @@ function Colors.roll(luck, random, minIndex)
 	return options[random:NextInteger(1, #options)]
 end
 
+-- Mezclador: varios colores de una rareza se convierten en uno de la rareza
+-- siguiente. Cuántos hacen falta según la rareza de partida.
+Colors.MixCost = { comun = 3, pococomun = 3, raro = 4, epico = 4, legendario = 5 }
+
+-- Color que sale de una mezcla (la mitad de las veces, uno que aún no tienes).
+function Colors.mix(rarityId, random, discovered)
+	local rarity = Colors.RarityById[rarityId]
+	local nextRarity = rarity and Colors.Rarities[rarity.index + 1]
+	if not nextRarity then
+		return nil
+	end
+	local options = Colors.ByRarity[nextRarity.id]
+	local fresh = {}
+	for _, entry in ipairs(options) do
+		if not (discovered and discovered[entry.id]) then
+			table.insert(fresh, entry)
+		end
+	end
+	if #fresh > 0 and random:NextNumber() < 0.5 then
+		return fresh[random:NextInteger(1, #fresh)]
+	end
+	return options[random:NextInteger(1, #options)]
+end
+
 -- Probabilidad (0..1) de cada rareza con una suerte dada.
 function Colors.chances(luck)
 	local total = 0
@@ -465,7 +590,6 @@ local Colors = require(script.Parent.Colors)
 local Config = {}
 
 Config.MAX_PLOTS = 12
-Config.GALLERY_SIZE = 7
 Config.START_COINS = 25
 Config.AUTOSAVE_SECONDS = 90
 Config.DAILY_COOLDOWN = 20 * 60 * 60
@@ -473,9 +597,8 @@ Config.MAX_PAINT_STACK = 999
 
 -- Vender en la galería (a un visitante) paga más que vender al instante.
 Config.GALLERY_BONUS = 1.25
--- Cuadros terminados que puedes guardar antes de colgarlos en la galería.
+-- Cuadros terminados que puedes guardar antes de exponerlos en un stand.
 Config.STORAGE_SIZE = 8
-Config.QUICK_SELL = 1
 
 -- Maestría por diseño: cuantas más veces lo pintas, más vale.
 Config.Mastery = {
@@ -493,6 +616,33 @@ function Config.masteryFor(made)
 		end
 	end
 	return current, nextTier
+end
+
+-- Números con separador de miles (1.250) y abreviados a partir de 10.000 (12,5K).
+function Config.formatNumber(n)
+	n = math.floor(n or 0)
+	local abs = math.abs(n)
+	local function short(value, suffix)
+		local text = string.format("%.1f", value)
+		text = string.gsub(text, "%.0$", "")
+		return text .. suffix
+	end
+	if abs >= 1e9 then
+		return short(n / 1e9, "B")
+	elseif abs >= 1e6 then
+		return short(n / 1e6, "M")
+	elseif abs >= 1e4 then
+		return short(n / 1e3, "K")
+	end
+	local formatted = tostring(n)
+	while true do
+		local replaced, count = string.gsub(formatted, "^(-?%d+)(%d%d%d)", "%1.%2")
+		formatted = replaced
+		if count == 0 then
+			break
+		end
+	end
+	return formatted
 end
 
 -- Mejoras ------------------------------------------------------------------------------
@@ -561,13 +711,13 @@ Config.Upgrades = {
 		growth = 1.55,
 	},
 	{
-		id = "paredes",
-		name = "Más paredes",
-		icon = "🖼️",
-		desc = "Más cuadros expuestos a la venta.",
-		max = 4,
-		cost = 300,
-		growth = 2.2,
+		id = "cajero",
+		name = "Cajero",
+		icon = "🧑‍💼",
+		desc = "Atiende la caja si no respondes: acepta las ofertas buenas.",
+		max = 1,
+		cost = 900,
+		growth = 1,
 	},
 	{
 		id = "decoracion",
@@ -627,8 +777,8 @@ function Config.maxBuyers(levels)
 	return math.min(4, 2 + math.floor((levels.fama or 0) / 4))
 end
 
-function Config.gallerySlots(levels)
-	return math.min(Config.GALLERY_SIZE, 3 + (levels.paredes or 0))
+function Config.hasCashier(levels)
+	return (levels.cajero or 0) >= 1
 end
 
 -- Valor de un cuadro ---------------------------------------------------------------------
@@ -739,6 +889,13 @@ Config.QuestTypes = {
 		goals = { 1, 2, 3 },
 	},
 	{ id = "ganar", text = "Gana %d monedas", icon = "💵", goals = { 150, 400, 900 }, scale = true },
+	{
+		id = "caro",
+		text = "Vende %d cuadros por encima de su precio medio",
+		one = "Vende 1 cuadro por encima de su precio medio",
+		icon = "📈",
+		goals = { 1, 2, 3 },
+	},
 }
 Config.QuestById = {}
 for _, quest in ipairs(Config.QuestTypes) do
@@ -767,8 +924,8 @@ Config.Tutorial = {
 	{ text = "Ve a la máquina de colores y tira 3 veces", target = "machine", goal = 3 },
 	{ text = "Ve a la mesa de dibujo y empieza un cuadro", target = "easel", goal = 1 },
 	{ text = "Elige un color de la paleta y colorea el dibujo", target = nil, goal = 1 },
-	{ text = "Lleva el cuadro a la sala y cuélgalo en un marco libre", target = "freeFrame", goal = 1 },
-	{ text = "Espera a que un visitante compre tu cuadro", target = "gallery", goal = 1 },
+	{ text = "Ve a la sala y expón tu cuadro en el stand: tú pones el precio", target = "freeStand", goal = 1 },
+	{ text = "Un visitante irá a la caja: responde a su oferta", target = "caja", goal = 1 },
 }
 Config.TUTORIAL_REWARD = 150
 
@@ -783,6 +940,11 @@ Config.BuyerLines = {
 	"¡Wow, qué colores! ✨",
 	"¡Lo compro ya mismo! 💰",
 }
+-- Cuando le gusta un cuadro y va a la caja.
+Config.InterestedLines = { "¡Me encanta! 😍", "¡Lo quiero! 💖", "Voy a la caja 🛒", "¡Qué colores! ✨" }
+-- Cuando el precio le parece demasiado alto.
+Config.TooExpensiveLines = { "Muy caro para mí 😬", "¿Tanto? 😳", "Precioso, pero carísimo 💸" }
+Config.NotForMeLines = { "Hmm… no es para mí 🤔", "Bonito, pero sigo mirando 👀" }
 
 return Config
 ]]></string>
@@ -1614,17 +1776,200 @@ return Designs
 ]]></string>
         </Properties>
       </Item>
+      <Item class="ModuleScript" referent="8">
+        <Properties>
+          <string name="Name">Exhibition</string>
+          <string name="Source"><![CDATA[-- Sala de exposición: salas que se amplían, huecos donde se compran stands,
+-- calidades de stand, precio medio de mercado y cómo deciden los compradores.
+
+local Exhibition = {}
+
+local function rgb(r, g, b)
+	return Color3.fromRGB(r, g, b)
+end
+
+-- Salas ---------------------------------------------------------------------------------
+-- La sala principal viene abierta; las demás se construyen con dinero cuando
+-- ya tienes suficientes stands.
+Exhibition.Rooms = {
+	{ id = 1, name = "Sala principal", cost = 0, needStands = 0 },
+	{ id = 2, name = "Sala del jardín", cost = 2500, needStands = 6 },
+	{ id = 3, name = "Sala de los maestros", cost = 30000, needStands = 14 },
+}
+
+-- Huecos para stands (coordenadas del terreno). kind "floor": stand de pie;
+-- kind "wall": marco en la pared. rot: giro en grados (0 = el cuadro mira a -Z).
+Exhibition.Spots = {
+	-- Sala principal
+	{ room = 1, kind = "floor", x = -30, z = 5, rot = 0 },
+	{ room = 1, kind = "floor", x = -14, z = 5, rot = 0 },
+	{ room = 1, kind = "wall", x = -34, z = 16.6, rot = 0 },
+	{ room = 1, kind = "wall", x = -10, z = 16.6, rot = 0 },
+	{ room = 1, kind = "wall", x = -38.6, z = 9, rot = -90 },
+	{ room = 1, kind = "wall", x = -38.6, z = -6, rot = -90 },
+	{ room = 1, kind = "wall", x = -5.4, z = 11, rot = 90 },
+	{ room = 1, kind = "wall", x = -5.4, z = 0, rot = 90 },
+	-- Sala del jardín
+	{ room = 2, kind = "floor", x = -28, z = 34, rot = 0 },
+	{ room = 2, kind = "floor", x = -16, z = 34, rot = 0 },
+	{ room = 2, kind = "wall", x = -29, z = 46.6, rot = 0 },
+	{ room = 2, kind = "wall", x = -15, z = 46.6, rot = 0 },
+	{ room = 2, kind = "wall", x = -38.6, z = 23, rot = -90 },
+	{ room = 2, kind = "wall", x = -38.6, z = 42, rot = -90 },
+	{ room = 2, kind = "wall", x = -5.4, z = 25, rot = 90 },
+	{ room = 2, kind = "wall", x = -5.4, z = 42, rot = 90 },
+	-- Sala de los maestros
+	{ room = 3, kind = "floor", x = -55, z = 32, rot = -90 },
+	{ room = 3, kind = "wall", x = -64, z = 46.6, rot = 0 },
+	{ room = 3, kind = "wall", x = -55, z = 46.6, rot = 0 },
+	{ room = 3, kind = "wall", x = -46, z = 46.6, rot = 0 },
+	{ room = 3, kind = "wall", x = -69.6, z = 24, rot = -90 },
+	{ room = 3, kind = "wall", x = -69.6, z = 36, rot = -90 },
+	{ room = 3, kind = "wall", x = -58, z = 18.4, rot = 180 },
+	{ room = 3, kind = "wall", x = -46, z = 18.4, rot = 180 },
+}
+Exhibition.SPOT_COUNT = #Exhibition.Spots
+
+function Exhibition.roomOf(spot)
+	local def = Exhibition.Spots[spot]
+	return def and def.room or 1
+end
+
+-- Stands -----------------------------------------------------------------------------------
+-- Tres calidades: cuanto mejor luce el cuadro, más pagan los visitantes.
+Exhibition.Tiers = {
+	{ id = 1, wall = "Marco sencillo", floor = "Caballete", bonus = 0 },
+	{ id = 2, wall = "Marco de galería", floor = "Panel de galería", bonus = 0.15 },
+	{ id = 3, wall = "Marco dorado", floor = "Vitrina de lujo", bonus = 0.35 },
+}
+Exhibition.MAX_TIER = #Exhibition.Tiers
+Exhibition.FREE_STANDS = 1
+
+function Exhibition.tierName(spot, tier)
+	local def = Exhibition.Spots[spot]
+	local info = Exhibition.Tiers[math.clamp(tier or 1, 1, Exhibition.MAX_TIER)]
+	return def and def.kind == "wall" and info.wall or info.floor
+end
+
+function Exhibition.tierBonus(tier)
+	local info = Exhibition.Tiers[tier or 1]
+	return info and info.bonus or 0
+end
+
+function Exhibition.countStands(stands)
+	local owned = 0
+	for _, tier in ipairs(stands or {}) do
+		if tier > 0 then
+			owned += 1
+		end
+	end
+	return owned
+end
+
+-- Precio del siguiente stand (el primero es gratis).
+function Exhibition.standCost(owned)
+	if owned < Exhibition.FREE_STANDS then
+		return 0
+	end
+	return math.floor(50 * 1.42 ^ (owned - Exhibition.FREE_STANDS) / 5 + 0.5) * 5
+end
+
+-- Mejorar un stand de la calidad tier a la siguiente.
+function Exhibition.upgradeCost(tier, room)
+	local base = tier <= 1 and 250 or 1500
+	return math.floor(base * 3 ^ ((room or 1) - 1))
+end
+
+-- Precios ------------------------------------------------------------------------------------
+-- Redondeo amable: de 5 en 5 a partir de 50.
+function Exhibition.roundPrice(amount)
+	amount = math.max(1, amount)
+	if amount >= 50 then
+		return math.floor(amount / 5 + 0.5) * 5
+	end
+	return math.floor(amount + 0.5)
+end
+
+-- Precio medio: lo que suele pagar un visitante por el cuadro en ese stand.
+function Exhibition.marketPrice(value, tier)
+	return Exhibition.roundPrice(value * (1 + Exhibition.tierBonus(tier)))
+end
+
+Exhibition.PRICE_MIN = 0.5
+Exhibition.PRICE_MAX = 3
+
+function Exhibition.clampPrice(price, market)
+	local low = Exhibition.roundPrice(market * Exhibition.PRICE_MIN)
+	local high = Exhibition.roundPrice(market * Exhibition.PRICE_MAX)
+	price = tonumber(price) or market
+	if price ~= price then
+		price = market
+	end
+	return math.clamp(math.floor(price), low, high)
+end
+
+-- Paso de los botones − / + del precio.
+function Exhibition.priceStep(market)
+	return math.max(1, Exhibition.roundPrice(market * 0.05))
+end
+
+-- Probabilidad de que a un visitante le interese el cuadro según lo caro
+-- que esté (ratio = precio / precio medio).
+function Exhibition.interest(ratio)
+	return math.clamp(1.55 - 0.72 * ratio, 0.08, 1)
+end
+
+Exhibition.PriceBands = {
+	{ max = 0.86, short = "Ganga", text = "Ganga: se venderá volando", color = rgb(52, 188, 116) },
+	{ max = 1.1, short = "Precio justo", text = "Precio justo: se venderá pronto", color = rgb(18, 168, 148) },
+	{ max = 1.35, short = "Algo caro", text = "Algo caro: te harán ofertas", color = rgb(250, 176, 40) },
+	{ max = 1.7, short = "Caro", text = "Caro: pocos visitantes se animarán", color = rgb(244, 140, 50) },
+	{ max = math.huge, short = "Carísimo", text = "Carísimo: casi nadie lo comprará", color = rgb(236, 86, 76) },
+}
+
+function Exhibition.band(ratio)
+	for _, band in ipairs(Exhibition.PriceBands) do
+		if ratio <= band.max then
+			return band
+		end
+	end
+	return Exhibition.PriceBands[#Exhibition.PriceBands]
+end
+
+-- Lo máximo que está dispuesto a pagar un visitante (los VIP, mucho más).
+function Exhibition.budget(market, vip, random)
+	if vip then
+		return market * random:NextNumber(1.7, 2.3)
+	end
+	return market * random:NextNumber(0.85, 1.3)
+end
+
+-- Contraoferta: a medio camino entre su oferta y tu precio.
+function Exhibition.counterPrice(offer, price)
+	return Exhibition.roundPrice((offer + price) / 2)
+end
+
+-- Segundos para responder a una oferta en la caja.
+Exhibition.OFFER_TIME = 20
+-- Con la mejora Cajero, las ofertas sin respuesta se aceptan si llegan a esto.
+Exhibition.CASHIER_ACCEPT = 0.85
+Exhibition.CASHIER_TIME = 8
+
+return Exhibition
+]]></string>
+        </Properties>
+      </Item>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="8">
+  <Item class="ServerScriptService" referent="9">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
-    <Item class="Folder" referent="9">
+    <Item class="Folder" referent="10">
       <Properties>
         <string name="Name">Server</string>
       </Properties>
-      <Item class="Script" referent="10">
+      <Item class="Script" referent="11">
         <Properties>
           <string name="Name">Main</string>
           <token name="RunContext">0</token>
@@ -1640,6 +1985,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Colors = require(Shared.Colors)
 local Designs = require(Shared.Designs)
+local Exhibition = require(Shared.Exhibition)
 
 local Services = script.Parent:WaitForChild("Services")
 local DataService = require(Services.DataService)
@@ -1668,6 +2014,13 @@ local CancelPainting = remote("RemoteEvent", "CancelPainting")
 local FinishPainting = remote("RemoteFunction", "FinishPainting")
 local BuyUpgrade = remote("RemoteFunction", "BuyUpgrade")
 local SelectStored = remote("RemoteEvent", "SelectStored")
+local OpenStand = remote("RemoteEvent", "OpenStand")
+local StandAction = remote("RemoteFunction", "StandAction")
+local Offer = remote("RemoteEvent", "Offer")
+local OfferClosed = remote("RemoteEvent", "OfferClosed")
+local RespondOffer = remote("RemoteEvent", "RespondOffer")
+local OpenMixer = remote("RemoteEvent", "OpenMixer")
+local MixColors = remote("RemoteFunction", "MixColors")
 local SkipTutorial = remote("RemoteEvent", "SkipTutorial")
 local ClaimDaily = remote("RemoteFunction", "ClaimDaily")
 local ClaimQuest = remote("RemoteFunction", "ClaimQuest")
@@ -1686,8 +2039,8 @@ end)
 local tryRoll
 local renderAutoPrompt
 local toggleAutoRoll
-local hangPainting
-local takeDownPainting
+local buyStand
+local buyRoom
 
 -- Estado de la sesión --------------------------------------------------------------------
 local plotOf = {}
@@ -1697,7 +2050,7 @@ local sessions = {}
 local function getSession(player)
 	local session = sessions[player]
 	if not session then
-		session = { nextRoll = 0, nextAuto = 0, painting = nil, lastHome = 0 }
+		session = { nextRoll = 0, nextAuto = 0, painting = nil, lastHome = 0, lastPass = 0 }
 		sessions[player] = session
 	end
 	return session
@@ -1815,10 +2168,16 @@ local function buildState(player)
 		made = data.made,
 		upgrades = data.upgrades,
 		openLevel = openLevel(data),
-		slots = Config.gallerySlots(data.upgrades),
+		stands = data.stands,
+		standCount = Exhibition.countStands(data.stands),
+		standCost = Exhibition.standCost(Exhibition.countStands(data.stands)),
+		rooms = data.rooms,
+		gallery = data.gallery,
 		displayed = #data.gallery,
 		storage = data.storage,
 		storageMax = Config.STORAGE_SIZE,
+		hasCashier = Config.hasCashier(data.upgrades),
+		best = data.best,
 		autoUnlocked = Config.hasAutoRoll(data.upgrades),
 		autoRoll = data.autoRoll and Config.hasAutoRoll(data.upgrades),
 		lastRoll = data.lastRoll,
@@ -1933,32 +2292,59 @@ local function slotEntry(data, slot)
 	return nil
 end
 
-local function renderGallery(plot, data)
-	local slots = Config.gallerySlots(data.upgrades)
-	for i = 1, Config.GALLERY_SIZE do
-		local canvas = plot.canvases[i]
-		local plaque = plot.plaques[i]
+-- Stands, cuadros expuestos y tapias de ampliación de la sala.
+local function renderStands(plot, data, animateSpot)
+	for room = 1, data.rooms do
+		WorldBuilder.openRoom(plot, room, false)
+	end
+	local owned = Exhibition.countStands(data.stands)
+	local cost = Exhibition.standCost(owned)
+	for i, spot in ipairs(plot.spots) do
+		local open = spot.def.room <= data.rooms
+		local tier = data.stands[i] or 0
+		WorldBuilder.setStand(plot, i, tier, animateSpot == i)
 		local entry = slotEntry(data, i)
 		local design = entry and Designs.get(entry.d)
-		canvas:SetAttribute("Locked", i > slots)
-		if design then
-			canvas:SetAttribute("Design", entry.d)
-			canvas:SetAttribute("Colors", entry.c)
-			canvas:SetAttribute("Price", entry.v)
-			canvas:SetAttribute("Stars", entry.st or 1)
-			plaque.Text = design.name .. "  ·  💵 " .. entry.v
+		local anchor, standPrompt = spot.anchor, spot.prompt
+		anchor:SetAttribute("Open", open)
+		anchor:SetAttribute("Owned", tier > 0)
+		anchor:SetAttribute("Tier", tier)
+		anchor:SetAttribute("Cost", cost)
+		anchor:SetAttribute("HasPainting", design ~= nil)
+		standPrompt.Enabled = open
+		if tier == 0 then
+			standPrompt.ActionText = "Comprar stand"
+			standPrompt.ObjectText = cost > 0 and ("💵 " .. Config.formatNumber(cost)) or "Gratis"
+			standPrompt.HoldDuration = 0.6
 		else
-			canvas:SetAttribute("Design", "")
-			canvas:SetAttribute("Colors", "")
-			canvas:SetAttribute("Price", 0)
-			canvas:SetAttribute("Stars", 0)
-			plaque.Text = i > slots and "🔒 Mejora «Más paredes»" or "Marco libre"
+			standPrompt.HoldDuration = 0
+			if design then
+				standPrompt.ActionText = "Gestionar"
+				standPrompt.ObjectText = design.name .. " · 💵 " .. Config.formatNumber(entry.p)
+			else
+				standPrompt.ActionText = #data.storage > 0 and "Exponer cuadro" or "Ver stand"
+				standPrompt.ObjectText = Exhibition.tierName(i, tier)
+			end
 		end
-		plot.hangPrompts[i].Enabled = not design and i <= slots and #data.storage > 0
-		plot.takePrompts[i].Enabled = design ~= nil
-		if design then
-			plot.takePrompts[i].ObjectText = design.name
+		local canvas = spot.canvas
+		if canvas then
+			canvas:SetAttribute("Design", design and entry.d or "")
+			canvas:SetAttribute("Colors", design and entry.c or "")
+			canvas:SetAttribute("Stars", design and (entry.st or 1) or 0)
+			canvas:SetAttribute("Price", design and entry.p or 0)
+			canvas:SetAttribute("Market", design and Exhibition.marketPrice(entry.v, tier) or 0)
+			spot.plaque.Text = design and (design.name .. "  ·  💵 " .. Config.formatNumber(entry.p))
+				or Exhibition.tierName(i, tier)
 		end
+	end
+	for index, hoarding in pairs(plot.hoardings) do
+		local def = Exhibition.Rooms[index]
+		local ready = owned >= def.needStands
+		hoarding.prompt.Enabled = data.rooms == index - 1
+		hoarding.prompt.ActionText = ready and "Ampliar la galería" or ("Necesitas " .. def.needStands .. " stands")
+		hoarding.prompt.ObjectText = def.name .. " · 💵 " .. Config.formatNumber(def.cost)
+		hoarding.status.Text = ready and ("Ampliar por 💵 " .. Config.formatNumber(def.cost))
+			or string.format("Compra %d stands (%d/%d)", def.needStands, owned, def.needStands)
 	end
 end
 
@@ -2020,7 +2406,7 @@ local function refreshPlot(player)
 	local plot = plotOf[player]
 	local data = DataService.get(player)
 	if plot and data then
-		renderGallery(plot, data)
+		renderStands(plot, data)
 		renderShelf(plot, data)
 	end
 end
@@ -2045,8 +2431,9 @@ local function createPlot(player, data)
 	end)
 	WorldBuilder.setOwnerName(plot, player.DisplayName)
 	plotOf[player] = plot
-	renderGallery(plot, data)
+	renderStands(plot, data)
 	renderShelf(plot, data)
+	WorldBuilder.setCashier(plot, Config.hasCashier(data.upgrades))
 	renderMachine(plot, data.lastRoll)
 	WorldBuilder.setDecorLevel(plot, data.upgrades.decoracion or 0)
 	VisitorService.attach(plot, player)
@@ -2066,16 +2453,29 @@ local function createPlot(player, data)
 			toggleAutoRoll(player)
 		end
 	end)
+	plot.workshop.mixPrompt.Triggered:Connect(function(who)
+		if who == player then
+			OpenMixer:FireClient(player)
+		end
+	end)
 	renderAutoPrompt(plot, data)
-	for i = 1, Config.GALLERY_SIZE do
-		plot.hangPrompts[i].Triggered:Connect(function(who)
-			if who == player then
-				hangPainting(player, i)
+	for i, spot in ipairs(plot.spots) do
+		spot.prompt.Triggered:Connect(function(who)
+			if who ~= player then
+				return
+			end
+			local current = DataService.get(player)
+			if current and (current.stands[i] or 0) > 0 then
+				OpenStand:FireClient(player, i)
+			else
+				buyStand(player, i)
 			end
 		end)
-		plot.takePrompts[i].Triggered:Connect(function(who)
+	end
+	for index, hoarding in pairs(plot.hoardings) do
+		hoarding.prompt.Triggered:Connect(function(who)
 			if who == player then
-				takeDownPainting(player, i)
+				buyRoom(player, index)
 			end
 		end)
 	end
@@ -2233,7 +2633,7 @@ StartPainting.OnServerInvoke = function(player, designId, colors)
 		return false, "Ya estás pintando un cuadro."
 	end
 	if #data.storage >= Config.STORAGE_SIZE then
-		return false, "Tu almacén está lleno: cuelga tus cuadros en la galería."
+		return false, "Tu almacén está lleno: expón tus cuadros en los stands de la sala."
 	end
 	if not data.unlocked[designId] or not Designs.isLevelOpen(design.level, data.made) then
 		return false, "Ese diseño está bloqueado."
@@ -2287,10 +2687,11 @@ end
 
 CancelPainting.OnServerEvent:Connect(cancelPainting)
 
-local function freeSlot(data)
-	for slot = 1, Config.gallerySlots(data.upgrades) do
-		if not slotEntry(data, slot) then
-			return slot
+-- Primer stand comprado y sin cuadro.
+local function freeStand(data)
+	for i, tier in ipairs(data.stands) do
+		if tier > 0 and Exhibition.roomOf(i) <= data.rooms and not slotEntry(data, i) then
+			return i
 		end
 	end
 	return nil
@@ -2325,11 +2726,11 @@ FinishPainting.OnServerInvoke = function(player)
 	end
 	tutorialEvent(player, data, 3, 1)
 
-	-- El cuadro no se vende aquí: va al almacén y lo llevas a la galería.
-	local price = math.floor(value * Config.GALLERY_BONUS)
-	table.insert(data.storage, 1, { d = design.id, c = encoded, v = price, st = stars })
-	local result = { ok = true, value = value, price = price, stars = stars, designId = design.id }
-	result.freeFrames = freeSlot(data) ~= nil
+	-- El cuadro no se vende aquí: va al almacén y lo expones en un stand.
+	local market = math.floor(value * Config.GALLERY_BONUS)
+	table.insert(data.storage, 1, { d = design.id, c = encoded, v = market, st = stars })
+	local result = { ok = true, value = value, price = market, stars = stars, designId = design.id }
+	result.freeStands = freeStand(data) ~= nil
 
 	local tierAfter = Config.masteryFor(data.made[design.id])
 	if tierAfter and tierAfter ~= tierBefore then
@@ -2350,47 +2751,120 @@ FinishPainting.OnServerInvoke = function(player)
 	return result
 end
 
--- Colgar y descolgar cuadros en la galería -----------------------------------------------------
-hangPainting = function(player, slot)
+-- Stands y ampliaciones de la sala ---------------------------------------------------------------
+buyStand = function(player, index)
 	local data = DataService.get(player)
-	if not data or #data.storage == 0 then
+	local plot = plotOf[player]
+	local def = Exhibition.Spots[index]
+	if not (data and plot and def) or def.room > data.rooms or (data.stands[index] or 0) > 0 then
 		return
 	end
-	if slot > Config.gallerySlots(data.upgrades) or slotEntry(data, slot) then
+	local cost = Exhibition.standCost(Exhibition.countStands(data.stands))
+	if data.coins < cost then
+		notify(player, "Te faltan 💵" .. Config.formatNumber(cost - data.coins) .. " para este stand.", "error")
 		return
 	end
-	local entry = table.remove(data.storage, 1)
-	table.insert(data.gallery, { s = slot, d = entry.d, c = entry.c, v = entry.v, st = entry.st })
-	tutorialEvent(player, data, 4, 1)
-	local design = Designs.get(entry.d)
-	notify(
-		player,
-		"🖼️ Colgaste «" .. (design and design.name or "tu cuadro") .. "». ¡Pronto vendrá un visitante!",
-		"success"
-	)
-	renderCarry(player, data)
-	refreshPlot(player)
+	data.coins -= cost
+	data.stands[index] = 1
+	notify(player, "🛠️ ¡Stand nuevo! Pulsa sobre él para exponer un cuadro.", "success")
+	renderStands(plot, data, index)
 	pushState(player)
 end
 
-takeDownPainting = function(player, slot)
+buyRoom = function(player, index)
 	local data = DataService.get(player)
-	if not data then
+	local plot = plotOf[player]
+	local def = Exhibition.Rooms[index]
+	if not (data and plot and def) or data.rooms ~= index - 1 then
 		return
 	end
-	local entry, index = slotEntry(data, slot)
-	if not entry then
+	local owned = Exhibition.countStands(data.stands)
+	if owned < def.needStands then
+		notify(player, "Compra " .. def.needStands .. " stands para ampliar (tienes " .. owned .. ").", "error")
 		return
 	end
-	if #data.storage >= Config.STORAGE_SIZE then
-		notify(player, "Tu almacén está lleno.", "error")
+	if data.coins < def.cost then
+		notify(player, "Te faltan 💵" .. Config.formatNumber(def.cost - data.coins) .. " para ampliar.", "error")
 		return
 	end
-	table.remove(data.gallery, index)
-	table.insert(data.storage, 1, { d = entry.d, c = entry.c, v = entry.v, st = entry.st })
-	renderCarry(player, data)
-	refreshPlot(player)
+	data.coins -= def.cost
+	data.rooms = index
+	WorldBuilder.openRoom(plot, index, true)
+	notify(player, "🏗️ ¡Galería ampliada! Nueva sala: " .. def.name, "gold")
+	renderStands(plot, data)
 	pushState(player)
+end
+
+-- Acciones del panel de un stand: exponer, cambiar precio, retirar y mejorar.
+StandAction.OnServerInvoke = function(player, action, index, a, b)
+	local data = DataService.get(player)
+	local plot = plotOf[player]
+	if not (data and plot) or type(action) ~= "string" or type(index) ~= "number" then
+		return false, "Acción no válida."
+	end
+	index = math.floor(index)
+	local def = Exhibition.Spots[index]
+	local tier = def and data.stands[index] or 0
+	if not def or tier == 0 or def.room > data.rooms then
+		return false, "Ese stand no es tuyo."
+	end
+	local entry, entryIndex = slotEntry(data, index)
+	local message
+	local animate = nil
+	if action == "exhibit" then
+		if entry then
+			return false, "Ese stand ya tiene un cuadro."
+		end
+		local storageIndex = math.floor(tonumber(a) or 1)
+		local stored = data.storage[storageIndex]
+		if not stored then
+			return false, "No tienes ese cuadro."
+		end
+		local price = Exhibition.clampPrice(b, Exhibition.marketPrice(stored.v, tier))
+		table.remove(data.storage, storageIndex)
+		table.insert(data.gallery, { s = index, d = stored.d, c = stored.c, v = stored.v, p = price, st = stored.st })
+		tutorialEvent(player, data, 4, 1)
+		local design = Designs.get(stored.d)
+		message = "🖼️ «"
+			.. (design and design.name or "Tu cuadro")
+			.. "» a la venta por 💵"
+			.. Config.formatNumber(price)
+			.. ". ¡Pronto vendrán visitantes!"
+	elseif action == "price" then
+		if not entry then
+			return false, "Ese stand está vacío."
+		end
+		entry.p = Exhibition.clampPrice(a, Exhibition.marketPrice(entry.v, tier))
+		message = "🏷️ Nuevo precio: 💵" .. Config.formatNumber(entry.p)
+	elseif action == "takedown" then
+		if not entry then
+			return false, "Ese stand está vacío."
+		end
+		if #data.storage >= Config.STORAGE_SIZE then
+			return false, "Tu almacén está lleno."
+		end
+		table.remove(data.gallery, entryIndex)
+		table.insert(data.storage, 1, { d = entry.d, c = entry.c, v = entry.v, st = entry.st })
+		message = "Retiraste el cuadro: ahora lo llevas a la espalda."
+	elseif action == "upgrade" then
+		if tier >= Exhibition.MAX_TIER then
+			return false, "Este stand ya es de la mejor calidad."
+		end
+		local cost = Exhibition.upgradeCost(tier, def.room)
+		if data.coins < cost then
+			return false, "Te faltan 💵" .. Config.formatNumber(cost - data.coins) .. "."
+		end
+		data.coins -= cost
+		data.stands[index] = tier + 1
+		animate = index
+		message = "✨ Stand mejorado: «" .. Exhibition.tierName(index, tier + 1) .. "»"
+	else
+		return false, "Acción no válida."
+	end
+	renderCarry(player, data)
+	renderStands(plot, data, animate)
+	pushState(player)
+	return true, message
 end
 
 SkipTutorial.OnServerEvent:Connect(function(player)
@@ -2424,18 +2898,55 @@ VisitorService.getProfile = function(player)
 	return DataService.get(player)
 end
 
-VisitorService.availableSlots = function(player)
+-- Cuadros a la venta: precio que pusiste y precio medio en su stand.
+VisitorService.listings = function(player)
 	local data = DataService.get(player)
 	local list = {}
 	if data then
 		for _, entry in ipairs(data.gallery) do
-			table.insert(list, entry.s)
+			local tier = data.stands[entry.s] or 1
+			list[entry.s] = {
+				price = entry.p,
+				market = Exhibition.marketPrice(entry.v, tier),
+				tier = tier,
+				room = Exhibition.roomOf(entry.s),
+				d = entry.d,
+				c = entry.c,
+				st = entry.st,
+			}
 		end
 	end
 	return list
 end
 
-VisitorService.onPurchase = function(player, slot, buyerName, vip)
+VisitorService.isTutorial = function(player)
+	local data = DataService.get(player)
+	return data ~= nil and data.tutorial == 5
+end
+
+VisitorService.hasCashier = function(player)
+	local data = DataService.get(player)
+	return data ~= nil and Config.hasCashier(data.upgrades)
+end
+
+-- Un visitante mira un cuadro y no se anima: te lo cuenta (de vez en cuando).
+VisitorService.onPass = function(player, slot, ratio, buyerName)
+	local data = DataService.get(player)
+	local session = getSession(player)
+	local entry = data and slotEntry(data, slot)
+	local design = entry and Designs.get(entry.d)
+	if not design or ratio < 1.25 or os.clock() - session.lastPass < 25 then
+		return
+	end
+	session.lastPass = os.clock()
+	notify(
+		player,
+		"😬 A " .. tostring(buyerName) .. " le pareció caro «" .. design.name .. "». Prueba a bajar el precio.",
+		"info"
+	)
+end
+
+VisitorService.onSale = function(player, slot, amount, buyerName, vip, how)
 	local data = DataService.get(player)
 	if not data or not player.Parent then
 		return nil
@@ -2445,26 +2956,77 @@ VisitorService.onPurchase = function(player, slot, buyerName, vip)
 		return nil
 	end
 	table.remove(data.gallery, index)
-	local price = vip and math.floor(entry.v * Config.VIP_MULTIPLIER) or entry.v
-	earn(player, data, price)
+	amount = math.max(1, math.floor(amount))
+	earn(player, data, amount)
 	data.sold += 1
+	data.best = math.max(data.best, amount)
 	questEvent(player, data, "vender", 1)
+	if amount > Exhibition.marketPrice(entry.v, data.stands[slot] or 1) then
+		questEvent(player, data, "caro", 1)
+	end
 	tutorialEvent(player, data, 5, 1)
 	local design = Designs.get(entry.d)
-	notify(
-		player,
-		(vip and "👑 ¡Coleccionista! " or "🖼️ ")
-			.. tostring(buyerName)
-			.. " compró «"
-			.. (design and design.name or "tu cuadro")
-			.. "» por 💵"
-			.. price,
-		"gold"
-	)
+	local name = design and design.name or "tu cuadro"
+	local text
+	if how == "cashier" then
+		text = "🧑‍💼 Tu cajero vendió «" .. name .. "» a " .. tostring(buyerName)
+	else
+		text = (vip and "👑 " or "💵 ") .. tostring(buyerName) .. " compró «" .. name .. "»"
+	end
+	notify(player, text .. " por 💵" .. Config.formatNumber(amount), "sale")
 	refreshPlot(player)
 	pushState(player)
-	return price
+	return { d = entry.d, c = entry.c, st = entry.st }
 end
+
+-- Ofertas en la caja: el dueño acepta, rechaza o pide más.
+local offers = {}
+local offerCounter = 0
+
+VisitorService.askOwner = function(player, info)
+	offerCounter += 1
+	local id = offerCounter
+	local record = { player = player, answer = nil, final = info.final == true }
+	offers[id] = record
+	local cashier = VisitorService.hasCashier(player)
+	local tutorial = VisitorService.isTutorial(player)
+	local timeout = tutorial and 60 or (cashier and Exhibition.CASHIER_TIME or Exhibition.OFFER_TIME)
+	Offer:FireClient(player, {
+		id = id,
+		buyer = info.buyer,
+		userId = info.userId,
+		vip = info.vip,
+		designId = info.d,
+		colors = info.c,
+		stars = info.st,
+		price = info.price,
+		market = info.market,
+		offer = info.offer,
+		counter = Exhibition.counterPrice(info.offer, info.price),
+		final = record.final,
+		time = timeout,
+		cashier = cashier,
+	})
+	local started = os.clock()
+	while not record.answer and player.Parent and os.clock() - started < timeout do
+		task.wait(0.1)
+	end
+	offers[id] = nil
+	if player.Parent then
+		OfferClosed:FireClient(player, id)
+	end
+	return record.answer or "timeout"
+end
+
+RespondOffer.OnServerEvent:Connect(function(player, id, action)
+	local record = offers[id]
+	if not record or record.player ~= player or record.answer then
+		return
+	end
+	if action == "accept" or action == "reject" or (action == "counter" and not record.final) then
+		record.answer = action
+	end
+end)
 
 -- Mejoras, regalo diario y misiones ----------------------------------------------------------------
 BuyUpgrade.OnServerInvoke = function(player, id)
@@ -2487,8 +3049,8 @@ BuyUpgrade.OnServerInvoke = function(player, id)
 	if plot then
 		if id == "decoracion" then
 			WorldBuilder.setDecorLevel(plot, level + 1)
-		elseif id == "paredes" then
-			renderGallery(plot, data)
+		elseif id == "cajero" then
+			WorldBuilder.setCashier(plot, true)
 		end
 	end
 	if id == "auto" then
@@ -2566,6 +3128,51 @@ ClaimQuest.OnServerInvoke = function(player, index)
 	return true, result
 end
 
+-- Mezclador: varios colores de una rareza dan uno de la rareza siguiente.
+MixColors.OnServerInvoke = function(player, rarityId, picks)
+	local data = DataService.get(player)
+	local need = type(rarityId) == "string" and Colors.MixCost[rarityId]
+	if not (data and need) or type(picks) ~= "table" then
+		return false, "Mezcla no válida."
+	end
+	local total = 0
+	for colorId, count in pairs(picks) do
+		local entry = Colors.ById[colorId]
+		if not entry or entry.rarity ~= rarityId or type(count) ~= "number" or count < 1 or count % 1 ~= 0 then
+			return false, "Mezcla no válida."
+		end
+		if (data.paints[colorId] or 0) < count then
+			return false, "No tienes suficiente «" .. entry.name .. "»."
+		end
+		total += count
+	end
+	if total ~= need then
+		return false, "Pon " .. need .. " colores en el mezclador."
+	end
+	for colorId, count in pairs(picks) do
+		data.paints[colorId] -= count
+		if data.paints[colorId] <= 0 then
+			data.paints[colorId] = nil
+		end
+	end
+	local result = Colors.mix(rarityId, rng, data.discovered)
+	local isNew = addPaint(data, result.id, 1)
+	local rarity = Colors.rarityOf(result)
+	if rarity.index >= 3 then
+		questEvent(player, data, "raro", 1)
+	end
+	if isNew then
+		earn(player, data, Config.discoveryBonus(rarity))
+	end
+	local plot = plotOf[player]
+	if plot then
+		plot.workshop.mixLiquid.Color = Colors.mainColor(result.id)
+	end
+	refreshPlot(player)
+	pushState(player)
+	return true, result.id, isNew
+end
+
 GetState.OnServerInvoke = function(player)
 	for _ = 1, 50 do
 		if DataService.get(player) then
@@ -2632,6 +3239,19 @@ local function onPlayerAdded(player)
 			data.discovered[colorId] = true
 		end
 	end
+	-- Cuadros expuestos en stands que ya no existen vuelven al almacén.
+	local kept, seen = {}, {}
+	for _, entry in ipairs(data.gallery) do
+		local def = Exhibition.Spots[entry.s]
+		if def and def.room <= data.rooms and (data.stands[entry.s] or 0) > 0 and not seen[entry.s] then
+			seen[entry.s] = true
+			entry.p = entry.p or entry.v
+			table.insert(kept, entry)
+		elseif #data.storage < Config.STORAGE_SIZE then
+			table.insert(data.storage, { d = entry.d, c = entry.c, v = entry.v, st = entry.st })
+		end
+	end
+	data.gallery = kept
 	ensureQuests(data)
 
 	local plot = createPlot(player, data)
@@ -2710,11 +3330,11 @@ end)
 ]]></string>
         </Properties>
       </Item>
-      <Item class="Folder" referent="11">
+      <Item class="Folder" referent="12">
         <Properties>
           <string name="Name">Services</string>
         </Properties>
-        <Item class="ModuleScript" referent="12">
+        <Item class="ModuleScript" referent="13">
           <Properties>
             <string name="Name">DataService</string>
             <string name="Source"><![CDATA[-- Guarda y carga el progreso de cada jugador con DataStoreService.
@@ -2727,6 +3347,7 @@ local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Exhibition = require(Shared.Exhibition)
 
 local DataService = {}
 
@@ -2748,6 +3369,14 @@ do
 	end
 end
 
+local function defaultStands()
+	local stands = {}
+	for i = 1, Exhibition.SPOT_COUNT do
+		stands[i] = i <= Exhibition.FREE_STANDS and 1 or 0
+	end
+	return stands
+end
+
 local function defaultData()
 	return {
 		coins = Config.START_COINS,
@@ -2755,8 +3384,11 @@ local function defaultData()
 		unlocked = { globo = true }, -- diseños comprados
 		made = {}, -- diseñoId -> veces pintado
 		upgrades = {},
-		gallery = {}, -- { s = hueco, d = diseño, c = colores, v = valor }
-		storage = {}, -- cuadros terminados sin colgar (el primero es el que llevas)
+		gallery = {}, -- { s = stand, d = diseño, c = colores, v = valor, p = precio, st = estrellas }
+		storage = {}, -- cuadros terminados sin exponer (el primero es el que llevas)
+		stands = defaultStands(), -- calidad del stand de cada hueco (0 = sin comprar)
+		rooms = 1, -- salas abiertas
+		best = 0, -- mejor venta
 		autoRoll = false,
 		lastRoll = "",
 		rolls = 0,
@@ -2774,9 +3406,39 @@ local function defaultData()
 	}
 end
 
+-- Partidas de la versión con marcos fijos y la mejora «Más paredes»: cada
+-- marco que tenías pasa a ser un stand de galería con su cuadro expuesto.
+local function migrate(data)
+	if type(data) ~= "table" or data.stands ~= nil then
+		return data
+	end
+	local upgrades = type(data.upgrades) == "table" and data.upgrades or {}
+	local frames = math.clamp(3 + (tonumber(upgrades.paredes) or 0), 1, 8)
+	upgrades.paredes = nil
+	local stands = {}
+	for i = 1, Exhibition.SPOT_COUNT do
+		stands[i] = i <= frames and 2 or 0
+	end
+	data.stands = stands
+	data.rooms = 1
+	if type(data.gallery) == "table" then
+		local kept = {}
+		for _, entry in ipairs(data.gallery) do
+			if type(entry) == "table" and #kept < frames then
+				entry.s = #kept + 1
+				entry.p = entry.v
+				table.insert(kept, entry)
+			end
+		end
+		data.gallery = kept
+	end
+	return data
+end
+
 -- Rellena campos que falten (por ejemplo tras una actualización del juego).
 local function reconcile(data)
 	local template = defaultData()
+	data = migrate(data)
 	if type(data) ~= "table" then
 		return template
 	end
@@ -2790,6 +3452,13 @@ local function reconcile(data)
 			data.upgrades[id] = nil
 		end
 	end
+	for i = 1, Exhibition.SPOT_COUNT do
+		if type(data.stands[i]) ~= "number" then
+			data.stands[i] = 0
+		end
+		data.stands[i] = math.clamp(math.floor(data.stands[i]), 0, Exhibition.MAX_TIER)
+	end
+	data.rooms = math.clamp(math.floor(data.rooms), 1, #Exhibition.Rooms)
 	return data
 end
 
@@ -2909,17 +3578,20 @@ return DataService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="13">
+        <Item class="ModuleScript" referent="14">
           <Properties>
             <string name="Name">VisitorService</string>
             <string name="Source"><![CDATA[-- Visitantes: avatares reales de Roblox (los amigos del dueño o avatares
--- conocidos) que entran a la galería, miran un cuadro expuesto y lo compran.
+-- conocidos) que entran a la galería, miran los cuadros expuestos y, si el
+-- precio les convence, van a la caja a pagarlo o a hacerte una oferta.
 
+local PathfindingService = game:GetService("PathfindingService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Exhibition = require(Shared.Exhibition)
 
 local VisitorService = {}
 
@@ -2950,8 +3622,12 @@ local SHIRT_COLORS = {
 
 -- Callbacks que asigna el servidor principal.
 VisitorService.getProfile = nil -- (player) -> datos
-VisitorService.availableSlots = nil -- (player) -> { hueco, ... } con cuadro
-VisitorService.onPurchase = nil -- (player, hueco, nombre) -> precio o nil
+VisitorService.listings = nil -- (player) -> { [stand] = { price, market, tier, d, c, st } }
+VisitorService.isTutorial = nil -- (player) -> true si el tutorial espera la primera venta
+VisitorService.hasCashier = nil -- (player) -> true con la mejora Cajero
+VisitorService.askOwner = nil -- (player, oferta) -> "accept" | "reject" | "counter" | "timeout"
+VisitorService.onSale = nil -- (player, stand, precio, nombre, vip, cómo) -> cuadro vendido o nil
+VisitorService.onPass = nil -- (player, stand, ratio, nombre): no lo compró por caro
 
 local rng = Random.new()
 local states = {}
@@ -3046,10 +3722,12 @@ local function createAvatar(owner)
 			return nil
 		end
 	end
-	return model, name or pick(FALLBACK_NAMES)
+	return model, name or pick(FALLBACK_NAMES), userId
 end
 
 -- Movimiento y animaciones -------------------------------------------------------------
+local PATH_PARAMS = { AgentRadius = 1.6, AgentHeight = 5, AgentCanJump = false, WaypointSpacing = 4 }
+
 local function loadTracks(humanoid)
 	local animator = humanoid:FindFirstChildOfClass("Animator")
 	if not animator then
@@ -3087,33 +3765,69 @@ local function alive(visitor)
 	return visitor.model.Parent ~= nil and visitor.humanoid.Parent ~= nil
 end
 
--- Camina hasta el punto. Roblox corta MoveTo a los 8 s, así que se repite
--- mientras siga avanzando; si se atasca, se le acerca al destino.
+local function flatDistance(a, b)
+	return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude
+end
+
+-- Un paso con MoveTo; espera a que llegue o a que pase el tiempo.
+local function stepTo(visitor, position, timeout)
+	local finished = false
+	local connection = visitor.humanoid.MoveToFinished:Connect(function()
+		finished = true
+	end)
+	visitor.humanoid:MoveTo(position)
+	local started = os.clock()
+	while not finished and alive(visitor) and os.clock() - started < timeout do
+		task.wait(0.1)
+	end
+	connection:Disconnect()
+	return alive(visitor)
+end
+
+-- Camina hasta el punto esquivando los stands (PathfindingService). Si no
+-- encuentra camino va en línea recta y, si se atasca, se le acerca al destino.
 local function walkTo(visitor, target)
-	for _ = 1, 4 do
-		if not alive(visitor) then
-			return false
-		end
-		play(visitor, "walk")
-		local finished = false
-		local connection = visitor.humanoid.MoveToFinished:Connect(function()
-			finished = true
+	if not alive(visitor) then
+		return false
+	end
+	play(visitor, "walk")
+	local goal = target.Position
+	-- Fuera (calle y jardín) se camina en línea recta; dentro hay stands.
+	local indoors = goal.Y > 1
+	local ok, path = false, nil
+	if indoors then
+		ok, path = pcall(function()
+			local newPath = PathfindingService:CreatePath(PATH_PARAMS)
+			newPath:ComputeAsync(visitor.root.Position, goal)
+			return newPath
 		end)
-		visitor.humanoid:MoveTo(target.Position)
-		local started = os.clock()
-		while not finished and alive(visitor) and os.clock() - started < 9 do
-			task.wait(0.1)
-		end
-		connection:Disconnect()
-		if not alive(visitor) then
-			return false
-		end
-		local offset = visitor.root.Position - target.Position
-		if Vector3.new(offset.X, 0, offset.Z).Magnitude <= 3 then
-			return true
+	end
+	if ok and path and path.Status == Enum.PathStatus.Success then
+		local waypoints = path:GetWaypoints()
+		for i = 2, #waypoints do
+			if not stepTo(visitor, waypoints[i].Position, 4) then
+				return false
+			end
+			if flatDistance(visitor.root.Position, waypoints[i].Position) > 4 then
+				break
+			end
 		end
 	end
-	visitor.model:PivotTo(target * CFrame.new(0, 3, 0))
+	for _ = 1, 3 do
+		if not alive(visitor) then
+			return false
+		end
+		if flatDistance(visitor.root.Position, goal) <= 3 then
+			return true
+		end
+		stepTo(visitor, goal, 9)
+	end
+	if not alive(visitor) then
+		return false
+	end
+	if flatDistance(visitor.root.Position, goal) > 3 then
+		visitor.model:PivotTo(target * CFrame.new(0, 3, 0))
+	end
 	return true
 end
 
@@ -3126,11 +3840,190 @@ local function walkRoute(visitor, points)
 	return true
 end
 
+-- Recorridos dentro de la galería (las ampliaciones están al fondo).
+local function pathTo(plot, slot)
+	local list = table.clone(plot.roomPaths[Exhibition.roomOf(slot)] or {})
+	table.insert(list, plot.standPoints[slot])
+	return list
+end
+
+local function pathBack(plot, slot)
+	local list = {}
+	local path = plot.roomPaths[Exhibition.roomOf(slot)] or {}
+	for i = #path, 1, -1 do
+		table.insert(list, path[i])
+	end
+	table.insert(list, plot.hub)
+	return list
+end
+
+local function goToStand(visitor, plot, fromSlot, slot)
+	if fromSlot and Exhibition.roomOf(fromSlot) == Exhibition.roomOf(slot) then
+		return walkTo(visitor, plot.standPoints[slot])
+	end
+	if fromSlot and not walkRoute(visitor, pathBack(plot, fromSlot)) then
+		return false
+	end
+	return walkRoute(visitor, pathTo(plot, slot))
+end
+
+local function standStill(visitor, cf)
+	visitor.model:PivotTo(cf * CFrame.new(0, 3, 0))
+	play(visitor, "idle")
+end
+
+-- El cuadro comprado se lo lleva bajo el brazo (a la espalda).
+local function carryPainting(visitor, bought)
+	local root = visitor.root
+	local holder = Instance.new("Model")
+	holder.Name = "BoughtPainting"
+	local base = root.CFrame * CFrame.new(0, 0.3, 0.9) * CFrame.Angles(math.rad(-8), math.pi, 0)
+	local back = Instance.new("Part")
+	back.Name = "Back"
+	back.Size = Vector3.new(3, 3, 0.25)
+	back.CFrame = base
+	back.Color = Color3.fromRGB(214, 176, 128)
+	back.Material = Enum.Material.Wood
+	local canvas = Instance.new("Part")
+	canvas.Name = "Canvas"
+	canvas.Size = Vector3.new(2.6, 2.6, 0.1)
+	canvas.CFrame = base * CFrame.new(0, 0, -0.16)
+	canvas.Color = Color3.fromRGB(250, 248, 242)
+	for _, piece in ipairs({ back, canvas }) do
+		piece.CanCollide = false
+		piece.CanQuery = false
+		piece.CanTouch = false
+		piece.Massless = true
+		piece.CastShadow = false
+		piece.CollisionGroup = VisitorService.COLLISION_GROUP
+		piece.Parent = holder
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = piece
+		weld.Parent = piece
+	end
+	canvas:SetAttribute("Design", bought.d)
+	canvas:SetAttribute("Colors", bought.c)
+	canvas:SetAttribute("Stars", bought.st or 1)
+	holder.Parent = visitor.model
+end
+
+-- Cola de la caja ------------------------------------------------------------------------
+local function queueIndex(state, visitor)
+	for i, other in ipairs(state.queue) do
+		if other == visitor then
+			return i
+		end
+	end
+	return nil
+end
+
+local function leaveQueue(state, visitor)
+	local index = queueIndex(state, visitor)
+	if index then
+		table.remove(state.queue, index)
+	end
+end
+
+-- Hace cola hasta ser el primero; devuelve false si algo sale mal.
+local function waitTurn(state, visitor)
+	local plot = state.plot
+	table.insert(state.queue, visitor)
+	local lastSpot = nil
+	while alive(visitor) and states[plot.index] == state do
+		local index = queueIndex(state, visitor)
+		if not index then
+			return false
+		end
+		local spot = math.min(index, #plot.caja.queue)
+		if spot ~= lastSpot then
+			lastSpot = spot
+			if not walkTo(visitor, plot.caja.queue[spot]) then
+				return false
+			end
+			standStill(visitor, plot.caja.queue[spot])
+			if index > 1 then
+				visitor.model:SetAttribute("Reaction", "⏳")
+			end
+		end
+		if index == 1 then
+			return true
+		end
+		task.wait(0.3)
+	end
+	return false
+end
+
+-- Regateo en la caja: devuelve lo que paga (o nil) y cómo se cerró.
+local function negotiate(visitor, owner, info, listing, budget, tutorial)
+	local model = visitor.model
+	local function say(text)
+		model:SetAttribute("Reaction", text)
+	end
+	local offer = Exhibition.roundPrice(math.max(budget, listing.market * Exhibition.PRICE_MIN))
+	if offer >= listing.price then
+		return listing.price, nil
+	end
+	say("💬 ¿Te doy 💵" .. Config.formatNumber(offer) .. "?")
+	local base = {
+		buyer = info.name,
+		userId = info.userId,
+		vip = info.vip,
+		d = listing.d,
+		c = listing.c,
+		st = listing.st,
+		price = listing.price,
+		market = listing.market,
+	}
+	base.offer = offer
+	base.final = false
+	local answer = VisitorService.askOwner(owner, base)
+	if answer == "accept" then
+		return offer, nil
+	elseif answer == "counter" then
+		local counter = Exhibition.counterPrice(offer, listing.price)
+		local flex = tutorial and 10 or rng:NextNumber(1, 1.16)
+		if counter <= budget * flex then
+			say("🤝 ¡Trato hecho!")
+			task.wait(1)
+			return counter, nil
+		end
+		if rng:NextNumber() < 0.55 then
+			local final = math.max(offer, Exhibition.roundPrice(offer + (counter - offer) * rng:NextNumber(0.3, 0.6)))
+			say("Mi última oferta: 💵" .. Config.formatNumber(final))
+			base.offer = final
+			base.final = true
+			local second = VisitorService.askOwner(owner, base)
+			if second == "accept" then
+				return final, nil
+			elseif second == "timeout" and VisitorService.hasCashier(owner) then
+				if final >= listing.price * Exhibition.CASHIER_ACCEPT then
+					return final, "cashier"
+				end
+			end
+		end
+		say("¡Es demasiado para mí! 😤")
+		return nil, nil
+	elseif answer == "timeout" then
+		if VisitorService.hasCashier(owner) then
+			if offer >= listing.price * Exhibition.CASHIER_ACCEPT then
+				return offer, "cashier"
+			end
+			say("El cajero dijo que no… 😕")
+			return nil, nil
+		end
+		say("Nadie me atiende… 😕")
+		return nil, nil
+	end
+	say("Vaya… otra vez será 😕")
+	return nil, nil
+end
+
 -- Ciclo de un visitante -----------------------------------------------------------------
 local function runVisitor(state, slot)
 	local plot = state.plot
 	local owner = state.owner
-	local model, name = createAvatar(owner)
+	local model, name, userId = createAvatar(owner)
 	if not model or states[plot.index] ~= state then
 		state.reserved[slot] = nil
 		if model then
@@ -3169,13 +4062,26 @@ local function runVisitor(state, slot)
 
 	local visitor = { model = model, humanoid = humanoid, root = root, tracks = loadTracks(humanoid) }
 	state.visitors[visitor] = true
+	local info = { name = name, userId = userId, vip = vip }
 
 	local function finish()
+		leaveQueue(state, visitor)
 		state.visitors[visitor] = nil
 		state.reserved[slot] = nil
 		if model.Parent then
 			model:Destroy()
 		end
+	end
+	local function valid()
+		return alive(visitor) and states[plot.index] == state
+	end
+	local function leave(fromSlot)
+		state.reserved[slot] = nil
+		if fromSlot then
+			walkRoute(visitor, pathBack(plot, fromSlot))
+		end
+		walkRoute(visitor, plot.exitFromHub)
+		finish()
 	end
 
 	if not walkRoute(visitor, plot.route) then
@@ -3184,62 +4090,145 @@ local function runVisitor(state, slot)
 	end
 
 	-- Mira otro cuadro antes de decidirse (si hay más de uno).
+	local current = nil
 	local others = {}
-	for _, other in ipairs(VisitorService.availableSlots(owner)) do
+	for other in pairs(VisitorService.listings(owner)) do
 		if other ~= slot then
 			table.insert(others, other)
 		end
 	end
 	if #others > 0 and rng:NextNumber() < 0.6 then
-		local browse = plot.standPoints[pick(others)]
-		if walkTo(visitor, browse) then
-			model:PivotTo(browse * CFrame.new(0, 3, 0))
-			play(visitor, "idle")
+		local browse = pick(others)
+		if goToStand(visitor, plot, nil, browse) then
+			standStill(visitor, plot.standPoints[browse])
 			model:SetAttribute("Reaction", "👀")
 			task.wait(rng:NextNumber(1.5, 2.5))
+			current = browse
 		end
 	end
 
 	-- Se planta frente al cuadro elegido y lo admira.
-	local stand = plot.standPoints[slot]
-	if not walkTo(visitor, stand) then
+	if not goToStand(visitor, plot, current, slot) or not valid() then
 		finish()
 		return
 	end
-	model:PivotTo(stand * CFrame.new(0, 3, 0))
-	play(visitor, "idle")
+	standStill(visitor, plot.standPoints[slot])
 	model:SetAttribute("Reaction", vip and "🧐✨" or "🤔")
 	task.wait(rng:NextNumber(2.5, 4))
-	if not alive(visitor) or states[plot.index] ~= state then
+	if not valid() then
 		finish()
 		return
 	end
 
-	local price = VisitorService.onPurchase and VisitorService.onPurchase(owner, slot, name, vip)
-	if price then
-		local line = vip and "¡Una joya para mi colección! 👑" or pick(Config.BuyerLines)
-		model:SetAttribute("Reaction", line .. "\n💰 " .. price)
-		play(visitor, "cheer")
-	else
+	local listing = VisitorService.listings(owner)[slot]
+	if not listing then
 		model:SetAttribute("Reaction", "Oh... ya no está 😢")
 		play(visitor, "wave")
+		task.wait(2)
+		leave(slot)
+		return
 	end
+	local tutorial = VisitorService.isTutorial(owner)
+	local ratio = listing.price / math.max(1, listing.market)
+	local effective = vip and ratio / 1.8 or ratio
+	if not tutorial and rng:NextNumber() > Exhibition.interest(effective) then
+		model:SetAttribute(
+			"Reaction",
+			effective > 1.25 and pick(Config.TooExpensiveLines) or pick(Config.NotForMeLines)
+		)
+		if VisitorService.onPass then
+			VisitorService.onPass(owner, slot, effective, name)
+		end
+		task.wait(2.4)
+		leave(slot)
+		return
+	end
+
+	-- Le encanta: va a la caja a pagar o a hacerte una oferta.
+	model:SetAttribute("Reaction", pick(Config.InterestedLines))
+	task.wait(1.4)
+	if not walkRoute(visitor, pathBack(plot, slot)) or not waitTurn(state, visitor) then
+		finish()
+		return
+	end
+	local caja = plot.caja.queue[1]
+	standStill(visitor, caja)
+
+	listing = VisitorService.listings(owner)[slot]
+	local amount, how = nil, nil
+	if listing then
+		local budget = tutorial and listing.price * 0.9 or Exhibition.budget(listing.market, vip, rng)
+		if listing.price <= budget then
+			amount = listing.price
+			model:SetAttribute("Reaction", "¡Pago lo que pides! 💵" .. Config.formatNumber(amount))
+			task.wait(1.2)
+		else
+			amount, how = negotiate(visitor, owner, info, listing, budget, tutorial)
+		end
+	else
+		model:SetAttribute("Reaction", "Oh... ya no está 😢")
+	end
+	if not valid() then
+		finish()
+		return
+	end
+	local bought = amount and VisitorService.onSale and VisitorService.onSale(owner, slot, amount, name, vip, how)
+	if bought then
+		carryPainting(visitor, bought)
+		local line = vip and "¡Una joya para mi colección! 👑" or pick(Config.BuyerLines)
+		model:SetAttribute("Reaction", line .. "\n💰 " .. Config.formatNumber(amount))
+		play(visitor, "cheer")
+	elseif amount then
+		model:SetAttribute("Reaction", "Oh... ya no está 😢")
+		play(visitor, "wave")
+	else
+		play(visitor, "wave")
+	end
+	leaveQueue(state, visitor)
 	state.reserved[slot] = nil
 	task.wait(2.6)
-
 	walkRoute(visitor, plot.exitRoute)
 	finish()
+end
+
+-- Elige un cuadro: los más baratos (respecto a su precio medio) y los
+-- stands mejores atraen más.
+local function chooseListing(state)
+	local options, total = {}, 0
+	for slot, listing in pairs(VisitorService.listings(state.owner)) do
+		if not state.reserved[slot] then
+			local ratio = listing.price / math.max(1, listing.market)
+			local weight = Exhibition.interest(ratio) * (1 + Exhibition.tierBonus(listing.tier))
+			table.insert(options, { slot = slot, weight = weight })
+			total += weight
+		end
+	end
+	if #options == 0 then
+		return nil
+	end
+	local roll = rng:NextNumber() * total
+	for _, option in ipairs(options) do
+		roll -= option.weight
+		if roll <= 0 then
+			return option.slot
+		end
+	end
+	return options[#options].slot
 end
 
 -- API pública --------------------------------------------------------------------------
 function VisitorService.attach(plot, owner)
 	loadFriends(owner)
+	local exitFromHub = table.clone(plot.exitRoute)
+	table.remove(exitFromHub, 1)
+	plot.exitFromHub = exitFromHub
 	states[plot.index] = {
 		plot = plot,
 		owner = owner,
 		timer = 0,
 		visitors = {},
 		reserved = {},
+		queue = {},
 	}
 end
 
@@ -3267,21 +4256,17 @@ function VisitorService.start()
 				for _ in pairs(state.visitors) do
 					count += 1
 				end
+				-- En el tutorial el primer visitante llega enseguida.
+				local interval = VisitorService.isTutorial(state.owner) and 4 or Config.buyerInterval(levels)
 				state.timer += dt
-				if count < Config.maxBuyers(levels) and state.timer >= Config.buyerInterval(levels) then
-					local options = {}
-					for _, slot in ipairs(VisitorService.availableSlots(state.owner)) do
-						if not state.reserved[slot] then
-							table.insert(options, slot)
-						end
-					end
-					if #options > 0 then
+				if count < Config.maxBuyers(levels) and state.timer >= interval then
+					local slot = chooseListing(state)
+					if slot then
 						state.timer = 0
-						local slot = pick(options)
 						state.reserved[slot] = true
 						task.spawn(runVisitor, state, slot)
 					else
-						state.timer = Config.buyerInterval(levels) * 0.7
+						state.timer = interval * 0.7
 					end
 				end
 			end
@@ -3293,7 +4278,7 @@ return VisitorService
 ]]></string>
           </Properties>
         </Item>
-        <Item class="ModuleScript" referent="14">
+        <Item class="ModuleScript" referent="15">
           <Properties>
             <string name="Name">WorldBuilder</string>
             <string name="Source"><![CDATA[-- Construye el terreno privado de cada jugador: galería y taller conectados,
@@ -3301,10 +4286,12 @@ return VisitorService
 -- assets externos. Cada jugador tiene su propio terreno, lejos de los demás.
 
 local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
-local Config = require(Shared.Config)
+local Exhibition = require(Shared.Exhibition)
 
 local WorldBuilder = {}
 
@@ -3730,77 +4717,6 @@ local function buildFountain(parent, cf)
 		water.EmissionDirection = Enum.NormalId.Top
 		water.Parent = jet
 	end
-end
-
--- Cuadro enmarcado de la galería: marco negro fino, paspartú blanco y foco.
-local function buildFrame(parent, cf, name)
-	local frame = Instance.new("Model")
-	frame.Name = name
-	part({
-		Size = Vector3.new(8, 8, 0.4),
-		CFrame = cf,
-		Color = COLORS.charcoal,
-		Material = Enum.Material.Metal,
-		Parent = frame,
-	})
-	part({
-		Size = Vector3.new(7.5, 7.5, 0.2),
-		CFrame = cf * CFrame.new(0, 0, -0.25),
-		Color = rgb(250, 250, 248),
-		Parent = frame,
-	})
-	local canvas = part({
-		Name = "Canvas",
-		Size = Vector3.new(6.2, 6.2, 0.2),
-		CFrame = cf * CFrame.new(0, 0, -0.38),
-		Color = COLORS.cream,
-		Parent = frame,
-	})
-	local plaque = part({
-		Name = "Plaque",
-		Size = Vector3.new(4.6, 0.8, 0.12),
-		CFrame = cf * CFrame.new(0, -4.7, -0.1),
-		Color = rgb(250, 250, 248),
-		Parent = frame,
-	})
-	local plaqueLabel = surfaceText(
-		plaque,
-		Enum.NormalId.Front,
-		"",
-		{ pps = 60, color = COLORS.charcoal, font = Enum.Font.BuilderSansBold }
-	)
-	plaqueLabel.Name = "PlaqueText"
-	part({
-		Size = Vector3.new(0.2, 0.2, 1),
-		CFrame = cf * CFrame.new(0, 4.6, -0.6),
-		Color = COLORS.charcoal,
-		Material = Enum.Material.Metal,
-		CanCollide = false,
-		Parent = frame,
-	})
-	local lamp = part({
-		Size = Vector3.new(2.6, 0.3, 0.4),
-		CFrame = cf * CFrame.new(0, 4.8, -1.1),
-		Color = COLORS.charcoal,
-		Material = Enum.Material.Metal,
-		CanCollide = false,
-		Parent = frame,
-	})
-	addLight(
-		lamp,
-		"SpotLight",
-		{ Face = Enum.NormalId.Bottom, Angle = 75, Range = 11, Brightness = 2.2, Color = rgb(255, 242, 224) }
-	)
-	-- Avisos para colgar y descolgar (solo uno activo a la vez).
-	local hang = prompt(canvas, "Colgar cuadro", "Marco libre", 10)
-	hang.Name = "HangPrompt"
-	hang.Enabled = false
-	local take = prompt(canvas, "Descolgar", "Cuadro expuesto", 10)
-	take.Name = "TakePrompt"
-	take.HoldDuration = 0.4
-	take.Enabled = false
-	frame.Parent = parent
-	return canvas, plaqueLabel, hang, take
 end
 
 local function buildEasel(parent, cf, scale)
@@ -4264,7 +5180,22 @@ local function buildBuilding(model, L)
 	doorFrame(building, L, -18.4, 25, 31, FLOOR, FLOOR + 11)
 
 	-- Paredes traseras y laterales (la galería sube más: pretil).
-	wall(building, L, "x", 17.5, -40, -4, FLOOR, galleryTop, 1, {}, COLORS.plaster, plaster)
+	-- Pared del fondo con el arco hacia la ampliación (tapado hasta que se compra).
+	wall(
+		building,
+		L,
+		"x",
+		17.5,
+		-40,
+		-4,
+		FLOOR,
+		galleryTop,
+		1,
+		{ { -26, -18, FLOOR, FLOOR + 12 } },
+		COLORS.plaster,
+		plaster
+	)
+	doorFrame(building, L, 17.5, -26, -18, FLOOR, FLOOR + 12)
 	wall(
 		building,
 		L,
@@ -4453,14 +5384,152 @@ local function buildBuilding(model, L)
 end
 
 -- Interior de la galería ----------------------------------------------------------------------
+-- Caja: mostrador donde los visitantes pagan o te hacen una oferta.
+local function buildCaja(folder, L)
+	local caja = Instance.new("Model")
+	caja.Name = "Caja"
+	part({
+		Name = "Counter",
+		Size = Vector3.new(7.4, 3.8, 2.6),
+		CFrame = L(-10, FLOOR + 1.9, -13.4),
+		Color = COLORS.plaster,
+		Material = Enum.Material.SmoothPlastic,
+		Parent = caja,
+	})
+	-- Frente con listones de roble.
+	for i = 0, 6 do
+		part({
+			Size = Vector3.new(0.5, 3.2, 0.12),
+			CFrame = L(-13 + i, FLOOR + 1.9, -12.06),
+			Color = COLORS.wood,
+			Material = Enum.Material.Wood,
+			CanCollide = false,
+			Parent = caja,
+		})
+	end
+	part({
+		Size = Vector3.new(7.8, 0.3, 3),
+		CFrame = L(-10, FLOOR + 3.95, -13.4),
+		Color = COLORS.darkWood,
+		Material = Enum.Material.Wood,
+		Parent = caja,
+	})
+	-- Caja registradora con pantalla hacia el cliente.
+	local register = part({
+		Name = "Register",
+		Size = Vector3.new(2, 0.9, 1.5),
+		CFrame = L(-8.4, FLOOR + 4.55, -13.6),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		Parent = caja,
+	})
+	part({
+		Class = "WedgePart",
+		Size = Vector3.new(2, 0.6, 1.2),
+		CFrame = L(-8.4, FLOOR + 5.3, -13.75) * CFrame.Angles(0, math.pi, 0),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		Parent = caja,
+	})
+	local screen = part({
+		Name = "Screen",
+		Size = Vector3.new(1.3, 0.7, 0.1),
+		CFrame = L(-8.4, FLOOR + 5.9, -13.3) * CFrame.Angles(math.rad(-12), 0, 0),
+		Color = rgb(40, 200, 170),
+		Material = Enum.Material.Neon,
+		Parent = caja,
+	})
+	local screenLabel = surfaceText(screen, Enum.NormalId.Back, "💵", { pps = 60, color = rgb(20, 40, 40) })
+	screenLabel.Name = "ScreenText"
+	part({
+		Size = Vector3.new(1.8, 0.25, 0.1),
+		CFrame = L(-8.4, FLOOR + 4.3, -12.82),
+		Color = COLORS.gold,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = caja,
+	})
+	-- Datáfono y timbre.
+	part({
+		Size = Vector3.new(0.6, 0.15, 1),
+		CFrame = L(-11.6, FLOOR + 4.2, -12.9) * CFrame.Angles(math.rad(-15), 0, 0),
+		Color = COLORS.charcoal,
+		Parent = caja,
+	})
+	part({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(0.7, 0.7, 0.7),
+		CFrame = L(-12.8, FLOOR + 4.15, -13.1),
+		Color = COLORS.brass,
+		Material = Enum.Material.Metal,
+		Parent = caja,
+	})
+	-- Cartel colgante «CAJA».
+	local sign = part({
+		Name = "CajaSign",
+		Size = Vector3.new(5, 1.6, 0.25),
+		CFrame = L(-10, FLOOR + 11, -12.6),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = caja,
+	})
+	surfaceText(sign, Enum.NormalId.Back, "💵 CAJA", {
+		pps = 40,
+		color = rgb(255, 255, 255),
+		font = Enum.Font.BuilderSansExtraBold,
+	})
+	for _, x in ipairs({ -12, -8 }) do
+		part({
+			Size = Vector3.new(0.08, CEILING - FLOOR - 11.8, 0.08),
+			CFrame = L(x, (CEILING + FLOOR + 11.8) / 2, -12.6),
+			Color = COLORS.charcoal,
+			CanCollide = false,
+			Parent = caja,
+		})
+	end
+	addLight(sign, "SpotLight", {
+		Face = Enum.NormalId.Bottom,
+		Angle = 80,
+		Range = 12,
+		Brightness = 1.3,
+		Color = rgb(255, 236, 210),
+	})
+	-- Marcas de la cola en el suelo.
+	local queue = {}
+	for i = 1, 3 do
+		local position = Vector3.new(-10, FLOOR, -9.4 + (i - 1) * 3)
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.06, 2.2, 2.2),
+			CFrame = cylinderUp(L(position.X, FLOOR + 0.24, position.Z)),
+			Color = i == 1 and rgb(40, 190, 165) or rgb(200, 204, 210),
+			CanCollide = false,
+			CastShadow = false,
+			Parent = caja,
+		})
+		local world = L(position.X, position.Y, position.Z)
+		queue[i] = CFrame.lookAt(world.Position, world.Position + Vector3.new(0, 0, -1))
+	end
+	caja.Parent = folder
+	local cashier = L(-10, FLOOR, -15.6)
+	return {
+		model = caja,
+		register = register,
+		screenLabel = screenLabel,
+		queue = queue,
+		cashierCF = CFrame.lookAt(cashier.Position, cashier.Position + Vector3.new(0, 0, 1)),
+	}
+end
+
 local function buildGalleryInterior(model, L)
 	local folder = Instance.new("Model")
 	folder.Name = "GalleryInterior"
 
-	-- Alfombra gris claro y banco de roble junto a la cristalera.
+	-- Pasillo central de alfombra y banco de roble junto a la cristalera.
 	part({
-		Size = Vector3.new(16, 0.1, 10),
-		CFrame = L(-22, FLOOR + 0.25, 3),
+		Size = Vector3.new(7, 0.1, 16),
+		CFrame = L(-22, FLOOR + 0.25, 4),
 		Color = rgb(222, 222, 218),
 		Material = Enum.Material.Fabric,
 		CanCollide = false,
@@ -4483,28 +5552,7 @@ local function buildGalleryInterior(model, L)
 		})
 	end
 
-	-- Mostrador de recepción blanco con tapa de roble y pantalla.
-	part({
-		Size = Vector3.new(7, 3.8, 2.6),
-		CFrame = L(-10, FLOOR + 1.9, -13),
-		Color = COLORS.plaster,
-		Material = Enum.Material.SmoothPlastic,
-		Parent = folder,
-	})
-	part({
-		Size = Vector3.new(7.4, 0.3, 3),
-		CFrame = L(-10, FLOOR + 3.95, -13),
-		Color = COLORS.wood,
-		Material = Enum.Material.Wood,
-		Parent = folder,
-	})
-	part({
-		Size = Vector3.new(1.8, 1.1, 0.12),
-		CFrame = L(-8.4, FLOOR + 4.8, -12.6) * CFrame.Angles(math.rad(-10), 0, 0),
-		Color = COLORS.charcoal,
-		Material = Enum.Material.Metal,
-		Parent = folder,
-	})
+	local caja = buildCaja(folder, L)
 
 	-- Escultura abstracta sobre peana.
 	part({
@@ -4525,7 +5573,7 @@ local function buildGalleryInterior(model, L)
 		})
 	end
 
-	-- Rótulo de la sala sobre la pared del fondo.
+	-- Rótulo de la sala sobre el arco del fondo.
 	local sign = part({
 		Size = Vector3.new(16, 1.8, 0.15),
 		CFrame = L(-22, CEILING - 2.4, 16.8),
@@ -4539,7 +5587,7 @@ local function buildGalleryInterior(model, L)
 		font = Enum.Font.BuilderSansBold,
 	})
 
-	-- Plantas en las esquinas.
+	-- Plantas en las esquinas del fondo.
 	buildPlant(folder, L(-36.5, FLOOR, 14.5), 1)
 	buildPlant(folder, L(-7.5, FLOOR, 14.5), 1)
 
@@ -4583,9 +5631,961 @@ local function buildGalleryInterior(model, L)
 		addLight(bulb, "PointLight", { Range = 24, Brightness = 1.1, Color = rgb(255, 232, 206), Shadows = true })
 	end
 	folder.Parent = model
+	return caja
+end
+
+-- Stands de la sala de exposición -------------------------------------------------------------
+-- Cada hueco puede tener un stand de pared (marco) o de pie, en tres calidades.
+-- El cuadro siempre está en una pieza "Canvas" que el cliente dibuja.
+local VELVET = rgb(124, 30, 54)
+local GOLD = rgb(232, 184, 80)
+local GOLD_DARK = rgb(184, 134, 46)
+local OAK = rgb(214, 176, 128)
+local HIGHLIGHT = rgb(18, 168, 148)
+
+local function canvasPart(parent, cf, size)
+	return part({
+		Name = "Canvas",
+		Size = Vector3.new(size, size, 0.2),
+		CFrame = cf,
+		Color = COLORS.cream,
+		CanCollide = false,
+		Parent = parent,
+	})
+end
+
+local function plaqueOn(parent, cf, size, color, textColor)
+	local plaque = part({
+		Name = "Plaque",
+		Size = size,
+		CFrame = cf,
+		Color = color,
+		Material = color == GOLD and Enum.Material.Metal or Enum.Material.SmoothPlastic,
+		CanCollide = false,
+		Parent = parent,
+	})
+	local label = surfaceText(
+		plaque,
+		Enum.NormalId.Front,
+		"",
+		{ pps = 60, color = textColor or COLORS.charcoal, font = Enum.Font.BuilderSansBold }
+	)
+	label.Name = "PlaqueText"
+	return label
+end
+
+-- Lámpara de cuadro: brazo desde arriba y foco hacia el lienzo. top = centro
+-- del borde superior del marco.
+local function pictureLamp(parent, top, width, color, brightness)
+	part({
+		Size = Vector3.new(0.18, 0.18, 1),
+		CFrame = top * CFrame.new(0, 0.2, -0.5),
+		Color = color,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = parent,
+	})
+	local lamp = part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(width, 0.42, 0.42),
+		CFrame = top * CFrame.new(0, 0.25, -1.1),
+		Color = color,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = parent,
+	})
+	addLight(lamp, "SpotLight", {
+		Face = Enum.NormalId.Bottom,
+		Angle = 80,
+		Range = 12,
+		Brightness = brightness or 2.2,
+		Color = rgb(255, 240, 220),
+	})
+end
+
+-- Cordón de terciopelo con dos postes dorados. base = suelo, centro.
+local function velvetRope(parent, base, width)
+	for _, x in ipairs({ -width / 2, width / 2 }) do
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(3, 0.3, 0.3),
+			CFrame = cylinderUp(base * CFrame.new(x, 1.5, 0)),
+			Color = GOLD,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = parent,
+		})
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.2, 1.1, 1.1),
+			CFrame = cylinderUp(base * CFrame.new(x, 0.1, 0)),
+			Color = GOLD_DARK,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = parent,
+		})
+		part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(0.5, 0.5, 0.5),
+			CFrame = base * CFrame.new(x, 3.1, 0),
+			Color = GOLD,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = parent,
+		})
+	end
+	-- La cuerda cae un poco en el centro (dos tramos).
+	for _, side in ipairs({ -1, 1 }) do
+		local a = Vector3.new(side * width / 2, 2.75, 0)
+		local b = Vector3.new(0, 2.3, 0)
+		local mid = (a + b) / 2
+		local length = (a - b).Magnitude
+		part({
+			Size = Vector3.new(length, 0.18, 0.18),
+			CFrame = base * CFrame.new(mid) * CFrame.Angles(0, 0, math.atan2(a.Y - b.Y, a.X - b.X)),
+			Color = VELVET,
+			Material = Enum.Material.Fabric,
+			CanCollide = false,
+			Parent = parent,
+		})
+	end
+end
+
+local function easelLegs(parent, base, color)
+	for _, x in ipairs({ -1.7, 1.7 }) do
+		part({
+			Size = Vector3.new(0.38, 9.2, 0.38),
+			CFrame = base * CFrame.new(x, 4.6, 0) * CFrame.Angles(math.rad(-7), 0, math.rad(x > 0 and 7 or -7)),
+			Color = color,
+			Material = Enum.Material.Wood,
+			Parent = parent,
+		})
+	end
+	part({
+		Size = Vector3.new(0.38, 8.6, 0.38),
+		CFrame = base * CFrame.new(0, 4.2, 1.4) * CFrame.Angles(math.rad(14), 0, 0),
+		Color = color,
+		Material = Enum.Material.Wood,
+		CanCollide = false,
+		Parent = parent,
+	})
+end
+
+-- Devuelve el lienzo y la placa del stand construido.
+local STAND_BUILDERS = {
+	wall = {
+		-- Marco sencillo de roble colgado de un clavo.
+		function(model, base)
+			local c = base * CFrame.new(0, 8, 0)
+			part({
+				Size = Vector3.new(6.9, 6.9, 0.3),
+				CFrame = c,
+				Color = OAK,
+				Material = Enum.Material.Wood,
+				Parent = model,
+			})
+			local canvas = canvasPart(model, c * CFrame.new(0, 0, -0.2), 6)
+			for _, side in ipairs({ -1, 1 }) do
+				local a = Vector3.new(side * 2.6, 3.2, 0.1)
+				local b = Vector3.new(0, 4.6, 0.1)
+				part({
+					Size = Vector3.new((a - b).Magnitude, 0.06, 0.06),
+					CFrame = c * CFrame.new((a + b) / 2) * CFrame.Angles(0, 0, math.atan2(a.Y - b.Y, a.X - b.X)),
+					Color = rgb(120, 110, 96),
+					CanCollide = false,
+					Parent = model,
+				})
+			end
+			part({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(0.3, 0.3, 0.3),
+				CFrame = c * CFrame.new(0, 4.6, 0.1),
+				Color = COLORS.charcoal,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				Parent = model,
+			})
+			local plaque = plaqueOn(model, c * CFrame.new(0, -4.1, 0.1), Vector3.new(3.8, 0.7, 0.1), COLORS.cream)
+			return canvas, plaque
+		end,
+		-- Marco de galería: negro fino, paspartú blanco y foco.
+		function(model, base)
+			local c = base * CFrame.new(0, 8, 0)
+			part({
+				Size = Vector3.new(8, 8, 0.4),
+				CFrame = c,
+				Color = COLORS.charcoal,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(7.5, 7.5, 0.2),
+				CFrame = c * CFrame.new(0, 0, -0.25),
+				Color = rgb(250, 250, 248),
+				Parent = model,
+			})
+			local canvas = canvasPart(model, c * CFrame.new(0, 0, -0.38), 6.2)
+			local plaque =
+				plaqueOn(model, c * CFrame.new(0, -4.7, -0.05), Vector3.new(4.8, 0.85, 0.12), rgb(250, 250, 248))
+			pictureLamp(model, c * CFrame.new(0, 4, 0), 2.6, COLORS.charcoal, 2.2)
+			return canvas, plaque
+		end,
+		-- Marco dorado sobre terciopelo, lámpara de latón y cordón.
+		function(model, base)
+			local c = base * CFrame.new(0, 8, 0)
+			part({
+				Size = Vector3.new(10.6, 12.6, 0.12),
+				CFrame = c * CFrame.new(0, -0.7, 0.3),
+				Color = VELVET,
+				Material = Enum.Material.Fabric,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(9, 9, 0.5),
+				CFrame = c,
+				Color = GOLD,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(8.2, 8.2, 0.5),
+				CFrame = c * CFrame.new(0, 0, -0.1),
+				Color = GOLD_DARK,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(7.4, 7.4, 0.5),
+				CFrame = c * CFrame.new(0, 0, -0.15),
+				Color = rgb(250, 246, 236),
+				Parent = model,
+			})
+			local canvas = canvasPart(model, c * CFrame.new(0, 0, -0.45), 6.4)
+			-- Adornos en las esquinas.
+			for _, corner in ipairs({ { -1, -1 }, { -1, 1 }, { 1, -1 }, { 1, 1 } }) do
+				part({
+					Shape = Enum.PartType.Ball,
+					Size = Vector3.new(0.9, 0.9, 0.9),
+					CFrame = c * CFrame.new(corner[1] * 4.45, corner[2] * 4.45, -0.2),
+					Color = GOLD,
+					Material = Enum.Material.Metal,
+					CanCollide = false,
+					Parent = model,
+				})
+			end
+			local plaque = plaqueOn(model, c * CFrame.new(0, -5.4, -0.05), Vector3.new(5, 0.9, 0.12), GOLD)
+			pictureLamp(model, c * CFrame.new(0, 4.5, 0), 3.2, GOLD, 2.8)
+			velvetRope(model, base * CFrame.new(0, 0, -3), 7)
+			return canvas, plaque
+		end,
+	},
+	floor = {
+		-- Caballete de madera.
+		function(model, base)
+			easelLegs(model, base, COLORS.wood)
+			part({
+				Size = Vector3.new(5.6, 0.4, 0.9),
+				CFrame = base * CFrame.new(0, 3.6, -0.5),
+				Color = COLORS.wood,
+				Material = Enum.Material.Wood,
+				Parent = model,
+			})
+			local tilt = CFrame.Angles(math.rad(-7), 0, 0)
+			part({
+				Size = Vector3.new(5.6, 5.6, 0.3),
+				CFrame = base * CFrame.new(0, 6.6, -0.3) * tilt,
+				Color = rgb(236, 226, 206),
+				Parent = model,
+			})
+			local canvas = canvasPart(model, base * CFrame.new(0, 6.6, -0.5) * tilt, 5.2)
+			local plaque = plaqueOn(
+				model,
+				base * CFrame.new(0, 3.95, -0.95) * CFrame.Angles(math.rad(-20), 0, 0),
+				Vector3.new(3.4, 0.55, 0.1),
+				COLORS.cream
+			)
+			return canvas, plaque
+		end,
+		-- Panel blanco exento con marco negro y foco.
+		function(model, base)
+			part({
+				Size = Vector3.new(8.4, 0.5, 2.6),
+				CFrame = base * CFrame.new(0, 0.25, 0.4),
+				Color = COLORS.charcoal,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(8, 11, 0.8),
+				CFrame = base * CFrame.new(0, 6, 0.4),
+				Color = COLORS.plaster,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(7.2, 7.2, 0.3),
+				CFrame = base * CFrame.new(0, 7, -0.1),
+				Color = COLORS.charcoal,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(6.8, 6.8, 0.2),
+				CFrame = base * CFrame.new(0, 7, -0.2),
+				Color = rgb(250, 250, 248),
+				Parent = model,
+			})
+			local canvas = canvasPart(model, base * CFrame.new(0, 7, -0.32), 6)
+			local plaque =
+				plaqueOn(model, base * CFrame.new(0, 2.4, -0.05), Vector3.new(4.6, 0.8, 0.12), rgb(250, 250, 248))
+			pictureLamp(model, base * CFrame.new(0, 11.1, 0.2), 2.6, COLORS.charcoal, 2.2)
+			return canvas, plaque
+		end,
+		-- Vitrina de lujo: peana de mármol, terciopelo, marco dorado y cordón.
+		function(model, base)
+			part({
+				Size = Vector3.new(9.4, 0.6, 3.6),
+				CFrame = base * CFrame.new(0, 0.3, 0.5),
+				Color = rgb(60, 58, 66),
+				Material = Enum.Material.Marble,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(8.6, 0.6, 3),
+				CFrame = base * CFrame.new(0, 0.9, 0.5),
+				Color = rgb(238, 236, 232),
+				Material = Enum.Material.Marble,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(8, 11, 0.8),
+				CFrame = base * CFrame.new(0, 6.7, 0.5),
+				Color = VELVET,
+				Material = Enum.Material.Fabric,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(8.4, 0.5, 1.2),
+				CFrame = base * CFrame.new(0, 12.45, 0.5),
+				Color = GOLD,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(7.6, 7.6, 0.4),
+				CFrame = base * CFrame.new(0, 7.4, 0),
+				Color = GOLD,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(6.9, 6.9, 0.4),
+				CFrame = base * CFrame.new(0, 7.4, -0.08),
+				Color = GOLD_DARK,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			local canvas = canvasPart(model, base * CFrame.new(0, 7.4, -0.32), 6)
+			local plaque = plaqueOn(model, base * CFrame.new(0, 2.6, 0.05), Vector3.new(4.6, 0.8, 0.12), GOLD)
+			pictureLamp(model, base * CFrame.new(0, 12.7, 0.1), 3, GOLD, 2.8)
+			velvetRope(model, base * CFrame.new(0, 0, -3.2), 8)
+			return canvas, plaque
+		end,
+	},
+}
+
+-- Hueco sin stand: silueta luminosa y discreta.
+local function buildSpotMarker(model, base, kind)
+	local function bar(size, cf)
+		part({
+			Size = size,
+			CFrame = cf,
+			Color = HIGHLIGHT,
+			Material = Enum.Material.Neon,
+			Transparency = 0.45,
+			CanCollide = false,
+			CanQuery = false,
+			CastShadow = false,
+			Parent = model,
+		})
+	end
+	if kind == "wall" then
+		local c = base * CFrame.new(0, 8, 0.05)
+		for _, y in ipairs({ -3.5, 3.5 }) do
+			for _, x in ipairs({ -2.6, 0, 2.6 }) do
+				bar(Vector3.new(1.6, 0.16, 0.06), c * CFrame.new(x, y, 0))
+			end
+		end
+		for _, x in ipairs({ -3.5, 3.5 }) do
+			for _, y in ipairs({ -2.6, 0, 2.6 }) do
+				bar(Vector3.new(0.16, 1.6, 0.06), c * CFrame.new(x, y, 0))
+			end
+		end
+	else
+		local c = base * CFrame.new(0, 0.26, 0)
+		for _, z in ipairs({ -1.6, 1.6 }) do
+			for _, x in ipairs({ -3, -1, 1, 3 }) do
+				bar(Vector3.new(1.3, 0.05, 0.2), c * CFrame.new(x, 0, z))
+			end
+		end
+		for _, x in ipairs({ -3.9, 3.9 }) do
+			bar(Vector3.new(0.2, 0.05, 1.2), c * CFrame.new(x, 0, -0.8))
+			bar(Vector3.new(0.2, 0.05, 1.2), c * CFrame.new(x, 0, 0.8))
+		end
+	end
+end
+
+-- Aparece con un fundido y un destello (al comprar algo).
+local function fadeIn(model, origin)
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			local target = descendant.Transparency
+			descendant.Transparency = 1
+			TweenService:Create(
+				descendant,
+				TweenInfo.new(0.5 + math.random() * 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Transparency = target }
+			):Play()
+		end
+	end
+	if origin then
+		local burst = Instance.new("Attachment")
+		burst.Name = "Burst"
+		burst.Parent = origin
+		local sparkle = Instance.new("ParticleEmitter")
+		sparkle.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		sparkle.Color = ColorSequence.new(rgb(255, 220, 120), rgb(120, 230, 210))
+		sparkle.Size = NumberSequence.new(0.8, 0)
+		sparkle.Lifetime = NumberRange.new(0.6, 1.2)
+		sparkle.Speed = NumberRange.new(6, 12)
+		sparkle.SpreadAngle = Vector2.new(180, 180)
+		sparkle.Enabled = false
+		sparkle.Parent = burst
+		sparkle:Emit(40)
+		task.delay(2, function()
+			burst:Destroy()
+		end)
+	end
+end
+
+-- Construye (o cambia) lo que hay en un hueco: nada, la silueta o un stand.
+function WorldBuilder.setStand(plot, index, tier, animate)
+	local spot = plot.spots[index]
+	if not spot then
+		return
+	end
+	local open = plot.openRooms[spot.def.room] == true
+	local key = open and tier or -1
+	if spot.built == key then
+		return
+	end
+	spot.built = key
+	if spot.model then
+		spot.model:Destroy()
+		spot.model = nil
+	end
+	spot.canvas, spot.plaque = nil, nil
+	if not open then
+		return
+	end
+	local model = Instance.new("Model")
+	model.Name = "Stand" .. index
+	model:SetAttribute("Tier", tier)
+	if tier > 0 then
+		local builder = STAND_BUILDERS[spot.def.kind][math.clamp(tier, 1, 3)]
+		spot.canvas, spot.plaque = builder(model, spot.base)
+		spot.canvas:SetAttribute("Spot", index)
+	else
+		buildSpotMarker(model, spot.base, spot.def.kind)
+	end
+	model.Parent = plot.standsFolder
+	spot.model = model
+	if animate then
+		fadeIn(model, spot.anchor)
+	end
+end
+
+-- Ampliaciones de la galería -------------------------------------------------------------------
+local galleryTop = CEILING + 3
+
+-- Techo, cubierta y lucernario de una sala (rectángulo x0..x1, z0..z1).
+local function roomRoof(parent, L, x0, x1, z0, z1)
+	local cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+	part({
+		Size = Vector3.new(x1 - x0, 0.4, z1 - z0),
+		CFrame = L(cx, CEILING + 0.2, cz),
+		Color = rgb(250, 250, 248),
+		Parent = parent,
+	})
+	part({
+		Size = Vector3.new(x1 - x0 - 1, 0.3, z1 - z0 - 1),
+		CFrame = L(cx, CEILING + 0.55, cz),
+		Color = rgb(150, 154, 160),
+		Material = Enum.Material.Concrete,
+		Parent = parent,
+	})
+	-- Caja de luz cenital a lo largo de la sala.
+	local skylight = part({
+		Size = Vector3.new(5, 0.12, z1 - z0 - 8),
+		CFrame = L(cx, CEILING - 0.06, cz),
+		Color = rgb(255, 250, 240),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = parent,
+	})
+	addLight(skylight, "SurfaceLight", {
+		Face = Enum.NormalId.Bottom,
+		Angle = 90,
+		Range = 22,
+		Brightness = 0.9,
+		Color = rgb(255, 244, 228),
+	})
+	for _, data in ipairs({
+		{ Vector3.new(x1 - x0 + 1.4, 0.4, 1.4), L(cx, galleryTop + 0.2, z1) },
+		{ Vector3.new(1.4, 0.4, z1 - z0 + 1.4), L(x0, galleryTop + 0.2, cz) },
+		{ Vector3.new(1.4, 0.4, z1 - z0 + 1.4), L(x1, galleryTop + 0.2, cz) },
+	}) do
+		part({ Size = data[1], CFrame = data[2], Color = COLORS.trim, Parent = parent })
+	end
+end
+
+-- Exterior de una ampliación: zócalo oscuro, apliques de luz y linterna de
+-- cristal en la cubierta. faces: { { "x" | "z", fijo, desde, hasta, hacia } }.
+local function roomExterior(parent, L, faces, lantern)
+	for _, face in ipairs(faces) do
+		local axis, fixed, from, to, outward = face[1], face[2], face[3], face[4], face[5]
+		local length = to - from
+		local center = (from + to) / 2
+		local offset = fixed + outward * 0.65
+		part({
+			Size = axis == "x" and Vector3.new(length, 1.4, 0.3) or Vector3.new(0.3, 1.4, length),
+			CFrame = axis == "x" and L(center, FLOOR + 0.7, offset) or L(offset, FLOOR + 0.7, center),
+			Color = rgb(120, 122, 128),
+			Material = Enum.Material.Concrete,
+			Parent = parent,
+		})
+		for u = from + 6, to - 5, 12 do
+			local cf = axis == "x" and L(u, FLOOR + 11.5, fixed + outward * 0.9)
+				or L(fixed + outward * 0.9, FLOOR + 11.5, u)
+			wallLight(parent, cf)
+		end
+	end
+	part({
+		Size = lantern.size,
+		CFrame = lantern.cf,
+		Color = COLORS.glass,
+		Material = Enum.Material.Glass,
+		Transparency = 0.35,
+		Parent = parent,
+	})
+end
+
+local function pendant(parent, cf)
+	part({
+		Size = Vector3.new(0.12, 3, 0.12),
+		CFrame = cf * CFrame.new(0, -1.5, 0),
+		Color = COLORS.charcoal,
+		CanCollide = false,
+		Parent = parent,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1.6, 2.4, 2.4),
+		CFrame = cylinderUp(cf * CFrame.new(0, -3.6, 0)),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = parent,
+	})
+	local bulb = part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.1, 2, 2),
+		CFrame = cylinderUp(cf * CFrame.new(0, -4.42, 0)),
+		Color = rgb(255, 238, 214),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = parent,
+	})
+	addLight(bulb, "PointLight", { Range = 24, Brightness = 1.1, Color = rgb(255, 232, 206) })
+end
+
+local function roomSign(parent, cf, text, plate, textColor)
+	local sign = part({
+		Size = Vector3.new(16, 1.8, 0.15),
+		CFrame = cf,
+		Color = plate,
+		Material = Enum.Material.Metal,
+		Parent = parent,
+	})
+	surfaceText(sign, Enum.NormalId.Front, text, {
+		pps = 40,
+		color = textColor,
+		font = Enum.Font.BuilderSansBold,
+	})
+end
+
+local ROOM_BUILDERS = {
+	-- 2. Sala del jardín: detrás de la sala principal, con un ventanal al jardín.
+	[2] = function(folder, L)
+		part({
+			Size = Vector3.new(36, FLOOR, 30.5),
+			CFrame = L(-22, FLOOR / 2, 32.75),
+			Color = COLORS.stone,
+			Material = Enum.Material.Concrete,
+			Parent = folder,
+		})
+		part({
+			Size = Vector3.new(34, 0.2, 29.5),
+			CFrame = L(-22, FLOOR + 0.1, 32.75),
+			Color = COLORS.galleryFloor,
+			Material = Enum.Material.WoodPlanks,
+			Parent = folder,
+		})
+		local plaster = Enum.Material.SmoothPlastic
+		wall(folder, L, "x", 47.5, -40, -4, FLOOR, galleryTop, 1, {}, COLORS.plaster, plaster)
+		wall(
+			folder,
+			L,
+			"z",
+			-39.5,
+			18,
+			47,
+			FLOOR,
+			galleryTop,
+			1,
+			{ { 28, 36, FLOOR, FLOOR + 12 } },
+			COLORS.plaster,
+			plaster
+		)
+		-- Marco del paso a la sala de los maestros (pared paralela a Z).
+		doorFrame(folder, function(u, y)
+			return L(-39.5, y, u) * CFrame.Angles(0, math.pi / 2, 0)
+		end, 0, 28, 36, FLOOR, FLOOR + 12)
+		wall(
+			folder,
+			L,
+			"z",
+			-4.5,
+			18,
+			47,
+			FLOOR,
+			galleryTop,
+			1,
+			{ { 30, 37, FLOOR + 1, FLOOR + 15 } },
+			COLORS.plaster,
+			plaster
+		)
+		part({
+			Size = Vector3.new(0.25, 14, 7),
+			CFrame = L(-4.5, FLOOR + 8, 33.5),
+			Color = COLORS.glass,
+			Material = Enum.Material.Glass,
+			Transparency = 0.6,
+			Parent = folder,
+		})
+		for _, z in ipairs({ 30, 33.5, 37 }) do
+			part({
+				Size = Vector3.new(0.45, 14, 0.3),
+				CFrame = L(-4.5, FLOOR + 8, z),
+				Color = COLORS.charcoal,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				Parent = folder,
+			})
+		end
+		roomRoof(folder, L, -40, -4, 17.5, 47.5)
+		roomExterior(folder, L, { { "x", 47.5, -40, -4, 1 }, { "z", -4.5, 18, 48, 1 } }, {
+			size = Vector3.new(6, 1.4, 20),
+			cf = L(-22, CEILING + 1.4, 32.5),
+		})
+		pendant(folder, L(-22, CEILING, 25))
+		pendant(folder, L(-22, CEILING, 40))
+		roomSign(folder, L(-22, CEILING - 2.4, 46.9), "SALA DEL JARDÍN", COLORS.charcoal, rgb(255, 255, 255))
+		buildPlant(folder, L(-29.5, FLOOR, 20), 0.9)
+		buildPlant(folder, L(-14.5, FLOOR, 20), 0.9)
+	end,
+	-- 3. Sala de los maestros: paredes verde oscuro, zócalo de madera y lámpara de araña.
+	[3] = function(folder, L)
+		part({
+			Size = Vector3.new(32, FLOOR, 30.5),
+			CFrame = L(-55.5, FLOOR / 2, 32.75),
+			Color = COLORS.stone,
+			Material = Enum.Material.Concrete,
+			Parent = folder,
+		})
+		part({
+			Size = Vector3.new(30.6, 0.2, 29.5),
+			CFrame = L(-55.2, FLOOR + 0.1, 32.75),
+			Color = rgb(150, 104, 70),
+			Material = Enum.Material.WoodPlanks,
+			Parent = folder,
+		})
+		local plaster = Enum.Material.SmoothPlastic
+		wall(folder, L, "x", 47.5, -71, -40, FLOOR, galleryTop, 1, {}, COLORS.plaster, plaster)
+		wall(folder, L, "x", 17.5, -71, -40, FLOOR, galleryTop, 1, {}, COLORS.plaster, plaster)
+		wall(folder, L, "z", -70.5, 17, 48, FLOOR, galleryTop, 1, {}, COLORS.plaster, plaster)
+		-- Forrado interior verde con zócalo de madera.
+		local green = rgb(38, 82, 72)
+		local linings = {
+			{ Vector3.new(29.6, CEILING - FLOOR - 3, 0.2), L(-55.2, (CEILING + FLOOR + 3) / 2, 46.9) },
+			{ Vector3.new(29.6, CEILING - FLOOR - 3, 0.2), L(-55.2, (CEILING + FLOOR + 3) / 2, 18.1) },
+			{ Vector3.new(0.2, CEILING - FLOOR - 3, 28.6), L(-69.9, (CEILING + FLOOR + 3) / 2, 32.5) },
+		}
+		for _, data in ipairs(linings) do
+			part({ Size = data[1], CFrame = data[2], Color = green, Material = Enum.Material.Fabric, Parent = folder })
+		end
+		for _, data in ipairs({
+			{ Vector3.new(29.6, 3, 0.3), L(-55.2, FLOOR + 1.5, 46.85) },
+			{ Vector3.new(29.6, 3, 0.3), L(-55.2, FLOOR + 1.5, 18.15) },
+			{ Vector3.new(0.3, 3, 28.6), L(-69.85, FLOOR + 1.5, 32.5) },
+		}) do
+			part({
+				Size = data[1],
+				CFrame = data[2],
+				Color = COLORS.darkWood,
+				Material = Enum.Material.Wood,
+				Parent = folder,
+			})
+		end
+		roomRoof(folder, L, -71, -40, 17.5, 47.5)
+		roomExterior(folder, L, {
+			{ "x", 47.5, -71, -40, 1 },
+			{ "x", 17.5, -71, -40, -1 },
+			{ "z", -70.5, 18, 48, -1 },
+		}, { size = Vector3.new(8, 1.6, 8), cf = L(-55.5, CEILING + 1.5, 32.5) })
+		-- Lámpara de araña dorada.
+		local center = L(-55, CEILING, 32)
+		part({
+			Size = Vector3.new(0.15, 4, 0.15),
+			CFrame = center * CFrame.new(0, -2, 0),
+			Color = GOLD,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = folder,
+		})
+		local hub = part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(1.4, 1.4, 1.4),
+			CFrame = center * CFrame.new(0, -4.4, 0),
+			Color = GOLD,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = folder,
+		})
+		addLight(hub, "PointLight", { Range = 30, Brightness = 1.2, Color = rgb(255, 226, 180) })
+		for i = 0, 7 do
+			local angle = i / 8 * math.pi * 2
+			local offset = Vector3.new(math.cos(angle) * 2.6, -4.6, math.sin(angle) * 2.6)
+			part({
+				Size = Vector3.new(2.6, 0.14, 0.14),
+				CFrame = CFrame.lookAt(
+					(center * CFrame.new(offset / 2)).Position,
+					(center * CFrame.new(offset)).Position
+				) * CFrame.Angles(0, math.pi / 2, 0),
+				Color = GOLD,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				Parent = folder,
+			})
+			part({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(0.6, 0.8, 0.6),
+				CFrame = center * CFrame.new(offset + Vector3.new(0, 0.5, 0)),
+				Color = rgb(255, 236, 200),
+				Material = Enum.Material.Neon,
+				CanCollide = false,
+				Parent = folder,
+			})
+		end
+		roomSign(
+			folder,
+			L(-55, CEILING - 2.4, 18.3) * CFrame.Angles(0, math.pi, 0),
+			"SALA DE LOS MAESTROS",
+			GOLD,
+			COLORS.charcoal
+		)
+		buildPlant(folder, L(-67.5, FLOOR, 44.5), 1)
+		buildPlant(folder, L(-67.5, FLOOR, 20.5), 1)
+	end,
+}
+
+-- Tapia de obra que cierra el paso a la siguiente ampliación.
+-- cf: centro del hueco, a ras de suelo, mirando hacia la sala ya abierta.
+local function buildHoarding(cf, roomDef)
+	local model = Instance.new("Model")
+	model.Name = "Expansion" .. roomDef.id
+	part({
+		Size = Vector3.new(8, 12, 0.6),
+		CFrame = cf * CFrame.new(0, 6, 0),
+		Color = rgb(214, 182, 132),
+		Material = Enum.Material.WoodPlanks,
+		Parent = model,
+	})
+	for i = 0, 7 do
+		part({
+			Size = Vector3.new(1.2, 0.6, 0.08),
+			CFrame = cf * CFrame.new(-3.5 + i, 0.9, -0.34) * CFrame.Angles(0, 0, math.rad(45)),
+			Color = i % 2 == 0 and rgb(250, 196, 40) or rgb(40, 40, 44),
+			CanCollide = false,
+			Parent = model,
+		})
+	end
+	local sign = part({
+		Name = "Sign",
+		Size = Vector3.new(7, 5.2, 0.2),
+		CFrame = cf * CFrame.new(0, 6.4, -0.4),
+		Color = rgb(255, 255, 255),
+		CanCollide = false,
+		Parent = model,
+	})
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.LightInfluence = 0
+	gui.Parent = sign
+	local function line(name, y, h, text, font, color)
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.Position = UDim2.fromScale(0.06, y)
+		label.Size = UDim2.fromScale(0.88, h)
+		label.BackgroundTransparency = 1
+		label.Font = font
+		label.Text = text
+		label.TextScaled = true
+		label.TextColor3 = color
+		label.Parent = gui
+		return label
+	end
+	line("Icon", 0.05, 0.22, "🏗️", Enum.Font.BuilderSansBold, COLORS.charcoal)
+	line("Title", 0.3, 0.16, "PRÓXIMA AMPLIACIÓN", Enum.Font.BuilderSansExtraBold, rgb(198, 124, 10))
+	line("Name", 0.47, 0.18, roomDef.name, Enum.Font.FredokaOne, COLORS.charcoal)
+	local status = line("Status", 0.7, 0.2, "", Enum.Font.BuilderSansBold, rgb(90, 96, 110))
+	local action = prompt(sign, "Ampliar la galería", roomDef.name, 10)
+	action.Name = "ExpandPrompt"
+	action.HoldDuration = 1
+	action.Enabled = false
+	return model, action, status
+end
+
+-- Abre una sala (la construye) y coloca la tapia de la siguiente.
+function WorldBuilder.openRoom(plot, room, animate)
+	if plot.openRooms[room] then
+		return
+	end
+	plot.openRooms[room] = true
+	if ROOM_BUILDERS[room] then
+		local folder = Instance.new("Model")
+		folder.Name = "Room" .. room
+		ROOM_BUILDERS[room](folder, plot.L)
+		folder.Parent = plot.roomsFolder
+		if animate then
+			fadeIn(folder, nil)
+		end
+	end
+	for index, hoarding in pairs(plot.hoardings) do
+		hoarding.model.Parent = (not plot.openRooms[index] and plot.openRooms[index - 1]) and plot.roomsFolder or nil
+	end
 end
 
 -- Taller -------------------------------------------------------------------------------------
+-- Mezclador de colores: varios botes de una rareza se convierten en uno mejor.
+local function buildMixer(parent, cf)
+	local model = Instance.new("Model")
+	model.Name = "Mixer"
+	local body = part({
+		Name = "Body",
+		Size = Vector3.new(4.4, 3.2, 3.4),
+		CFrame = cf * CFrame.new(0, 1.6, 0),
+		Color = rgb(250, 250, 248),
+		Parent = model,
+	})
+	part({
+		Size = Vector3.new(4.42, 0.5, 3.42),
+		CFrame = cf * CFrame.new(0, 2.4, 0),
+		Color = COLORS.workshopAccent,
+		Parent = model,
+	})
+	part({
+		Size = Vector3.new(4.7, 0.3, 3.7),
+		CFrame = cf * CFrame.new(0, 3.35, 0),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		Parent = model,
+	})
+	local label = part({
+		Size = Vector3.new(3.4, 0.9, 0.1),
+		CFrame = cf * CFrame.new(0, 1.3, -1.75),
+		Color = COLORS.charcoal,
+		CanCollide = false,
+		Parent = model,
+	})
+	surfaceText(label, Enum.NormalId.Front, "MEZCLADOR", {
+		pps = 50,
+		color = rgb(255, 255, 255),
+		font = Enum.Font.BuilderSansExtraBold,
+	})
+	-- Jarra de cristal con la pintura que gira dentro.
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(4.2, 3, 3),
+		CFrame = cylinderUp(cf * CFrame.new(0, 5.6, 0)),
+		Color = rgb(220, 236, 246),
+		Material = Enum.Material.Glass,
+		Transparency = 0.6,
+		CanCollide = false,
+		Parent = model,
+	})
+	local liquid = part({
+		Name = "Liquid",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(2.4, 2.5, 2.5),
+		CFrame = cylinderUp(cf * CFrame.new(0, 4.75, 0)),
+		Color = rgb(150, 96, 222),
+		Material = Enum.Material.SmoothPlastic,
+		CanCollide = false,
+		Parent = model,
+	})
+	addLight(liquid, "PointLight", { Range = 8, Brightness = 0.8, Color = rgb(200, 170, 255) })
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.6, 3.3, 3.3),
+		CFrame = cylinderUp(cf * CFrame.new(0, 7.9, 0)),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		Parent = model,
+	})
+	part({
+		Size = Vector3.new(1.3, 1, 1.3),
+		CFrame = cf * CFrame.new(0, 8.7, 0),
+		Color = COLORS.workshopAccent,
+		Material = Enum.Material.Metal,
+		Parent = model,
+	})
+	part({
+		Size = Vector3.new(0.18, 3.6, 0.18),
+		CFrame = cf * CFrame.new(0, 6, 0),
+		Color = rgb(200, 200, 206),
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = model,
+	})
+	-- Tres botes de entrada sobre la tapa.
+	for i, color in ipairs({ rgb(236, 70, 80), rgb(255, 210, 66), rgb(60, 118, 228) }) do
+		local x = -1.6 + (i - 1) * 1.6
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.9, 0.8, 0.8),
+			CFrame = cylinderUp(cf * CFrame.new(x, 3.95, -1.3)),
+			Color = color,
+			Parent = model,
+		})
+	end
+	local mixPrompt = prompt(body, "Mezclar colores", "Mezclador", 10)
+	mixPrompt.Name = "MixPrompt"
+	model.Parent = parent
+	return mixPrompt, liquid
+end
+
 local function buildWorkshop(model, L)
 	local workshop = Instance.new("Model")
 	workshop.Name = "Workshop"
@@ -4920,9 +6920,13 @@ local function buildWorkshop(model, L)
 	buildPlant(workshop, L(32.5, FLOOR, -14.5), 0.9)
 	buildPlant(workshop, L(-1.5, FLOOR, -14.5), 0.9)
 
+	local mixPrompt, mixLiquid = buildMixer(workshop, L(0.5, FLOOR, -1) * CFrame.Angles(0, -math.pi / 2, 0))
+
 	workshop.Parent = model
 	return {
 		model = workshop,
+		mixPrompt = mixPrompt,
+		mixLiquid = mixLiquid,
 		easelCanvas = easelCanvas,
 		drawPrompt = drawPrompt,
 		machinePrompt = machinePrompt,
@@ -5127,7 +7131,7 @@ local function buildGrounds(model, L, origin, rng)
 		{ -78, -70 },
 		{ -70, -30 },
 		{ -85, 10 },
-		{ -66, 50 },
+		{ -86, 54 },
 		{ -30, 72 },
 		{ 10, 80 },
 		{ 52, 60 },
@@ -5257,33 +7261,59 @@ function WorldBuilder.buildLot(slot)
 	end)
 
 	local signLabel = buildBuilding(model, L)
-	buildGalleryInterior(model, L)
+	local caja = buildGalleryInterior(model, L)
 	local workshop = buildWorkshop(model, L)
 	local gateLabel = buildGrounds(model, L, origin, rng)
 
+	-- Sala de exposición: huecos para stands, salas y tapias de ampliación.
 	local gallery = Instance.new("Folder")
 	gallery.Name = "Gallery"
 	gallery.Parent = model
-	local y = FLOOR + 10.5
-	local frameCFrames = {
-		L(-34, y, 16.6),
-		L(-22, y, 16.6),
-		L(-10, y, 16.6),
-		L(-38.6, y, 7) * CFrame.Angles(0, -math.pi / 2, 0),
-		L(-38.6, y, -5) * CFrame.Angles(0, -math.pi / 2, 0),
-		L(-5.4, y, 11) * CFrame.Angles(0, math.pi / 2, 0),
-		L(-5.4, y, 1) * CFrame.Angles(0, math.pi / 2, 0),
-	}
-	local canvases, plaques, standPoints, hangPrompts, takePrompts = {}, {}, {}, {}, {}
-	for i = 1, Config.GALLERY_SIZE do
-		canvases[i], plaques[i], hangPrompts[i], takePrompts[i] = buildFrame(gallery, frameCFrames[i], "Frame" .. i)
-		canvases[i]:SetAttribute("Slot", i)
+	local standsFolder = Instance.new("Folder")
+	standsFolder.Name = "Stands"
+	standsFolder.Parent = gallery
+	local roomsFolder = Instance.new("Folder")
+	roomsFolder.Name = "Rooms"
+	roomsFolder.Parent = gallery
+	local spotsFolder = Instance.new("Folder")
+	spotsFolder.Name = "Spots"
+	spotsFolder.Parent = gallery
+
+	local spots = {}
+	local standPoints = {}
+	for i, def in ipairs(Exhibition.Spots) do
+		local base = L(def.x, FLOOR, def.z) * CFrame.Angles(0, math.rad(def.rot), 0)
+		-- Pieza invisible con el aviso del stand, a la altura del cuadro.
+		local anchor = part({
+			Name = "Spot" .. i,
+			Size = Vector3.new(1, 1, 1),
+			CFrame = base * CFrame.new(0, def.kind == "wall" and 8 or 6.5, def.kind == "wall" and -0.6 or -0.8),
+			Transparency = 1,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Parent = spotsFolder,
+		})
+		anchor:SetAttribute("Index", i)
+		anchor:SetAttribute("Room", def.room)
+		anchor:SetAttribute("Kind", def.kind)
+		local standPrompt = prompt(anchor, "Comprar stand", "", 10)
+		standPrompt.Name = "StandPrompt"
+		standPrompt.Enabled = false
 		-- Dónde se para un visitante para mirar el cuadro.
-		local front = frameCFrames[i] * CFrame.new(0, 0, -7)
-		standPoints[i] = CFrame.lookAt(
-			Vector3.new(front.X, FLOOR, front.Z),
-			Vector3.new(frameCFrames[i].X, FLOOR, frameCFrames[i].Z)
-		)
+		local front = base * CFrame.new(0, 0, def.kind == "wall" and -6.5 or -6)
+		standPoints[i] = CFrame.lookAt(front.Position, Vector3.new(base.X, FLOOR, base.Z))
+		spots[i] = { def = def, base = base, anchor = anchor, prompt = standPrompt, built = nil }
+	end
+
+	local hoardings = {}
+	local hoardingCFs = {
+		[2] = L(-22, FLOOR, 17.5),
+		[3] = L(-39.5, FLOOR, 32) * CFrame.Angles(0, -math.pi / 2, 0),
+	}
+	for index, cf in pairs(hoardingCFs) do
+		local hoardingModel, expandPrompt, status = buildHoarding(cf, Exhibition.Rooms[index])
+		hoardings[index] = { model = hoardingModel, prompt = expandPrompt, status = status }
 	end
 
 	local decor = Instance.new("Folder")
@@ -5295,7 +7325,7 @@ function WorldBuilder.buildLot(slot)
 
 	model.Parent = plotsFolder
 
-	return {
+	local plot = {
 		index = slot,
 		slot = slot,
 		model = model,
@@ -5303,11 +7333,13 @@ function WorldBuilder.buildLot(slot)
 		L = L,
 		signLabel = signLabel,
 		gateLabel = gateLabel,
-		canvases = canvases,
-		plaques = plaques,
-		hangPrompts = hangPrompts,
-		takePrompts = takePrompts,
+		spots = spots,
 		standPoints = standPoints,
+		standsFolder = standsFolder,
+		roomsFolder = roomsFolder,
+		hoardings = hoardings,
+		openRooms = {},
+		caja = caja,
 		-- Recorrido de los visitantes: de la acera a la galería y de vuelta.
 		route = {
 			L(-90, 0.3, -110),
@@ -5318,7 +7350,15 @@ function WorldBuilder.buildLot(slot)
 			L(-22, FLOOR, -12),
 			L(-22, FLOOR, -5),
 		},
+		-- Desde el centro de la sala principal hasta cada sala.
+		roomPaths = {
+			[1] = {},
+			[2] = { L(-22, FLOOR, 10), L(-22, FLOOR, 22) },
+			[3] = { L(-22, FLOOR, 10), L(-22, FLOOR, 22), L(-33, FLOOR, 31), L(-46, FLOOR, 32) },
+		},
+		hub = L(-22, FLOOR, -5),
 		exitRoute = {
+			L(-16, FLOOR, -9),
 			L(-22, FLOOR, -12),
 			L(-22, 0.3, -26),
 			L(-22, 0.3, -50),
@@ -5336,6 +7376,49 @@ function WorldBuilder.buildLot(slot)
 		workshop = workshop,
 		decorBuilt = 0,
 	}
+	WorldBuilder.openRoom(plot, 1, false)
+	return plot
+end
+
+-- Cajero que atiende la caja (mejora «Cajero»).
+function WorldBuilder.setCashier(plot, enabled)
+	local existing = plot.cashier
+	if enabled == (existing ~= nil) then
+		return
+	end
+	if not enabled then
+		existing:Destroy()
+		plot.cashier = nil
+		return
+	end
+	local ok, npc = pcall(function()
+		local description = Instance.new("HumanoidDescription")
+		description.HeadColor = rgb(241, 194, 150)
+		description.LeftArmColor = rgb(241, 194, 150)
+		description.RightArmColor = rgb(241, 194, 150)
+		description.TorsoColor = rgb(40, 150, 140)
+		description.LeftLegColor = rgb(44, 48, 56)
+		description.RightLegColor = rgb(44, 48, 56)
+		return Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R15)
+	end)
+	if not ok or not npc then
+		return
+	end
+	npc.Name = "Cajero"
+	local humanoid = npc:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.DisplayName = "Cajero"
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	end
+	for _, descendant in ipairs(npc:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true
+		end
+	end
+	npc:PivotTo(plot.caja.cashierCF * CFrame.new(0, 3, 0))
+	npc:SetAttribute("VisitorName", "Cajero")
+	npc.Parent = plot.caja.model
+	plot.cashier = npc
 end
 
 function WorldBuilder.destroyLot(plot)
@@ -5350,27 +7433,27 @@ return WorldBuilder
       </Item>
     </Item>
   </Item>
-  <Item class="SoundService" referent="15">
+  <Item class="SoundService" referent="16">
     <Properties>
       <string name="Name">SoundService</string>
       <bool name="RespectFilteringEnabled">true</bool>
     </Properties>
   </Item>
-  <Item class="StarterPlayer" referent="16">
+  <Item class="StarterPlayer" referent="17">
     <Properties>
       <string name="Name">StarterPlayer</string>
       <float name="CameraMaxZoomDistance">80</float>
       <float name="CharacterWalkSpeed">20</float>
     </Properties>
-    <Item class="StarterPlayerScripts" referent="17">
+    <Item class="StarterPlayerScripts" referent="18">
       <Properties>
         <string name="Name">StarterPlayerScripts</string>
       </Properties>
-      <Item class="Folder" referent="18">
+      <Item class="Folder" referent="19">
         <Properties>
           <string name="Name">Client</string>
         </Properties>
-        <Item class="LocalScript" referent="19">
+        <Item class="LocalScript" referent="20">
           <Properties>
             <string name="Name">Main</string>
             <string name="Source"><![CDATA[-- Punto de entrada del cliente: conecta las ventanas con el servidor.
@@ -5388,6 +7471,9 @@ local Painter = require(UI.Painter)
 local Shop = require(UI.Shop)
 local Daily = require(UI.Daily)
 local Tutorial = require(UI.Tutorial)
+local StandPanel = require(UI.StandPanel)
+local Offers = require(UI.Offers)
+local Mixer = require(UI.Mixer)
 local World = require(script.Parent:WaitForChild("World"))
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -5412,6 +7498,13 @@ for _, name in ipairs({
 	"SelectStored",
 	"SkipTutorial",
 	"GoHome",
+	"OpenStand",
+	"StandAction",
+	"Offer",
+	"OfferClosed",
+	"RespondOffer",
+	"OpenMixer",
+	"MixColors",
 }) do
 	app.remotes[name] = remotes:WaitForChild(name)
 end
@@ -5433,6 +7526,11 @@ end
 
 function app.openCollection()
 	Machine.openCollection()
+end
+
+-- Ventana de color conseguido (máquina y mezclador).
+function app.reveal(colorId, isNew)
+	Machine.reveal(colorId, isNew)
 end
 
 function app.openDaily()
@@ -5508,6 +7606,8 @@ local function applyState(state)
 	DesignPicker.refresh()
 	ColorPicker.refresh()
 	Daily.refresh()
+	StandPanel.refresh()
+	Mixer.refresh()
 	Tutorial.applyState()
 end
 
@@ -5523,6 +7623,9 @@ Painter.init(app)
 Shop.init(app)
 Daily.init(app)
 Tutorial.init(app)
+StandPanel.init(app)
+Offers.init(app)
+Mixer.init(app)
 World.start()
 
 app.remotes.StateChanged.OnClientEvent:Connect(applyState)
@@ -5534,6 +7637,22 @@ app.remotes.RollResult.OnClientEvent:Connect(function(colorId, auto)
 end)
 app.remotes.OpenDesigns.OnClientEvent:Connect(function()
 	app.openDesigns()
+end)
+app.remotes.OpenStand.OnClientEvent:Connect(function(index)
+	if not Painter.isOpen() then
+		StandPanel.open(index)
+	end
+end)
+app.remotes.OpenMixer.OnClientEvent:Connect(function()
+	if not Painter.isOpen() then
+		Mixer.open()
+	end
+end)
+app.remotes.Offer.OnClientEvent:Connect(function(data)
+	Offers.show(data)
+end)
+app.remotes.OfferClosed.OnClientEvent:Connect(function(id)
+	Offers.closed(id)
 end)
 
 task.spawn(function()
@@ -5547,11 +7666,11 @@ end)
 ]]></string>
           </Properties>
         </Item>
-        <Item class="Folder" referent="20">
+        <Item class="Folder" referent="21">
           <Properties>
             <string name="Name">UI</string>
           </Properties>
-          <Item class="ModuleScript" referent="21">
+          <Item class="ModuleScript" referent="22">
             <Properties>
               <string name="Name">ColorPicker</string>
               <string name="Source"><![CDATA[-- Ventana "Elige tus colores": un color por área antes de empezar a pintar.
@@ -6050,7 +8169,7 @@ return ColorPicker
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="22">
+          <Item class="ModuleScript" referent="23">
             <Properties>
               <string name="Name">Daily</string>
               <string name="Source"><![CDATA[-- Ventana del regalo diario: racha de 7 días con monedas y un color raro.
@@ -6237,7 +8356,7 @@ return Daily
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="23">
+          <Item class="ModuleScript" referent="24">
             <Properties>
               <string name="Name">DesignArt</string>
               <string name="Source"><![CDATA[-- Dibuja un diseño (figuras) dentro de un Frame cuadrado.
@@ -6247,6 +8366,7 @@ return Daily
 -- la forma de la figura con un CanvasGroup y, al completarla, aparece el color
 -- final. setFocus resalta las figuras del color que llevas en el pincel.
 
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -6259,16 +8379,49 @@ local WHITE = Color3.new(1, 1, 1)
 local SKETCH_LINE = Color3.fromRGB(150, 156, 170)
 local UNPAINTED_LIGHT = Color3.fromRGB(196, 200, 210)
 local HINT_LINE = Color3.fromRGB(250, 176, 40)
+local FAINT = Color3.fromRGB(244, 244, 246)
 local FADE = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
+-- Acabados animados: los metálicos llevan un destello que va y viene y los
+-- míticos hacen girar sus colores. Un solo bucle mueve todos los degradados.
+local animated = setmetatable({}, { __mode = "k" })
+local baseRotation = setmetatable({}, { __mode = "k" })
+local animatorRunning = false
+
+local function startAnimator()
+	if animatorRunning then
+		return
+	end
+	animatorRunning = true
+	RunService.Heartbeat:Connect(function()
+		local t = os.clock()
+		for gradient, kind in pairs(animated) do
+			if not gradient.Parent then
+				animated[gradient] = nil
+			elseif kind == "spin" then
+				gradient.Rotation = (baseRotation[gradient] + t * 50) % 360
+				gradient.Offset = Vector2.new(math.sin(t * 0.9) * 0.15, 0)
+			else
+				gradient.Offset = Vector2.new(math.sin(t * 1.7) * 0.35, 0)
+			end
+		end
+	end)
+end
+
 local function applyColor(frame, gradient, colorId)
-	local entry = Colors.ById[colorId]
-	if entry and entry.gradient then
-		frame.BackgroundColor3 = WHITE
-		gradient.Color = Colors.sequence(colorId)
-	else
-		frame.BackgroundColor3 = entry and entry.color or WHITE
-		gradient.Color = ColorSequence.new(WHITE)
+	local background, sequence, animation = Colors.look(colorId)
+	frame.BackgroundColor3 = background
+	gradient.Color = sequence
+	if baseRotation[gradient] == nil then
+		baseRotation[gradient] = gradient.Rotation
+	end
+	if animation then
+		animated[gradient] = animation
+		startAnimator()
+	elseif animated[gradient] then
+		animated[gradient] = nil
+		gradient.Rotation = baseRotation[gradient]
+		gradient.Offset = Vector2.new()
 	end
 end
 
@@ -6297,7 +8450,13 @@ function DesignArt.render(container, design, opts)
 		old:Destroy()
 	end
 	local mode = opts.mode or "color"
-	local colors = opts.colors or Designs.defaultColors(design)
+	-- Las zonas sin color elegido usan el color por defecto del diseño.
+	local colors = Designs.defaultColors(design)
+	for areaId, colorId in pairs(opts.colors or {}) do
+		if Colors.ById[colorId] then
+			colors[areaId] = colorId
+		end
+	end
 	local zindex = opts.zindex or container.ZIndex
 	local stroke = opts.stroke or 2
 
@@ -6329,7 +8488,9 @@ function DesignArt.render(container, design, opts)
 			-- para que se note qué falta por pintar.
 			local light = 0.299 * main.R + 0.587 * main.G + 0.114 * main.B
 			entry.pale = light > 0.8 and main:Lerp(UNPAINTED_LIGHT, 0.6) or main:Lerp(WHITE, 0.78)
-			entry.faint = entry.pale:Lerp(WHITE, 0.55)
+			-- Zona activa: más color para que destaque. Resto: casi en blanco.
+			entry.vivid = light > 0.8 and main:Lerp(UNPAINTED_LIGHT, 0.75) or main:Lerp(WHITE, 0.5)
+			entry.faint = entry.pale:Lerp(FAINT, 0.7)
 			entry.lineColor = SKETCH_LINE
 			base.BackgroundColor3 = entry.pale
 			local line = Instance.new("UIStroke")
@@ -6486,28 +8647,34 @@ function DesignArt.render(container, design, opts)
 		end
 	end
 
-	-- Resalta las figuras del color elegido y aclara las demás.
+	-- Resalta mucho las figuras del color elegido (más color y contorno grueso)
+	-- y deja las demás casi en blanco, con un trazo de lápiz muy suave.
 	function handle.setFocus(areaId)
 		for _, entry in ipairs(handle.shapes) do
 			if not entry.done and entry.line then
 				local active = areaId ~= nil and entry.shape.area == areaId
-				entry.lineColor = active and entry.main:Lerp(Color3.new(0, 0, 0), 0.35) or SKETCH_LINE
+				entry.active = active
+				entry.lineColor = active and entry.main:Lerp(Color3.new(0, 0, 0), 0.4) or SKETCH_LINE
 				entry.line.Color = entry.lineColor
-				entry.line.Thickness = active and stroke + 1 or stroke
-				entry.line.Transparency = active and 0 or 0.25
-				entry.base.BackgroundColor3 = (areaId == nil or active) and entry.pale or entry.faint
+				entry.line.Thickness = active and stroke + 1.5 or stroke
+				entry.line.Transparency = (areaId == nil or active) and 0 or 0.6
+				if areaId == nil then
+					entry.base.BackgroundColor3 = entry.pale
+				else
+					entry.base.BackgroundColor3 = active and entry.vivid or entry.faint
+				end
 			end
 		end
 	end
 
-	-- Pista: hace latir el contorno de una figura sin pintar (alpha 0..1).
+	-- Latido del contorno de una figura sin pintar (alpha 0..1).
 	function handle.setHint(i, alpha)
 		local entry = handle.shapes[i]
 		if not entry or entry.done or not entry.line then
 			return
 		end
 		entry.line.Color = entry.lineColor:Lerp(HINT_LINE, alpha)
-		entry.line.Thickness = stroke + 1 + alpha * 1.5
+		entry.line.Thickness = (entry.active and stroke + 1.5 or stroke) + alpha * 2
 	end
 
 	function handle.setColors(newColors)
@@ -6538,7 +8705,7 @@ return DesignArt
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="24">
+          <Item class="ModuleScript" referent="25">
             <Properties>
               <string name="Name">DesignPicker</string>
               <string name="Source"><![CDATA[-- Ventana "Elige un diseño": diseños por niveles, desbloqueos y maestría.
@@ -7032,7 +9199,7 @@ return DesignPicker
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="25">
+          <Item class="ModuleScript" referent="26">
             <Properties>
               <string name="Name">HUD</string>
               <string name="Source"><![CDATA[-- Interfaz principal: monedas y cuadros en venta arriba, columna de botones a
@@ -7065,8 +9232,8 @@ local toastHolder
 local confettiHolder
 local carriedKey = nil
 
-local KIND_COLOR = { info = C.Blue, success = C.Mint, error = C.Red, gold = C.Gold }
-local KIND_ICON = { info = "i", success = "✓", error = "!", gold = "★" }
+local KIND_COLOR = { info = C.Blue, success = C.Mint, error = C.Red, gold = C.Gold, sale = C.Mint }
+local KIND_ICON = { info = "i", success = "✓", error = "!", gold = "★", sale = "💵" }
 local CONFETTI_COLORS = {
 	Color3.fromRGB(250, 176, 40),
 	Color3.fromRGB(18, 168, 148),
@@ -7116,6 +9283,9 @@ function HUD.notify(text, kind)
 	Theme.pop(holder, 0.7)
 	if kind == "error" then
 		Theme.playSound("click", 0.6)
+	elseif kind == "sale" then
+		Theme.playSound("success", 0.8)
+		Theme.popCard(refs.coinsFrame, 0.85)
 	end
 	task.delay(3.8, function()
 		if holder.Parent then
@@ -7539,7 +9709,7 @@ local function buildCarry()
 	refs.carryHint = Theme.label({
 		Position = UDim2.fromOffset(12, 114),
 		Size = UDim2.new(1, -100, 0, 30),
-		Text = "Cuélgalo en un marco libre de la sala",
+		Text = "Exponlo en un stand de la sala y ponle precio",
 		Font = Theme.Fonts.Bold,
 		TextColor3 = C.PrimaryDark,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -7585,12 +9755,12 @@ local function refreshCarry(state)
 		Theme.popCard(refs.carry, 0.9)
 	end
 	refs.carryName.Text = design and design.name or "?"
-	refs.carryInfo.Text = string.rep("★", entry.st or 1) .. "   💵 " .. Theme.formatNumber(entry.v)
+	refs.carryInfo.Text = string.rep("★", entry.st or 1) .. "   Precio medio 💵 " .. Theme.formatNumber(entry.v)
 	refs.carryCount.Text = #storage > 1 and ("Tienes " .. #storage .. " cuadros guardados")
 		or "Tu único cuadro guardado"
-	local free = (state.slots or 0) - (state.displayed or 0)
-	refs.carryHint.Text = free > 0 and "Cuélgalo en un marco libre de la sala"
-		or "Sala llena: espera una venta o compra «Más paredes»"
+	local free = (state.standCount or 0) - (state.displayed or 0)
+	refs.carryHint.Text = free > 0 and "Exponlo en un stand de la sala y ponle precio"
+		or "Stands llenos: compra otro stand (＋) en la sala"
 	refs.carryNext.Holder.Visible = #storage > 1
 end
 
@@ -7625,7 +9795,7 @@ end
 
 function HUD.applyState(state)
 	animateCoins(state.coins)
-	refs.gallery.Text = state.displayed .. "/" .. state.slots
+	refs.gallery.Text = state.displayed .. "/" .. (state.standCount or 0)
 	tiles.daily.SetBadge(state.dailyReady)
 	tiles.daily.Caption.Text = state.dailyReady and "¡Regalo!" or Theme.formatTime(state.dailyWait)
 	refreshQuests(state)
@@ -7696,7 +9866,7 @@ return HUD
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="26">
+          <Item class="ModuleScript" referent="27">
             <Properties>
               <string name="Name">Machine</string>
               <string name="Source"><![CDATA[-- Máquina de colores: los colores solo se tiran en la máquina del taller
@@ -7734,7 +9904,7 @@ local function rarityText(colorId)
 		return "¡Tira tu primer color!", C.InkSoft
 	end
 	local rarity = Colors.rarityOf(entry)
-	return rarity.name .. "  ·  x" .. string.format("%.1f", rarity.mult), rarity.color
+	return rarity.name .. " " .. rarity.finish:lower() .. "  ·  x" .. string.format("%.1f", rarity.mult), rarity.color
 end
 
 local function myMachine()
@@ -7953,7 +10123,7 @@ local function showPopup(colorId, isNew)
 	local token = popupToken
 	refs.popupBand.BackgroundColor3 = rarity.color
 	refs.popupRarity.TextColor3 = rarity.color:Lerp(C.Ink, 0.25)
-	refs.popupRarity.Text = (isNew and "Nuevo · " or "") .. rarity.name
+	refs.popupRarity.Text = (isNew and "Nuevo · " or "") .. rarity.name .. " · " .. rarity.finish
 	DesignArt.swatch(refs.popupSwatch, colorId)
 	refs.popupName.Text = entry.name
 	refs.popupMult.Text = "Multiplica tus cuadros x" .. string.format("%.1f", rarity.mult)
@@ -8119,8 +10289,12 @@ function Machine.refreshCollection()
 		Theme.label({
 			Position = UDim2.fromOffset(160, 4),
 			Size = UDim2.new(1, -170, 0, 26),
-			Text = rarity.id == "basico" and "Siempre disponibles · x1.0"
-				or string.format("Valor x%.1f  ·  %.1f%% por tirada", rarity.mult, chances[rarity.id] * 100),
+			Text = rarity.id == "basico" and "Siempre disponibles · x1.0" or string.format(
+				"Acabado %s  ·  Valor x%.1f  ·  %.1f%% por tirada",
+				rarity.finish,
+				rarity.mult,
+				chances[rarity.id] * 100
+			),
 			Font = Theme.Fonts.Bold,
 			TextColor3 = C.InkSoft,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -8151,6 +10325,13 @@ function Machine.refreshCollection()
 			colorCell(grid, entry, app.state.paints[entry.id] or 0, i)
 		end
 	end
+end
+
+-- Muestra la ventana de color conseguido (también la usa el mezclador).
+function Machine.reveal(colorId, isNew)
+	knownPaints = knownPaints or {}
+	knownPaints[colorId] = true
+	showPopup(colorId, isNew)
 end
 
 function Machine.openCollection()
@@ -8341,14 +10522,766 @@ return Machine
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="27">
+          <Item class="ModuleScript" referent="28">
+            <Properties>
+              <string name="Name">Mixer</string>
+              <string name="Source"><![CDATA[-- Mezclador de colores del taller: echas varios botes de una misma rareza y
+-- sale un color de la rareza siguiente (la mitad de las veces, uno nuevo).
+
+local Players = game:GetService("Players")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Colors = require(Shared.Colors)
+
+local Theme = require(script.Parent.Theme)
+local DesignArt = require(script.Parent.DesignArt)
+
+local Mixer = {}
+
+local C = Theme.Colors
+local MIXABLE = { "comun", "pococomun", "raro", "epico", "legendario" }
+
+local app
+local window
+local refs = {}
+local rarityId = "comun"
+local picks = {} -- lista de colorId en los huecos
+local busy = false
+local shownKey = nil -- evita redibujar si nada cambió
+
+local function need()
+	return Colors.MixCost[rarityId]
+end
+
+local function owned(colorId)
+	return app.state and app.state.paints[colorId] or 0
+end
+
+local function pickedCount(colorId)
+	local count = 0
+	for _, id in ipairs(picks) do
+		if id == colorId then
+			count += 1
+		end
+	end
+	return count
+end
+
+local function picksMap()
+	local map = {}
+	for _, id in ipairs(picks) do
+		map[id] = (map[id] or 0) + 1
+	end
+	return map
+end
+
+-- Huecos del mezclador y resultado ------------------------------------------------------------------
+local function refreshSlots()
+	for _, child in ipairs(refs.slots:GetChildren()) do
+		if child:IsA("GuiObject") then
+			child:Destroy()
+		end
+	end
+	local rarity = Colors.RarityById[rarityId]
+	for i = 1, need() do
+		local colorId = picks[i]
+		local slot = Theme.new("TextButton", {
+			Name = "Slot" .. i,
+			Size = UDim2.fromOffset(64, 64),
+			BackgroundColor3 = C.PanelSoft,
+			AutoButtonColor = false,
+			Text = colorId and "" or "+",
+			Font = Theme.Fonts.Display,
+			TextColor3 = C.InkFaint,
+			TextScaled = true,
+			LayoutOrder = i,
+			Parent = refs.slots,
+		}, { Theme.round(), Theme.stroke(colorId and rarity.color or C.Border, colorId and 3 or 2) })
+		if colorId then
+			DesignArt.swatch(slot, colorId)
+			slot.Activated:Connect(function()
+				table.remove(picks, i)
+				Theme.playSound("click", 0.9)
+				Mixer.refresh()
+			end)
+		end
+	end
+	local nextRarity = Colors.Rarities[rarity.index + 1]
+	refs.resultChip.BackgroundColor3 = nextRarity.color
+	refs.resultText.Text = "1 color " .. nextRarity.name
+	refs.resultSwatch.BackgroundColor3 = nextRarity.color
+	refs.resultHint.Text = "Acabado "
+		.. nextRarity.finish:lower()
+		.. " · valor x"
+		.. string.format("%.1f", nextRarity.mult)
+	local full = #picks == need()
+	refs.mix.SetEnabled(full)
+	refs.mix.SetText(full and "🧪 ¡Mezclar!" or ("Faltan " .. need() - #picks .. " colores"))
+end
+
+-- Colores que tienes de la rareza elegida ---------------------------------------------------------
+local function refreshColors()
+	for _, child in ipairs(refs.grid:GetChildren()) do
+		if child:IsA("GuiObject") then
+			child:Destroy()
+		end
+	end
+	local rarity = Colors.RarityById[rarityId]
+	local any = false
+	for order, entry in ipairs(Colors.ByRarity[rarityId]) do
+		local count = owned(entry.id)
+		if count > 0 then
+			any = true
+			local left = count - pickedCount(entry.id)
+			local _, cell =
+				Theme.card({ Size = UDim2.fromOffset(104, 112), Radius = 14, LayoutOrder = order, Parent = refs.grid })
+			local swatch = Theme.new("Frame", {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, 10),
+				Size = UDim2.fromOffset(54, 54),
+				Parent = cell,
+			}, { Theme.round(), Theme.stroke(rarity.color, 3) })
+			DesignArt.swatch(swatch, entry.id)
+			Theme.label({
+				Position = UDim2.fromOffset(4, 68),
+				Size = UDim2.new(1, -8, 0, 18),
+				Text = entry.name,
+				Font = Theme.Fonts.Bold,
+				MaxTextSize = 14,
+				Parent = cell,
+			})
+			Theme.label({
+				Position = UDim2.fromOffset(4, 88),
+				Size = UDim2.new(1, -8, 0, 16),
+				Text = "x" .. left,
+				Font = Theme.Fonts.Heavy,
+				TextColor3 = left > 0 and C.MintDark or C.InkFaint,
+				MaxTextSize = 14,
+				Parent = cell,
+			})
+			local button = Theme.new("TextButton", {
+				Name = "Add_" .. entry.id,
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				Text = "",
+				Parent = cell,
+			})
+			button.Activated:Connect(function()
+				if left > 0 and #picks < need() then
+					table.insert(picks, entry.id)
+					Theme.playSound("paint", 1.2)
+					Mixer.refresh()
+				end
+			end)
+		end
+	end
+	refs.none.Visible = not any
+end
+
+function Mixer.refresh()
+	if not (window and window.Holder.Visible and app.state) then
+		return
+	end
+	-- Quita de los huecos lo que ya no tengas.
+	for i = #picks, 1, -1 do
+		if pickedCount(picks[i]) > owned(picks[i]) then
+			table.remove(picks, i)
+		end
+	end
+	local key = rarityId .. ":" .. table.concat(picks, ",")
+	for _, entry in ipairs(Colors.ByRarity[rarityId]) do
+		key ..= "|" .. owned(entry.id)
+	end
+	if key == shownKey then
+		return
+	end
+	shownKey = key
+	for id, tab in pairs(refs.tabs) do
+		tab.SetVariant(id == rarityId and "purple" or "ghost")
+	end
+	refs.rule.Text = need() .. " colores " .. Colors.RarityById[rarityId].name .. " → 1 color de la rareza siguiente"
+	refreshColors()
+	refreshSlots()
+end
+
+local function autoFill()
+	local options = {}
+	for _, entry in ipairs(Colors.ByRarity[rarityId]) do
+		local left = owned(entry.id) - pickedCount(entry.id)
+		if left > 0 then
+			table.insert(options, { id = entry.id, left = left })
+		end
+	end
+	-- Primero los repetidos (los que más tienes).
+	table.sort(options, function(a, b)
+		return a.left > b.left
+	end)
+	for _, option in ipairs(options) do
+		while option.left > 0 and #picks < need() do
+			table.insert(picks, option.id)
+			option.left -= 1
+		end
+	end
+	Mixer.refresh()
+end
+
+local function mix()
+	if busy or #picks ~= need() then
+		return
+	end
+	busy = true
+	refs.mix.SetEnabled(false)
+	refs.mix.SetText("Mezclando…")
+	Theme.playSound("whoosh", 0.8)
+	Theme.pop(refs.slots, 0.8)
+	local ok, success, colorId, isNew = pcall(function()
+		return app.remotes.MixColors:InvokeServer(rarityId, picksMap())
+	end)
+	busy = false
+	picks = {}
+	if ok and success and Colors.ById[colorId] then
+		Mixer.close()
+		app.reveal(colorId, isNew)
+	else
+		app.notify(ok and colorId or "No se pudo mezclar.", "error")
+		Mixer.refresh()
+	end
+end
+
+-- Construcción -------------------------------------------------------------------------------------
+function Mixer.open()
+	shownKey = nil
+	window.Open()
+	Mixer.refresh()
+end
+
+function Mixer.close()
+	window.Close()
+end
+
+function Mixer.init(appRef)
+	app = appRef
+	local gui = Theme.new("ScreenGui", {
+		Name = "Mixer",
+		ResetOnSpawn = false,
+		DisplayOrder = 14,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		Parent = Players.LocalPlayer:WaitForChild("PlayerGui"),
+	})
+	window = Theme.window({
+		Name = "Window",
+		Parent = gui,
+		Size = UDim2.fromOffset(860, 560),
+		Title = "Mezclador de colores",
+		Subtitle = "Junta colores repetidos y consigue uno más raro",
+		Icon = "🧪",
+		Accent = "purple",
+	})
+	local body = window.Body
+	-- Pestañas de rareza.
+	local tabs = Theme.new("Frame", {
+		Position = UDim2.fromOffset(18, 12),
+		Size = UDim2.new(1, -36, 0, 44),
+		BackgroundTransparency = 1,
+		Parent = body,
+	}, { Theme.list("h", 8) })
+	refs.tabs = {}
+	for i, id in ipairs(MIXABLE) do
+		local rarity = Colors.RarityById[id]
+		refs.tabs[id] = Theme.button({
+			Size = UDim2.new(0.2, -7, 1, 0),
+			Text = rarity.name,
+			Variant = "ghost",
+			Radius = 12,
+			MaxTextSize = 16,
+			LayoutOrder = i,
+			Parent = tabs,
+			OnClick = function()
+				if rarityId ~= id then
+					rarityId = id
+					picks = {}
+					Mixer.refresh()
+				end
+			end,
+		})
+	end
+	refs.rule = Theme.label({
+		Position = UDim2.fromOffset(18, 62),
+		Size = UDim2.new(1, -36, 0, 22),
+		Text = "",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkSoft,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 16,
+		Parent = body,
+	})
+	-- Tus colores de esa rareza.
+	refs.grid = Theme.new("ScrollingFrame", {
+		Position = UDim2.fromOffset(18, 92),
+		Size = UDim2.new(0, 470, 1, -110),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 6,
+		ScrollBarImageColor3 = C.InkFaint,
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		CanvasSize = UDim2.new(),
+		Parent = body,
+	}, {
+		Theme.new("UIGridLayout", {
+			CellSize = UDim2.fromOffset(104, 112),
+			CellPadding = UDim2.fromOffset(10, 10),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+		Theme.padding(4),
+	})
+	refs.none = Theme.label({
+		Position = UDim2.fromOffset(18, 150),
+		Size = UDim2.fromOffset(470, 80),
+		Text = "No tienes colores de esta rareza.\nTíralos en la máquina de colores 🎰",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 18,
+		Visible = false,
+		Parent = body,
+	})
+	-- La jarra: huecos, flecha y resultado.
+	local _, jar = Theme.card({
+		Position = UDim2.new(1, -350, 0, 92),
+		Size = UDim2.fromOffset(332, 376),
+		Radius = 18,
+		Parent = body,
+	})
+	Theme.label({
+		Position = UDim2.fromOffset(12, 10),
+		Size = UDim2.new(1, -24, 0, 22),
+		Text = "En el mezclador",
+		Font = Theme.Fonts.Heavy,
+		MaxTextSize = 18,
+		Parent = jar,
+	})
+	refs.slots = Theme.new("Frame", {
+		Position = UDim2.fromOffset(12, 40),
+		Size = UDim2.new(1, -24, 0, 140),
+		BackgroundTransparency = 1,
+		Parent = jar,
+	}, {
+		Theme.new("UIGridLayout", {
+			CellSize = UDim2.fromOffset(64, 64),
+			CellPadding = UDim2.fromOffset(10, 10),
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			SortOrder = Enum.SortOrder.LayoutOrder,
+		}),
+	})
+	Theme.label({
+		Position = UDim2.fromOffset(12, 182),
+		Size = UDim2.new(1, -24, 0, 30),
+		Text = "⬇",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.InkFaint,
+		MaxTextSize = 28,
+		Parent = jar,
+	})
+	refs.resultSwatch = Theme.new("Frame", {
+		Position = UDim2.fromOffset(24, 218),
+		Size = UDim2.fromOffset(56, 56),
+		Parent = jar,
+	}, { Theme.round(), Theme.stroke(C.White, 3) })
+	Theme.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "?",
+		Font = Theme.Fonts.Display,
+		TextColor3 = C.White,
+		MaxTextSize = 30,
+		Parent = refs.resultSwatch,
+	})
+	refs.resultChip = Theme.new("Frame", {
+		Position = UDim2.fromOffset(92, 222),
+		Size = UDim2.new(1, -116, 0, 28),
+		Parent = jar,
+	}, { Theme.round() })
+	refs.resultText = Theme.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.White,
+		MaxTextSize = 16,
+		Parent = refs.resultChip,
+	})
+	refs.resultHint = Theme.label({
+		Position = UDim2.fromOffset(92, 252),
+		Size = UDim2.new(1, -116, 0, 18),
+		Text = "",
+		Font = Theme.Fonts.Medium,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 14,
+		Parent = jar,
+	})
+	Theme.button({
+		Position = UDim2.fromOffset(12, 284),
+		Size = UDim2.new(0.4, -12, 0, 42),
+		Text = "Auto",
+		Variant = "ghost",
+		Radius = 12,
+		MaxTextSize = 17,
+		Parent = jar,
+		OnClick = autoFill,
+	})
+	refs.mix = Theme.button({
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 284),
+		Size = UDim2.new(0.6, -12, 0, 42),
+		Text = "",
+		Variant = "purple",
+		Radius = 12,
+		MaxTextSize = 18,
+		Parent = jar,
+		OnClick = mix,
+	})
+	Theme.label({
+		Position = UDim2.fromOffset(12, 334),
+		Size = UDim2.new(1, -24, 0, 32),
+		Text = "La mitad de las veces sale un color que aún no tienes.",
+		Font = Theme.Fonts.Medium,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 14,
+		Parent = jar,
+	})
+end
+
+function Mixer.isOpen()
+	return window ~= nil and window.Holder.Visible
+end
+
+return Mixer
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="29">
+            <Properties>
+              <string name="Name">Offers</string>
+              <string name="Source"><![CDATA[-- Ofertas de la caja: cuando un visitante quiere un cuadro y tu precio le
+-- parece alto, te hace una oferta. Puedes aceptarla, pedirle un poco más o
+-- rechazarla. Las tarjetas se ven también mientras pintas.
+
+local Players = game:GetService("Players")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Designs = require(Shared.Designs)
+local Exhibition = require(Shared.Exhibition)
+
+local Theme = require(script.Parent.Theme)
+local DesignArt = require(script.Parent.DesignArt)
+
+local Offers = {}
+
+local C = Theme.Colors
+local CARD_WIDTH = 340
+local CARD_HEIGHT = 214
+
+local app
+local holder
+local cards = {}
+
+local function closeCard(id, text)
+	local card = cards[id]
+	if not card then
+		return
+	end
+	cards[id] = nil
+	card.closing = true
+	if text then
+		card.status.Text = text
+	end
+	task.delay(text and 1.2 or 0.2, function()
+		Theme.tween(card.scale, 0.2, { Scale = 0.6 })
+		task.wait(0.2)
+		card.holder:Destroy()
+	end)
+end
+
+local function respond(id, action)
+	local card = cards[id]
+	if not card or card.answered then
+		return
+	end
+	card.answered = true
+	for _, button in ipairs(card.buttons) do
+		button.SetEnabled(false)
+	end
+	card.status.Text = action == "accept" and "✔ Aceptada"
+		or (action == "counter" and "↔ Pediste 💵" .. Theme.formatNumber(card.data.counter) or "✖ Rechazada")
+	app.remotes.RespondOffer:FireServer(id, action)
+end
+
+local function buildCard(data)
+	local cardHolder, body = Theme.card({
+		Name = "Offer" .. data.id,
+		Size = UDim2.fromOffset(CARD_WIDTH, CARD_HEIGHT),
+		Radius = 18,
+		Color = C.Bg,
+		StrokeColor = data.vip and C.Gold or C.Navy,
+		StrokeThickness = data.vip and 3 or 2,
+		ShadowTransparency = 0.7,
+		LayoutOrder = data.id,
+		Parent = holder,
+	})
+	local scale = Theme.new("UIScale", { Name = "PopScale", Parent = cardHolder })
+	-- Cabecera con el visitante.
+	local header = Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 50),
+		BackgroundColor3 = C.White,
+		Parent = body,
+	}, {
+		Theme.corner(18),
+		Theme.gradient(
+			data.vip and Theme.Gradients.gold[1] or Theme.Gradients.navy[1],
+			data.vip and Theme.Gradients.gold[2] or Theme.Gradients.navy[2],
+			90
+		),
+	})
+	Theme.new("Frame", {
+		Position = UDim2.new(0, 0, 1, -14),
+		Size = UDim2.new(1, 0, 0, 14),
+		BackgroundColor3 = data.vip and Theme.Gradients.gold[2] or Theme.Gradients.navy[2],
+		BorderSizePixel = 0,
+		Parent = header,
+	})
+	Theme.new("ImageLabel", {
+		Position = UDim2.fromOffset(10, 6),
+		Size = UDim2.fromOffset(38, 38),
+		BackgroundColor3 = C.PanelSoft,
+		Image = data.userId and ("rbxthumb://type=AvatarHeadShot&id=" .. data.userId .. "&w=150&h=150") or "",
+		Parent = header,
+	}, { Theme.round(), Theme.stroke(C.White, 2) })
+	Theme.label({
+		Position = UDim2.fromOffset(56, 6),
+		Size = UDim2.new(1, -66, 0, 22),
+		Text = (data.vip and "👑 " or "") .. tostring(data.buyer) .. " está en la caja",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.White,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 17,
+		Parent = header,
+	})
+	Theme.label({
+		Position = UDim2.fromOffset(56, 27),
+		Size = UDim2.new(1, -66, 0, 16),
+		Text = data.final and "Te hace su ÚLTIMA oferta" or "Te hace una oferta por tu cuadro",
+		Font = Theme.Fonts.Medium,
+		TextColor3 = C.White,
+		TextTransparency = 0.15,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 14,
+		Parent = header,
+	})
+	-- Cuadro y cifras.
+	local art = Theme.new("Frame", {
+		Position = UDim2.fromOffset(12, 60),
+		Size = UDim2.fromOffset(70, 70),
+		BackgroundColor3 = C.White,
+		Parent = body,
+	}, { Theme.corner(4), Theme.stroke(C.Navy, 3) })
+	local design = Designs.get(data.designId or "")
+	if design then
+		DesignArt.render(art, design, { mode = "color", colors = Designs.decodeColors(data.colors), outline = false })
+	end
+	Theme.label({
+		Position = UDim2.fromOffset(94, 58),
+		Size = UDim2.new(1, -104, 0, 20),
+		Text = design and ("«" .. design.name .. "»") or "",
+		Font = Theme.Fonts.Heavy,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 16,
+		Parent = body,
+	})
+	Theme.label({
+		Position = UDim2.fromOffset(94, 78),
+		Size = UDim2.new(1, -104, 0, 18),
+		Text = "Tu precio 💵 " .. Theme.formatNumber(data.price) .. "  ·  Medio 💵 " .. Theme.formatNumber(
+			data.market
+		),
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkSoft,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 14,
+		Parent = body,
+	})
+	local ratio = data.offer / math.max(1, data.price)
+	Theme.label({
+		Position = UDim2.fromOffset(94, 98),
+		Size = UDim2.fromOffset(150, 32),
+		Text = "💵 " .. Theme.formatNumber(data.offer),
+		Font = Theme.Fonts.Display,
+		TextColor3 = C.Ink,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 30,
+		Parent = body,
+	})
+	Theme.chip({
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 104),
+		Size = UDim2.fromOffset(70, 26),
+		Text = math.floor(ratio * 100 + 0.5) .. "%",
+		Color = ratio >= Exhibition.CASHIER_ACCEPT and C.MintLight or C.GoldLight,
+		TextColor3 = ratio >= Exhibition.CASHIER_ACCEPT and C.MintDark or C.GoldDark,
+		MaxTextSize = 15,
+		Parent = body,
+	})
+	-- Botones.
+	local row = Theme.new("Frame", {
+		Position = UDim2.fromOffset(12, 140),
+		Size = UDim2.new(1, -24, 0, 42),
+		BackgroundTransparency = 1,
+		Parent = body,
+	}, { Theme.list("h", 8) })
+	local buttons = {}
+	table.insert(
+		buttons,
+		Theme.button({
+			Size = UDim2.new(data.final and 0.6 or 0.36, -6, 1, 0),
+			Text = "✔ Aceptar",
+			Variant = "mint",
+			Radius = 12,
+			MaxTextSize = 17,
+			LayoutOrder = 1,
+			Parent = row,
+			OnClick = function()
+				respond(data.id, "accept")
+			end,
+		})
+	)
+	if not data.final then
+		table.insert(
+			buttons,
+			Theme.button({
+				Size = UDim2.new(0.4, -6, 1, 0),
+				Text = "Pedir 💵" .. Theme.formatNumber(data.counter),
+				Variant = "gold",
+				Radius = 12,
+				MaxTextSize = 16,
+				LayoutOrder = 2,
+				Parent = row,
+				OnClick = function()
+					respond(data.id, "counter")
+				end,
+			})
+		)
+	end
+	table.insert(
+		buttons,
+		Theme.button({
+			Size = UDim2.new(data.final and 0.4 or 0.24, -6, 1, 0),
+			Text = "✖ No",
+			Variant = "ghost",
+			TextColor = C.Red,
+			Radius = 12,
+			MaxTextSize = 16,
+			LayoutOrder = 3,
+			Parent = row,
+			OnClick = function()
+				respond(data.id, "reject")
+			end,
+		})
+	)
+	local status = Theme.label({
+		Position = UDim2.fromOffset(12, 186),
+		Size = UDim2.new(1, -24, 0, 14),
+		Text = data.cashier and "Si no respondes, tu cajero decide por ti" or "Si no respondes, se irá sin comprar",
+		Font = Theme.Fonts.Medium,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 12,
+		Parent = body,
+	})
+	local timer = Theme.progress({
+		Position = UDim2.new(0, 14, 1, -8),
+		Size = UDim2.new(1, -28, 0, 4),
+		Gradient = data.vip and "gold" or "primary",
+		Parent = body,
+	})
+	timer.Set(1)
+	local card = {
+		holder = cardHolder,
+		scale = scale,
+		status = status,
+		buttons = buttons,
+		data = data,
+		started = os.clock(),
+		timer = timer,
+	}
+	Theme.pop(cardHolder, 0.7)
+	return card
+end
+
+function Offers.show(data)
+	if type(data) ~= "table" or not data.id then
+		return
+	end
+	cards[data.id] = buildCard(data)
+	Theme.playSound("success", 1.7)
+	-- El temporizador se vacía hasta que el visitante se cansa.
+	task.spawn(function()
+		local card = cards[data.id]
+		while card and cards[data.id] == card do
+			local left = 1 - (os.clock() - card.started) / math.max(1, data.time or 20)
+			card.timer.Set(left)
+			task.wait(0.1)
+		end
+	end)
+end
+
+function Offers.closed(id)
+	local card = cards[id]
+	if card then
+		closeCard(id, not card.answered and "⏳ Se acabó el tiempo" or nil)
+	end
+end
+
+function Offers.init(appRef)
+	app = appRef
+	local gui = Theme.new("ScreenGui", {
+		Name = "Offers",
+		ResetOnSpawn = false,
+		DisplayOrder = 20,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		Parent = Players.LocalPlayer:WaitForChild("PlayerGui"),
+	})
+	holder = Theme.new("Frame", {
+		Name = "Holder",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -16, 0, 84),
+		Size = UDim2.fromOffset(CARD_WIDTH, 600),
+		BackgroundTransparency = 1,
+		Parent = gui,
+	}, { Theme.list("v", 10, Enum.HorizontalAlignment.Right) })
+	local function updateScale()
+		local camera = workspace.CurrentCamera
+		if not camera then
+			return
+		end
+		local viewport = camera.ViewportSize
+		local scale = holder:FindFirstChild("ViewportScale")
+			or Theme.new("UIScale", { Name = "ViewportScale", Parent = holder })
+		scale.Scale = math.clamp(math.min(viewport.X / 1280, viewport.Y / 720), 0.6, 1)
+	end
+	updateScale()
+	if workspace.CurrentCamera then
+		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+	end
+end
+
+return Offers
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="30">
             <Properties>
               <string name="Name">Painter</string>
-              <string name="Source"><![CDATA[-- Estudio de pintura. El dibujo aparece como un boceto y se pinta color por
--- color, como en la vida real: eliges un bote de la paleta de madera y el
--- pincel solo deja pintura en las figuras de ese color. El trazo se queda
--- donde pasas (con vetas, como el óleo) y cada figura se completa al cubrir
--- casi toda su superficie. Cuanto más rápido terminas, más estrellas.
+              <string name="Source"><![CDATA[-- Estudio de pintura. El dibujo aparece como un boceto numerado y se pinta
+-- color por color, como en la vida real: eliges un bote de la paleta de
+-- madera y las zonas de ese color se iluminan (más color, contorno que late y
+-- su número destacado) mientras las demás se quedan casi en blanco. El pincel
+-- solo deja pintura en esas zonas, con vetas como el óleo, y cada figura se
+-- completa al cubrir casi toda su superficie. Cuanto más rápido, más estrellas.
 
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
@@ -8443,6 +11376,69 @@ local function buildSamples(design, radius)
 		list[i] = info
 	end
 	return list
+end
+
+-- Dónde va el número de cada figura: el punto visible más alejado de sus
+-- bordes (así no tapa detalles y siempre queda dentro de la zona).
+local LABEL_GRID = 48
+local labelCache = {}
+local function labelSpots(design)
+	if labelCache[design.id] then
+		return labelCache[design.id]
+	end
+	local n = LABEL_GRID
+	local owner = {}
+	for gy = 0, n - 1 do
+		for gx = 0, n - 1 do
+			owner[gy * n + gx] = Designs.shapeAt(design, (gx + 0.5) / n, (gy + 0.5) / n) or 0
+		end
+	end
+	local spots = {}
+	for i in ipairs(design.shapes) do
+		-- Distancia (en celdas) al borde más cercano de la figura.
+		local dist = {}
+		local queue = {}
+		for gy = 0, n - 1 do
+			for gx = 0, n - 1 do
+				local index = gy * n + gx
+				if owner[index] ~= i then
+					dist[index] = 0
+					table.insert(queue, index)
+				elseif gx == 0 or gy == 0 or gx == n - 1 or gy == n - 1 then
+					dist[index] = 1
+					table.insert(queue, index)
+				end
+			end
+		end
+		local head = 1
+		while head <= #queue do
+			local index = queue[head]
+			head += 1
+			local gx, gy = index % n, index // n
+			local d = dist[index] + 1
+			for _, offset in ipairs({ { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }) do
+				local nx, ny = gx + offset[1], gy + offset[2]
+				if nx >= 0 and ny >= 0 and nx < n and ny < n then
+					local other = ny * n + nx
+					if dist[other] == nil then
+						dist[other] = d
+						table.insert(queue, other)
+					end
+				end
+			end
+		end
+		local best, bestIndex = 0, nil
+		for index, d in pairs(dist) do
+			if owner[index] == i and d > best then
+				best, bestIndex = d, index
+			end
+		end
+		if bestIndex then
+			spots[i] = { x = (bestIndex % n + 0.5) / n, y = (bestIndex // n + 0.5) / n, r = best / n }
+		end
+	end
+	labelCache[design.id] = spots
+	return spots
 end
 
 local function areaPercent(areaId)
@@ -8576,6 +11572,7 @@ end
 
 -- Pintar ---------------------------------------------------------------------------------------
 local completeIfDone
+local buildLabels
 
 local function completeShape(i, animate)
 	local info = current.samples[i]
@@ -8732,6 +11729,7 @@ local function selectArea(areaId)
 	current.activeArea = areaId
 	current.art.setFocus(areaId)
 	current.lastProgress = os.clock()
+	current.flashAt = os.clock()
 	lastBrush = nil
 	Theme.playSound("click", 1.25)
 	refreshLabels()
@@ -8762,27 +11760,40 @@ local function updateCursor()
 	cursorTip.Text = tool == "bucket" and "🪣" or "🖌️"
 end
 
--- Pistas: si llevas un rato sin avanzar, laten las figuras que faltan del
--- color elegido (o, sin color, la paleta).
+-- Resaltado: las zonas del color elegido laten siempre (más fuerte al
+-- elegirlo y si llevas un rato sin avanzar) y sus números se agrandan.
+-- Sin color elegido, brilla la paleta.
 local function updateHints()
 	local now = os.clock()
 	local idle = not current.done and now - (current.lastProgress or now) > 2.5
-	if not idle or not current.activeArea or areaPercent(current.activeArea) >= 0.999 then
-		if current.hinting then
-			current.hinting = false
-			for i in ipairs(current.samples) do
-				current.art.setHint(i, 0)
-			end
+	refs.paletteGlow.Thickness = (not current.done and not current.activeArea) and (2 + 2 * math.abs(math.sin(now * 4)))
+		or 0
+	local alpha = 0
+	if current.activeArea and not current.done then
+		local wave = 0.5 + 0.5 * math.sin(now * 5)
+		alpha = idle and wave or wave * 0.45
+		local flash = 1 - (now - (current.flashAt or 0)) / 0.9
+		if flash > 0 then
+			alpha = math.max(alpha, flash * (0.5 + 0.5 * math.sin(now * 18)))
 		end
-		refs.paletteGlow.Thickness = (not current.done and idle and not current.activeArea)
-				and (2 + 2 * math.abs(math.sin(now * 4)))
-			or 0
-		return
 	end
-	current.hinting = true
-	local alpha = 0.5 + 0.5 * math.sin(now * 6)
 	for i, info in ipairs(current.samples) do
-		current.art.setHint(i, (not info.complete and info.area == current.activeArea) and alpha or 0)
+		local active = not info.complete and info.area == current.activeArea
+		current.art.setHint(i, active and alpha or 0)
+	end
+	for _, label in ipairs(current.labels or {}) do
+		local info = current.samples[label.index]
+		local active = not current.done and info.area == current.activeArea
+		if info.complete then
+			label.frame.Visible = false
+		else
+			label.frame.Visible = true
+			label.frame.BackgroundTransparency = active and 0 or 1
+			label.text.TextColor3 = active and C.Ink or C.InkFaint
+			label.text.TextTransparency = (current.activeArea == nil or active) and 0 or 0.35
+			label.ring.Thickness = active and 2.5 or 0
+			label.scale.Scale = active and (1.1 + alpha * 0.2) or 0.8
+		end
 	end
 end
 
@@ -9022,6 +12033,48 @@ local function buildCanvas(parent)
 	end)
 end
 
+-- Números sobre el boceto: cada zona lleva el número de su color en la paleta.
+function buildLabels(design, colors)
+	for _, label in ipairs(current.labels or {}) do
+		label.frame:Destroy()
+	end
+	current.labels = {}
+	local numberOf = {}
+	for i, areaDef in ipairs(design.areas) do
+		numberOf[areaDef.id] = i
+	end
+	for i, spot in pairs(labelSpots(design)) do
+		local info = current.samples[i]
+		if spot.r >= 0.03 and not info.complete then
+			local area = design.shapes[i].area
+			local size = math.clamp(spot.r * 1.3, 0.042, 0.075)
+			local frame = Theme.new("Frame", {
+				Name = "Number" .. i,
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(spot.x, spot.y),
+				Size = UDim2.fromScale(size, size),
+				BackgroundColor3 = C.White,
+				BackgroundTransparency = 1,
+				ZIndex = 7,
+				Parent = overlay,
+			}, { Theme.round() })
+			local ring = Theme.stroke(Colors.mainColor(colors[area]):Lerp(Color3.new(0, 0, 0), 0.3), 0)
+			ring.Parent = frame
+			local text = Theme.label({
+				Size = UDim2.fromScale(1, 1),
+				Text = tostring(numberOf[area] or ""),
+				Font = Theme.Fonts.Heavy,
+				TextColor3 = C.InkFaint,
+				MaxTextSize = 30,
+				ZIndex = 7,
+				Parent = frame,
+			})
+			local scale = Theme.new("UIScale", { Scale = 0.8, Parent = frame })
+			table.insert(current.labels, { index = i, frame = frame, text = text, ring = ring, scale = scale })
+		end
+	end
+end
+
 -- Paleta de pintor de madera con un bote de pintura por color.
 local function buildPalette(parent)
 	local holder = Theme.new("Frame", {
@@ -9152,6 +12205,20 @@ local function fillPalette(design, colors)
 		}, { Theme.round() })
 		local ring = Theme.stroke(C.White, 0)
 		ring.Parent = blob
+		local number = Theme.label({
+			AnchorPoint = Vector2.new(0, 1),
+			Position = UDim2.new(0, -4, 1, 4),
+			Size = UDim2.fromOffset(22, 22),
+			Text = tostring(i),
+			Font = Theme.Fonts.Heavy,
+			BackgroundColor3 = C.White,
+			BackgroundTransparency = 0,
+			TextColor3 = C.Ink,
+			MaxTextSize = 14,
+			Parent = blob,
+		})
+		Theme.round().Parent = number
+		Theme.stroke(WOOD_DARK, 1.5).Parent = number
 		local check = Theme.label({
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.new(1, 4, 0, -4),
@@ -9459,6 +12526,7 @@ function Painter.open(design, colors)
 			current.art.complete(i, false)
 		end
 	end
+	buildLabels(design, colors)
 	fillPalette(design, colors)
 	refs.title.Text = design.name
 	refs.done.Visible = false
@@ -9517,14 +12585,15 @@ function Painter.showComplete()
 	local price = math.floor(value * Config.GALLERY_BONUS)
 	local tier = Config.masteryFor(made)
 	DesignArt.render(refs.doneArt, design, { mode = "color", colors = current.colors, outline = false })
-	refs.doneValue.Text = "💵 " .. Theme.formatNumber(price)
+	refs.doneValue.Text = "Precio medio: 💵 " .. Theme.formatNumber(price)
 	refs.doneBreakdown.Text = string.format(
 		"Colores x%.2f  ·  Estrellas +%d%%  ·  Maestría +%d%%",
 		Config.colorMultiplier(design, current.colors),
 		math.floor(Config.STAR_BONUS[stars] * 100),
 		math.floor((tier and tier.bonus or 0) * 100)
 	)
-	refs.doneInfo.Text = "Cuélgalo en un marco libre de la sala: un visitante lo comprará."
+	refs.doneInfo.Text =
+		"Llévalo a un stand de la sala y ponle tu precio: los visitantes te harán ofertas en la caja."
 	local stored = state and state.storage and #state.storage or 0
 	refs.another.SetEnabled(stored + 1 < Config.STORAGE_SIZE)
 	for _, star in ipairs(refs.doneStars) do
@@ -9554,7 +12623,7 @@ function Painter.showComplete()
 	end)
 end
 
--- Entrega el cuadro: va al almacén y lo llevas a la espalda hasta colgarlo.
+-- Entrega el cuadro: va al almacén y lo llevas a la espalda hasta exponerlo.
 function Painter.finish(paintAnother)
 	if finishing or not current then
 		return
@@ -9579,15 +12648,13 @@ function Painter.finish(paintAnother)
 	end
 	local design = Designs.get(result.designId)
 	Painter.close()
-	if result.freeFrames then
+	if result.freeStands then
 		app.notify(
-			"🖼️ Llevas «"
-				.. (design and design.name or "tu cuadro")
-				.. "»: cuélgalo en un marco libre de la sala",
+			"🖼️ Llevas «" .. (design and design.name or "tu cuadro") .. "»: exponlo en un stand libre de la sala",
 			"success"
 		)
 	else
-		app.notify("Tu sala está llena: espera a que vendan un cuadro o compra «Más paredes»", "info")
+		app.notify("Todos tus stands están ocupados: compra otro stand en la sala (＋).", "info")
 	end
 	if result.mastery then
 		app.notify("🏅 ¡Maestría de " .. result.mastery .. " en este diseño!", "gold")
@@ -9614,7 +12681,7 @@ return Painter
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="28">
+          <Item class="ModuleScript" referent="31">
             <Properties>
               <string name="Name">Shop</string>
               <string name="Source"><![CDATA[-- Tienda de mejoras del taller y la galería, agrupadas por secciones.
@@ -9624,6 +12691,7 @@ local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Colors = require(Shared.Colors)
 local Config = require(Shared.Config)
+local Exhibition = require(Shared.Exhibition)
 
 local Theme = require(script.Parent.Theme)
 
@@ -9634,7 +12702,7 @@ local C = Theme.Colors
 local SECTIONS = {
 	{ name = "Máquina de colores", ids = { "suerte", "velocidad", "auto" } },
 	{ name = "Pintura", ids = { "pincel", "cubeta" } },
-	{ name = "Galería", ids = { "precio", "fama", "paredes", "decoracion" } },
+	{ name = "Galería", ids = { "precio", "fama", "cajero", "decoracion" } },
 }
 
 local app
@@ -9677,8 +12745,8 @@ local function effectText(id, level)
 			Config.buyerInterval(nextLevels),
 			math.floor(Config.vipChance(nextLevels) * 100 + 0.5)
 		)
-	elseif id == "paredes" then
-		return string.format("Cuadros en venta %d → %d", Config.gallerySlots(levels), Config.gallerySlots(nextLevels))
+	elseif id == "cajero" then
+		return "Acepta solo las ofertas de al menos el " .. math.floor(Exhibition.CASHIER_ACCEPT * 100) .. "%"
 	end
 	return ""
 end
@@ -9883,7 +12951,715 @@ return Shop
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="29">
+          <Item class="ModuleScript" referent="32">
+            <Properties>
+              <string name="Name">StandPanel</string>
+              <string name="Source"><![CDATA[-- Panel de un stand de la sala: eliges qué cuadro exponer, le pones tu
+-- precio (el juego te enseña el precio medio y cómo de rápido se venderá),
+-- lo retiras o mejoras la calidad del stand.
+
+local Players = game:GetService("Players")
+
+local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Designs = require(Shared.Designs)
+local Exhibition = require(Shared.Exhibition)
+
+local Theme = require(script.Parent.Theme)
+local DesignArt = require(script.Parent.DesignArt)
+
+local StandPanel = {}
+
+local C = Theme.Colors
+local METER_MIN, METER_MAX = 0.5, 2
+local TIER_COLORS = {
+	Color3.fromRGB(214, 176, 128),
+	Color3.fromRGB(44, 48, 56),
+	Color3.fromRGB(232, 184, 80),
+}
+
+local app
+local window
+local refs = {}
+local spot = nil
+local selected = 1 -- índice del cuadro elegido en el almacén
+local price = 0
+local busy = false
+local previewKey, storageKey = nil, nil -- evita redibujar si nada cambió
+
+local function state()
+	return app.state
+end
+
+local function entryOnStand()
+	local s = state()
+	for _, entry in ipairs(s and s.gallery or {}) do
+		if entry.s == spot then
+			return entry
+		end
+	end
+	return nil
+end
+
+local function tierOf()
+	local s = state()
+	return s and s.stands and s.stands[spot] or 0
+end
+
+-- Cuadro que se está editando: el expuesto o el elegido del almacén.
+local function currentPainting()
+	local entry = entryOnStand()
+	if entry then
+		return entry, true
+	end
+	local s = state()
+	return s and s.storage and s.storage[selected], false
+end
+
+local function marketOf(painting)
+	return painting and Exhibition.marketPrice(painting.v, math.max(1, tierOf())) or 0
+end
+
+local function ratioToMeter(ratio)
+	return math.clamp((ratio - METER_MIN) / (METER_MAX - METER_MIN), 0, 1)
+end
+
+-- Precio y medidor ---------------------------------------------------------------------------
+local function refreshPrice()
+	local painting = currentPainting()
+	local market = marketOf(painting)
+	refs.priceSection.Visible = painting ~= nil
+	if not painting then
+		return
+	end
+	price = Exhibition.clampPrice(price, market)
+	local ratio = price / math.max(1, market)
+	local band = Exhibition.band(ratio)
+	refs.market.Text = "Precio medio: 💵 " .. Theme.formatNumber(market)
+	refs.price.Text = "💵 " .. Theme.formatNumber(price)
+	refs.percent.Text = math.floor(ratio * 100 + 0.5) .. "% del precio medio"
+	refs.bandText.Text = band.text
+	refs.bandText.TextColor3 = Theme.darker(band.color, 0.25)
+	refs.marker.Position = UDim2.new(ratioToMeter(ratio), 0, 0.5, 0)
+	refs.markerDot.BackgroundColor3 = band.color
+	local interest = Exhibition.interest(ratio)
+	refs.interest.Text = string.format("Interés de los visitantes: %d%%", math.floor(interest * 100 + 0.5))
+	local onStand = entryOnStand()
+	if onStand then
+		refs.primary.SetText("💾 Guardar precio")
+		refs.primary.SetEnabled(price ~= onStand.p)
+	else
+		refs.primary.SetText("🖼️ Exponer por 💵 " .. Theme.formatNumber(price))
+		refs.primary.SetEnabled(true)
+	end
+end
+
+local function setPrice(value)
+	price = value
+	refreshPrice()
+end
+
+-- Vista previa y calidad del stand --------------------------------------------------------------
+local function refreshPreview()
+	local painting = currentPainting()
+	local design = painting and Designs.get(painting.d)
+	local tier = tierOf()
+	refs.artFrame.BackgroundColor3 = TIER_COLORS[math.clamp(tier, 1, 3)]
+	local key = design and (painting.d .. painting.c .. (painting.st or 1)) or ""
+	if key == previewKey then
+		design = nil
+	end
+	previewKey = key
+	if key == "" then
+		design = nil
+	end
+	if design then
+		refs.placeholder.Visible = false
+		DesignArt.render(refs.art, design, {
+			mode = "color",
+			colors = Designs.decodeColors(painting.c),
+			outlineThickness = 1.5,
+		})
+		refs.paintingName.Text = design.name
+		refs.paintingStars.Text = string.rep("★", painting.st or 1) .. string.rep("☆", 3 - (painting.st or 1))
+	elseif key == "" then
+		local old = refs.art:FindFirstChild("Art")
+		if old then
+			old:Destroy()
+		end
+		refs.placeholder.Visible = true
+		refs.paintingName.Text = "Stand vacío"
+		refs.paintingStars.Text = ""
+	end
+	-- Calidad del stand y mejora.
+	local def = Exhibition.Spots[spot]
+	refs.tierName.Text = Exhibition.tierName(spot, tier)
+	local bonus = Exhibition.tierBonus(tier)
+	refs.tierBonus.Text = bonus > 0 and string.format("+%d%% de precio medio", math.floor(bonus * 100 + 0.5))
+		or "Calidad básica"
+	if tier >= Exhibition.MAX_TIER then
+		refs.upgrade.SetText("✨ Calidad máxima")
+		refs.upgrade.SetEnabled(false)
+		refs.upgradeInfo.Text = "Este stand ya luce como en un museo."
+	else
+		local cost = Exhibition.upgradeCost(tier, def.room)
+		local nextBonus = Exhibition.tierBonus(tier + 1)
+		refs.upgrade.SetText("Mejorar · 💵 " .. Theme.formatNumber(cost))
+		refs.upgrade.SetEnabled((state().coins or 0) >= cost)
+		refs.upgradeInfo.Text = "→ "
+			.. Exhibition.tierName(spot, tier + 1)
+			.. string.format(" (+%d%%)", math.floor(nextBonus * 100 + 0.5))
+	end
+end
+
+-- Lista de cuadros del almacén -----------------------------------------------------------------------
+local function refreshStorage()
+	local onStand = entryOnStand()
+	local storage = state().storage or {}
+	local key = (onStand and "on" or "off") .. selected .. ":" .. tierOf()
+	for _, painting in ipairs(storage) do
+		key ..= "|" .. painting.d .. painting.c .. painting.v
+	end
+	if key == storageKey then
+		return
+	end
+	storageKey = key
+	for _, child in ipairs(refs.storageList:GetChildren()) do
+		if child:IsA("GuiObject") then
+			child:Destroy()
+		end
+	end
+	refs.storageSection.Visible = onStand == nil
+	refs.manage.Visible = onStand ~= nil
+	refs.empty.Visible = onStand == nil and #storage == 0
+	refs.priceTitle.Text = onStand and "Precio del cuadro" or "2. Ponle tu precio"
+	if onStand then
+		return
+	end
+	if selected > #storage then
+		selected = 1
+	end
+	for i, painting in ipairs(storage) do
+		local design = Designs.get(painting.d)
+		local card = Theme.new("TextButton", {
+			Name = "Stored" .. i,
+			Size = UDim2.fromOffset(96, 112),
+			BackgroundColor3 = C.Panel,
+			AutoButtonColor = false,
+			Text = "",
+			LayoutOrder = i,
+			Parent = refs.storageList,
+		}, { Theme.corner(12), Theme.stroke(i == selected and C.Primary or C.Border, i == selected and 3 or 1.5) })
+		local box = Theme.new("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, 8),
+			Size = UDim2.fromOffset(72, 72),
+			BackgroundColor3 = C.White,
+			Parent = card,
+		}, { Theme.corner(4), Theme.stroke(C.Navy, 2) })
+		if design then
+			DesignArt.render(
+				box,
+				design,
+				{ mode = "color", colors = Designs.decodeColors(painting.c), outline = false }
+			)
+		end
+		Theme.label({
+			Position = UDim2.fromOffset(4, 84),
+			Size = UDim2.new(1, -8, 0, 20),
+			Text = "💵 " .. Theme.formatNumber(Exhibition.marketPrice(painting.v, math.max(1, tierOf()))),
+			Font = Theme.Fonts.Heavy,
+			TextColor3 = C.Ink,
+			MaxTextSize = 15,
+			Parent = card,
+		})
+		card.Activated:Connect(function()
+			if selected ~= i then
+				selected = i
+				Theme.playSound("click", 1.2)
+				price = Exhibition.marketPrice(painting.v, math.max(1, tierOf()))
+				refreshStorage()
+				refreshPreview()
+				refreshPrice()
+			end
+		end)
+	end
+end
+
+function StandPanel.refresh()
+	if not (window and spot and window.Holder.Visible and state()) then
+		return
+	end
+	if tierOf() == 0 then
+		StandPanel.close()
+		return
+	end
+	local def = Exhibition.Spots[spot]
+	local room = Exhibition.Rooms[def.room]
+	window.Title.Text = "Stand " .. spot .. " · " .. Exhibition.tierName(spot, tierOf())
+	window.Subtitle.Text = (room and room.name or "") .. " · Tienes 💵 " .. Theme.formatNumber(state().coins)
+	refreshStorage()
+	refreshPreview()
+	refreshPrice()
+end
+
+-- Acciones -----------------------------------------------------------------------------------------
+local function invoke(action, a, b)
+	if busy then
+		return false
+	end
+	busy = true
+	local ok, success, message = pcall(function()
+		return app.remotes.StandAction:InvokeServer(action, spot, a, b)
+	end)
+	busy = false
+	if ok and success then
+		return true, message
+	end
+	app.notify(ok and message or "No se pudo hacer.", "error")
+	return false
+end
+
+local function primaryAction()
+	local onStand = entryOnStand()
+	if onStand then
+		local ok, message = invoke("price", price)
+		if ok then
+			Theme.playSound("success", 1.3)
+			app.notify(message, "success")
+		end
+		return
+	end
+	local ok, message = invoke("exhibit", selected, price)
+	if ok then
+		Theme.playSound("success", 1.1)
+		app.notify(message, "success")
+		StandPanel.close()
+	end
+end
+
+-- Construcción ---------------------------------------------------------------------------------------
+local function sectionTitle(parent, text, y)
+	return Theme.label({
+		Position = UDim2.fromOffset(0, y),
+		Size = UDim2.new(1, 0, 0, 24),
+		Text = text,
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.Ink,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 19,
+		Parent = parent,
+	})
+end
+
+local function buildLeft(body)
+	local _, card = Theme.card({
+		Position = UDim2.fromOffset(18, 14),
+		Size = UDim2.fromOffset(276, 476),
+		Radius = 18,
+		Parent = body,
+	})
+	refs.artFrame = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 16),
+		Size = UDim2.fromOffset(222, 222),
+		BackgroundColor3 = TIER_COLORS[1],
+		Parent = card,
+	}, { Theme.corner(6) })
+	refs.art = Theme.new("Frame", {
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.new(1, -24, 1, -24),
+		BackgroundColor3 = Color3.fromRGB(252, 248, 240),
+		Parent = refs.artFrame,
+	})
+	refs.placeholder = Theme.label({
+		Size = UDim2.fromScale(1, 1),
+		Text = "🖼️\nStand vacío",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkFaint,
+		MaxTextSize = 22,
+		Parent = refs.art,
+	})
+	refs.paintingName = Theme.label({
+		Position = UDim2.fromOffset(14, 248),
+		Size = UDim2.new(1, -28, 0, 28),
+		Text = "",
+		Font = Theme.Fonts.Display,
+		MaxTextSize = 24,
+		Parent = card,
+	})
+	refs.paintingStars = Theme.label({
+		Position = UDim2.fromOffset(14, 276),
+		Size = UDim2.new(1, -28, 0, 22),
+		Text = "",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.Gold,
+		MaxTextSize = 20,
+		Parent = card,
+	})
+	-- Calidad del stand.
+	local quality = Theme.new("Frame", {
+		Position = UDim2.fromOffset(12, 308),
+		Size = UDim2.new(1, -24, 0, 152),
+		BackgroundColor3 = C.PanelSoft,
+		Parent = card,
+	}, { Theme.corner(14) })
+	Theme.label({
+		Position = UDim2.fromOffset(12, 8),
+		Size = UDim2.new(1, -24, 0, 16),
+		Text = "CALIDAD DEL STAND",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.InkSoft,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 12,
+		Parent = quality,
+	})
+	refs.tierName = Theme.label({
+		Position = UDim2.fromOffset(12, 26),
+		Size = UDim2.new(1, -24, 0, 22),
+		Text = "",
+		Font = Theme.Fonts.Heavy,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 18,
+		Parent = quality,
+	})
+	refs.tierBonus = Theme.label({
+		Position = UDim2.fromOffset(12, 48),
+		Size = UDim2.new(1, -24, 0, 16),
+		Text = "",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.PrimaryDark,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 14,
+		Parent = quality,
+	})
+	refs.upgrade = Theme.button({
+		Position = UDim2.fromOffset(10, 72),
+		Size = UDim2.new(1, -20, 0, 40),
+		Text = "",
+		Variant = "gold",
+		Radius = 12,
+		MaxTextSize = 17,
+		Parent = quality,
+		OnClick = function()
+			local ok, message = invoke("upgrade")
+			if ok then
+				Theme.playSound("success", 1.2)
+				app.notify(message, "success")
+				app.celebrate()
+			end
+		end,
+	})
+	refs.upgradeInfo = Theme.label({
+		Position = UDim2.fromOffset(12, 122),
+		Size = UDim2.new(1, -24, 0, 18),
+		Text = "",
+		Font = Theme.Fonts.Medium,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 13,
+		Parent = quality,
+	})
+end
+
+local function buildRight(body)
+	local column = Theme.new("Frame", {
+		Position = UDim2.fromOffset(316, 14),
+		Size = UDim2.new(1, -334, 1, -28),
+		BackgroundTransparency = 1,
+		Parent = body,
+	})
+	-- 1. Elegir cuadro del almacén.
+	refs.storageSection = Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 150),
+		BackgroundTransparency = 1,
+		Parent = column,
+	})
+	sectionTitle(refs.storageSection, "1. Elige un cuadro de tu almacén", 0)
+	refs.storageList = Theme.new("ScrollingFrame", {
+		Position = UDim2.fromOffset(0, 30),
+		Size = UDim2.new(1, 0, 0, 120),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 5,
+		ScrollBarImageColor3 = C.InkFaint,
+		ScrollingDirection = Enum.ScrollingDirection.X,
+		AutomaticCanvasSize = Enum.AutomaticSize.X,
+		CanvasSize = UDim2.new(),
+		Parent = refs.storageSection,
+	}, { Theme.list("h", 8), Theme.padding(2) })
+	refs.empty = Theme.label({
+		Position = UDim2.fromOffset(0, 40),
+		Size = UDim2.new(1, 0, 0, 60),
+		Text = "No tienes cuadros terminados.\nPinta uno en la mesa de dibujo del taller 🎨",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 18,
+		Visible = false,
+		Parent = refs.storageSection,
+	})
+	-- Gestión del cuadro expuesto.
+	refs.manage = Theme.new("Frame", {
+		Size = UDim2.new(1, 0, 0, 150),
+		BackgroundTransparency = 1,
+		Visible = false,
+		Parent = column,
+	})
+	sectionTitle(refs.manage, "Cuadro a la venta", 0)
+	Theme.label({
+		Position = UDim2.fromOffset(0, 30),
+		Size = UDim2.new(1, 0, 0, 60),
+		Text = "Los visitantes que se interesen irán a la caja: te pagarán tu precio o te harán una oferta.",
+		Font = Theme.Fonts.Medium,
+		TextColor3 = C.InkSoft,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 16,
+		Parent = refs.manage,
+	})
+	refs.takeDown = Theme.button({
+		Position = UDim2.fromOffset(0, 96),
+		Size = UDim2.fromOffset(210, 44),
+		Text = "↩ Retirar cuadro",
+		Variant = "ghost",
+		TextColor = C.Red,
+		Radius = 12,
+		MaxTextSize = 17,
+		Parent = refs.manage,
+		OnClick = function()
+			local ok, message = invoke("takedown")
+			if ok then
+				app.notify(message, "info")
+				StandPanel.close()
+			end
+		end,
+	})
+
+	-- 2. Precio.
+	refs.priceSection = Theme.new("Frame", {
+		Position = UDim2.fromOffset(0, 160),
+		Size = UDim2.new(1, 0, 0, 300),
+		BackgroundTransparency = 1,
+		Parent = column,
+	})
+	refs.priceTitle = sectionTitle(refs.priceSection, "2. Ponle tu precio", 0)
+	refs.market = Theme.label({
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, 0, 0, 0),
+		Size = UDim2.fromOffset(230, 26),
+		BackgroundColor3 = C.PrimaryLight,
+		BackgroundTransparency = 0,
+		Text = "",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.PrimaryDark,
+		MaxTextSize = 16,
+		Parent = refs.priceSection,
+	})
+	Theme.round().Parent = refs.market
+	local _, priceCard = Theme.card({
+		Position = UDim2.fromOffset(0, 34),
+		Size = UDim2.new(1, 0, 0, 76),
+		Radius = 16,
+		Parent = refs.priceSection,
+	})
+	local function stepButton(text, x, anchor, sign)
+		Theme.button({
+			AnchorPoint = Vector2.new(anchor, 0.5),
+			Position = UDim2.new(x, anchor == 0 and 10 or -10, 0.5, 0),
+			Size = UDim2.fromOffset(56, 52),
+			Text = text,
+			Variant = "navy",
+			Radius = 14,
+			MaxTextSize = 28,
+			Parent = priceCard,
+			OnClick = function()
+				local painting = currentPainting()
+				setPrice(price + sign * Exhibition.priceStep(marketOf(painting)))
+			end,
+		})
+	end
+	stepButton("−", 0, 0, -1)
+	stepButton("+", 1, 1, 1)
+	refs.price = Theme.label({
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 6),
+		Size = UDim2.new(1, -150, 0, 42),
+		Text = "",
+		Font = Theme.Fonts.Display,
+		TextColor3 = C.Ink,
+		MaxTextSize = 38,
+		Parent = priceCard,
+	})
+	refs.percent = Theme.label({
+		AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, 48),
+		Size = UDim2.new(1, -150, 0, 18),
+		Text = "",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 14,
+		Parent = priceCard,
+	})
+	-- Atajos de precio.
+	local presets = Theme.new("Frame", {
+		Position = UDim2.fromOffset(0, 120),
+		Size = UDim2.new(1, 0, 0, 38),
+		BackgroundTransparency = 1,
+		Parent = refs.priceSection,
+	}, { Theme.list("h", 8) })
+	for i, preset in ipairs({
+		{ "Rápido −15%", 0.85 },
+		{ "Precio medio", 1 },
+		{ "+25%", 1.25 },
+		{ "+50%", 1.5 },
+	}) do
+		Theme.button({
+			Size = UDim2.new(0.25, -6, 1, 0),
+			Text = preset[1],
+			Variant = "ghost",
+			Radius = 12,
+			Depth = 3,
+			MaxTextSize = 15,
+			LayoutOrder = i,
+			Parent = presets,
+			OnClick = function()
+				setPrice(Exhibition.roundPrice(marketOf(currentPainting()) * preset[2]))
+			end,
+		})
+	end
+	-- Medidor: de ganga a carísimo.
+	local meter = Theme.new("Frame", {
+		Position = UDim2.fromOffset(4, 176),
+		Size = UDim2.new(1, -8, 0, 14),
+		BackgroundTransparency = 1,
+		Parent = refs.priceSection,
+	})
+	local from = METER_MIN
+	for i, band in ipairs(Exhibition.PriceBands) do
+		local to = math.min(band.max, METER_MAX)
+		local a, b = ratioToMeter(from), ratioToMeter(to)
+		Theme.new("Frame", {
+			Position = UDim2.fromScale(a, 0),
+			Size = UDim2.new(b - a, i < #Exhibition.PriceBands and -2 or 0, 1, 0),
+			BackgroundColor3 = band.color,
+			Parent = meter,
+		}, { Theme.corner(5) })
+		from = to
+	end
+	refs.marker = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.33, 0.5),
+		Size = UDim2.fromOffset(26, 26),
+		BackgroundTransparency = 1,
+		ZIndex = 3,
+		Parent = meter,
+	})
+	refs.markerDot = Theme.new("Frame", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = C.Primary,
+		ZIndex = 3,
+		Parent = refs.marker,
+	}, { Theme.round(), Theme.stroke(C.White, 4) })
+	Theme.label({
+		Position = UDim2.fromOffset(0, 196),
+		Size = UDim2.new(0.5, 0, 0, 16),
+		Text = "Ganga",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkFaint,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		MaxTextSize = 13,
+		Parent = refs.priceSection,
+	})
+	Theme.label({
+		Position = UDim2.new(0.5, 0, 0, 196),
+		Size = UDim2.new(0.5, 0, 0, 16),
+		Text = "Carísimo",
+		Font = Theme.Fonts.Bold,
+		TextColor3 = C.InkFaint,
+		TextXAlignment = Enum.TextXAlignment.Right,
+		MaxTextSize = 13,
+		Parent = refs.priceSection,
+	})
+	refs.bandText = Theme.label({
+		Position = UDim2.fromOffset(0, 214),
+		Size = UDim2.new(1, 0, 0, 22),
+		Text = "",
+		Font = Theme.Fonts.Heavy,
+		MaxTextSize = 18,
+		Parent = refs.priceSection,
+	})
+	refs.interest = Theme.label({
+		Position = UDim2.fromOffset(0, 236),
+		Size = UDim2.new(1, 0, 0, 18),
+		Text = "",
+		Font = Theme.Fonts.Medium,
+		TextColor3 = C.InkSoft,
+		MaxTextSize = 14,
+		Parent = refs.priceSection,
+	})
+	refs.primary = Theme.button({
+		Position = UDim2.fromOffset(0, 258),
+		Size = UDim2.new(1, 0, 0, 52),
+		Text = "",
+		Variant = "primary",
+		Radius = 14,
+		MaxTextSize = 21,
+		Parent = refs.priceSection,
+		OnClick = primaryAction,
+	})
+end
+
+-- API ------------------------------------------------------------------------------------------------
+function StandPanel.open(index)
+	local s = state()
+	if not (window and s and Exhibition.Spots[index]) then
+		return
+	end
+	spot = index
+	selected = 1
+	previewKey, storageKey = nil, nil
+	local painting = currentPainting()
+	local onStand = entryOnStand()
+	price = onStand and onStand.p or marketOf(painting)
+	window.Open()
+	StandPanel.refresh()
+end
+
+function StandPanel.close()
+	if window then
+		window.Close()
+	end
+	spot = nil
+end
+
+function StandPanel.isOpen()
+	return window ~= nil and window.Holder.Visible
+end
+
+function StandPanel.init(appRef)
+	app = appRef
+	local gui = Theme.new("ScreenGui", {
+		Name = "StandPanel",
+		ResetOnSpawn = false,
+		DisplayOrder = 14,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		Parent = Players.LocalPlayer:WaitForChild("PlayerGui"),
+	})
+	window = Theme.window({
+		Name = "Window",
+		Parent = gui,
+		Size = UDim2.fromOffset(860, 580),
+		Title = "Stand",
+		Icon = "🖼️",
+		Accent = "gold",
+		OnClose = StandPanel.close,
+	})
+	buildLeft(window.Body)
+	buildRight(window.Body)
+end
+
+return StandPanel
+]]></string>
+            </Properties>
+          </Item>
+          <Item class="ModuleScript" referent="33">
             <Properties>
               <string name="Name">Theme</string>
               <string name="Source"><![CDATA[-- Sistema de diseño de la interfaz: colores, tipografías y componentes
@@ -10666,7 +14442,7 @@ return Theme
 ]]></string>
             </Properties>
           </Item>
-          <Item class="ModuleScript" referent="30">
+          <Item class="ModuleScript" referent="34">
             <Properties>
               <string name="Name">Tutorial</string>
               <string name="Source"><![CDATA[-- Tutorial guiado: un panel con la guía (paso, instrucción, progreso y botón
@@ -10694,7 +14470,7 @@ local STEP_TITLES = {
 	"La sala de exposición",
 	"Tu primera venta",
 }
-local ARROW_TEXT = { "¡Tira aquí!", "¡Pinta aquí!", nil, "¡Cuélgalo aquí!", "¡Tu cuadro!" }
+local ARROW_TEXT = { "¡Tira aquí!", "¡Pinta aquí!", nil, "¡Expón aquí!", "¡La caja!" }
 
 local app
 local gui
@@ -10728,20 +14504,27 @@ local function findTarget(name)
 	elseif name == "easel" then
 		local easel = workshop and workshop:FindFirstChild("Easel")
 		return easel, easel and easel:FindFirstChild("Canvas")
-	elseif name == "freeFrame" or name == "gallery" then
-		if not gallery then
+	elseif name == "freeStand" then
+		local spots = gallery and gallery:FindFirstChild("Spots")
+		local stands = gallery and gallery:FindFirstChild("Stands")
+		if not (spots and stands) then
 			return nil, nil
 		end
-		for i = 1, Config.GALLERY_SIZE do
-			local frame = gallery:FindFirstChild("Frame" .. i)
-			local canvas = frame and frame:FindFirstChild("Canvas")
-			if canvas and not canvas:GetAttribute("Locked") then
-				local hung = (canvas:GetAttribute("Design") or "") ~= ""
-				if (name == "freeFrame" and not hung) or (name == "gallery" and hung) then
-					return frame, canvas
-				end
+		for i = 1, #spots:GetChildren() do
+			local anchor = spots:FindFirstChild("Spot" .. i)
+			if
+				anchor
+				and anchor:GetAttribute("Open")
+				and anchor:GetAttribute("Owned")
+				and not anchor:GetAttribute("HasPainting")
+			then
+				return stands:FindFirstChild("Stand" .. i), anchor
 			end
 		end
+	elseif name == "caja" then
+		local interior = plot:FindFirstChild("GalleryInterior")
+		local caja = interior and interior:FindFirstChild("Caja")
+		return caja, caja and caja:FindFirstChild("Register")
 	end
 	return nil, nil
 end
@@ -11011,17 +14794,21 @@ return Tutorial
             </Properties>
           </Item>
         </Item>
-        <Item class="ModuleScript" referent="31">
+        <Item class="ModuleScript" referent="35">
           <Properties>
             <string name="Name">World</string>
-            <string name="Source"><![CDATA[-- Parte visual del mundo que se dibuja en el cliente: cuadros de la galería,
--- caballete del taller y globos de diálogo de los visitantes.
+            <string name="Source"><![CDATA[-- Parte visual del mundo que se dibuja en el cliente: cuadros de los stands
+-- (con su etiqueta de precio), avisos de los huecos libres, caballete del
+-- taller y globos de diálogo de los visitantes.
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Colors = require(Shared.Colors)
+local Config = require(Shared.Config)
 local Designs = require(Shared.Designs)
+local Exhibition = require(Shared.Exhibition)
 
 local UI = script.Parent:WaitForChild("UI")
 local Theme = require(UI.Theme)
@@ -11078,16 +14865,45 @@ local function setupCanvas(canvas)
 		Parent = art,
 	})
 	Theme.round().Parent = stars
+	-- Etiqueta de precio con el color de la banda (ganga, justo, caro...).
+	local priceTag = Theme.label({
+		Name = "PriceTag",
+		Position = UDim2.new(0, 8, 1, -36),
+		Size = UDim2.fromOffset(130, 28),
+		BackgroundColor3 = C.Primary,
+		BackgroundTransparency = 0,
+		Text = "",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.White,
+		MaxTextSize = 22,
+		Visible = false,
+		ZIndex = 5,
+		Parent = art,
+	})
+	Theme.round().Parent = priceTag
+	local glitter = nil
 	local function refresh()
 		local design = Designs.get(canvas:GetAttribute("Design") or "")
 		local starCount = canvas:GetAttribute("Stars") or 0
 		stars.Text = design and string.rep("★", starCount) or ""
 		stars.Visible = stars.Text ~= ""
+		local price = canvas:GetAttribute("Price") or 0
+		local market = canvas:GetAttribute("Market") or 0
+		priceTag.Visible = design ~= nil and price > 0
+		if priceTag.Visible then
+			priceTag.Text = "💵 " .. Config.formatNumber(price)
+			priceTag.BackgroundColor3 = Exhibition.band(price / math.max(1, market)).color
+		end
+		local best = 0
 		if design then
 			placeholder.Visible = false
+			local colors = Designs.decodeColors(canvas:GetAttribute("Colors"))
+			for _, colorId in pairs(colors) do
+				best = math.max(best, Colors.rarityOf(Colors.ById[colorId]).index)
+			end
 			DesignArt.render(art, design, {
 				mode = "color",
-				colors = Designs.decodeColors(canvas:GetAttribute("Colors")),
+				colors = colors,
 				outlineThickness = 1.5,
 			})
 		else
@@ -11098,11 +14914,28 @@ local function setupCanvas(canvas)
 			placeholder.Visible = true
 			placeholder.Text = canvas:GetAttribute("Locked") and "🔒" or "Espacio libre"
 		end
+		-- Los cuadros con colores legendarios o míticos brillan.
+		if best >= 5 and not glitter then
+			glitter = Theme.new("ParticleEmitter", {
+				Name = "Glitter",
+				Texture = "rbxasset://textures/particles/sparkles_main.dds",
+				Color = ColorSequence.new(best >= 6 and Color3.fromRGB(255, 140, 220) or Color3.fromRGB(255, 214, 110)),
+				Size = NumberSequence.new(0.35, 0),
+				Lifetime = NumberRange.new(0.8, 1.4),
+				Rate = best >= 6 and 6 or 3,
+				Speed = NumberRange.new(0.3, 0.8),
+				SpreadAngle = Vector2.new(60, 60),
+				LightEmission = 0.6,
+				Parent = canvas,
+			})
+		elseif best < 5 and glitter then
+			glitter:Destroy()
+			glitter = nil
+		end
 	end
-	canvas:GetAttributeChangedSignal("Design"):Connect(refresh)
-	canvas:GetAttributeChangedSignal("Colors"):Connect(refresh)
-	canvas:GetAttributeChangedSignal("Locked"):Connect(refresh)
-	canvas:GetAttributeChangedSignal("Stars"):Connect(refresh)
+	for _, attribute in ipairs({ "Design", "Colors", "Locked", "Stars", "Price", "Market" }) do
+		canvas:GetAttributeChangedSignal(attribute):Connect(refresh)
+	end
 	refresh()
 end
 
@@ -11160,15 +14993,78 @@ local function setupVisitor(model)
 	refresh()
 end
 
--- Avisos (taller y marcos) solo para el dueño del terreno.
-local function updatePrompts(plot)
+-- Hueco de la sala: cartel «＋ Stand» con su precio (solo lo ve el dueño).
+local function setupSpot(anchor, plot)
+	if anchor:FindFirstChild("SpotTag") then
+		return
+	end
+	local billboard = Theme.new("BillboardGui", {
+		Name = "SpotTag",
+		Size = UDim2.fromOffset(170, 64),
+		StudsOffset = Vector3.new(0, 0.5, 0),
+		MaxDistance = 60,
+		LightInfluence = 0,
+		AlwaysOnTop = false,
+		ResetOnSpawn = false,
+		Enabled = false,
+		Parent = anchor,
+	})
+	local card = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(160, 56),
+		BackgroundColor3 = C.Navy,
+		BackgroundTransparency = 0.08,
+		Parent = billboard,
+	}, { Theme.corner(16), Theme.stroke(C.White, 2, 0.4) })
+	local title = Theme.label({
+		Position = UDim2.fromOffset(8, 4),
+		Size = UDim2.new(1, -16, 0, 26),
+		Text = "＋ Stand",
+		Font = Theme.Fonts.Display,
+		TextColor3 = C.White,
+		MaxTextSize = 22,
+		Parent = card,
+	})
+	local cost = Theme.label({
+		Position = UDim2.fromOffset(8, 30),
+		Size = UDim2.new(1, -16, 0, 20),
+		Text = "",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.Gold,
+		MaxTextSize = 18,
+		Parent = card,
+	})
+	local function refresh()
+		local mine = plot:GetAttribute("OwnerUserId") == player.UserId
+		local open = anchor:GetAttribute("Open") == true
+		local owned = anchor:GetAttribute("Owned") == true
+		billboard.Enabled = mine and open and not owned
+		local price = anchor:GetAttribute("Cost") or 0
+		title.Text = "＋ Stand"
+		cost.Text = price > 0 and ("💵 " .. Config.formatNumber(price)) or "¡Gratis!"
+	end
+	for _, attribute in ipairs({ "Open", "Owned", "Cost" }) do
+		anchor:GetAttributeChangedSignal(attribute):Connect(refresh)
+	end
+	plot:GetAttributeChangedSignal("OwnerUserId"):Connect(refresh)
+	refresh()
+end
+
+-- Avisos (taller y sala) solo para el dueño del terreno.
+local function setPromptDistance(plot, prompt)
 	local mine = plot:GetAttribute("OwnerUserId") == player.UserId
+	local inGallery = prompt:IsDescendantOf(plot:FindFirstChild("Gallery") or plot)
+	prompt.MaxActivationDistance = mine and (inGallery and 10 or 12) or 0
+end
+
+local function updatePrompts(plot)
 	for _, folderName in ipairs({ "Workshop", "Gallery" }) do
 		local folder = plot:FindFirstChild(folderName)
 		if folder then
 			for _, descendant in ipairs(folder:GetDescendants()) do
 				if descendant:IsA("ProximityPrompt") then
-					descendant.MaxActivationDistance = mine and (folderName == "Gallery" and 10 or 12) or 0
+					setPromptDistance(plot, descendant)
 				end
 			end
 		end
@@ -11178,11 +15074,25 @@ end
 local function watchPlot(plot)
 	local gallery = plot:WaitForChild("Gallery", 10)
 	if gallery then
-		for _, descendant in ipairs(gallery:GetDescendants()) do
+		local function check(descendant)
 			if descendant.Name == "Canvas" and descendant:IsA("BasePart") then
 				setupCanvas(descendant)
+			elseif descendant:IsA("ProximityPrompt") then
+				setPromptDistance(plot, descendant)
+			elseif
+				descendant:IsA("BasePart")
+				and descendant:GetAttribute("Index")
+				and descendant.Parent.Name == "Spots"
+			then
+				setupSpot(descendant, plot)
 			end
 		end
+		for _, descendant in ipairs(gallery:GetDescendants()) do
+			task.spawn(check, descendant)
+		end
+		gallery.DescendantAdded:Connect(function(descendant)
+			task.defer(check, descendant)
+		end)
 	end
 	local workshop = plot:WaitForChild("Workshop", 10)
 	local easel = workshop and workshop:WaitForChild("Easel", 10)
@@ -11197,6 +15107,12 @@ local function watchPlot(plot)
 		end
 		visitors.ChildAdded:Connect(function(model)
 			task.spawn(setupVisitor, model)
+		end)
+		-- El cuadro que se lleva el visitante que lo compró.
+		visitors.DescendantAdded:Connect(function(descendant)
+			if descendant.Name == "Canvas" and descendant:IsA("BasePart") then
+				task.defer(setupCanvas, descendant)
+			end
 		end)
 	end
 	plot:GetAttributeChangedSignal("OwnerUserId"):Connect(function()
@@ -11244,7 +15160,7 @@ return World
       </Item>
     </Item>
   </Item>
-  <Item class="Workspace" referent="32">
+  <Item class="Workspace" referent="36">
     <Properties>
       <string name="Name">Workspace</string>
       <bool name="NeedsPivotMigration">false</bool>

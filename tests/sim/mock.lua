@@ -838,7 +838,7 @@ local function firePropChanged(inst, prop)
 	end
 end
 
-local INTERNAL = { parent = true, destroyed = true, allowWrite = true, sourcePath = true, mockModule = true, target = true, propsNil = true, moveToken = true, welds = true }
+local INTERNAL = { parent = true, destroyed = true, allowWrite = true, sourcePath = true, mockModule = true, target = true, propsNil = true, moveToken = true, welds = true, waypoints = true }
 InstanceMT.__index = function(inst, key)
 	if INTERNAL[key] then
 		return nil

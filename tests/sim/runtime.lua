@@ -39,6 +39,7 @@ for _, cls in ipairs({
 	"TextService",
 	"PhysicsService",
 	"ReplicatedFirst",
+	"PathfindingService",
 }) do
 	addService(cls)
 end
@@ -351,6 +352,31 @@ M.method("Humanoid", "MoveTo", function(self, position, part)
 		self.MoveToFinished:Fire(true)
 	end)
 end)
+-- Pathfinding: camino recto del origen al destino (con un punto intermedio).
+M.method("PathfindingService", "CreatePath", function(self, params)
+	if params ~= nil and type(params) ~= "table" then
+		error("CreatePath expects a table", 2)
+	end
+	local path = new("Path", true)
+	return path
+end)
+M.method("Path", "ComputeAsync", function(self, from, to)
+	if G.typeof(from) ~= "Vector3" or G.typeof(to) ~= "Vector3" then
+		error("ComputeAsync(Vector3, Vector3)", 2)
+	end
+	task.wait(0.02)
+	self.waypoints = { from, (from + to) / 2, to }
+	self.allowWrite = true
+	self.Status = G.Enum.PathStatus.Success
+	self.allowWrite = nil
+end)
+M.method("Path", "GetWaypoints", function(self)
+	local list = {}
+	for _, position in ipairs(self.waypoints or {}) do
+		table.insert(list, { Position = position, Action = G.Enum.PathWaypointAction.Walk })
+	end
+	return list
+end)
 M.method("Animator", "LoadAnimation", function(self, animation)
 	if G.typeof(animation) ~= "Instance" or animation.ClassName ~= "Animation" then
 		error("LoadAnimation expects Animation", 2)
@@ -422,7 +448,10 @@ local function convertLuau(src, name)
 	-- compound assignment -> plain Lua
 	local out = {}
 	for line in (src .. "\n"):gmatch("(.-)\n") do
-		local indent, lhs, op, rhs = line:match("^(%s*)([%w_%.%[%]\"]+)%s*([%+%-%*/])=%s*(.+)$")
+		local indent, lhs, op, rhs = line:match("^(%s*)([%w_%.%[%]\"]+)%s*(%.%.)=%s*(.+)$")
+		if not indent then
+			indent, lhs, op, rhs = line:match("^(%s*)([%w_%.%[%]\"]+)%s*([%+%-%*/%%%^])=%s*(.+)$")
+		end
 		if indent then
 			line = indent .. lhs .. " = " .. lhs .. " " .. op .. " (" .. rhs .. ")"
 		end

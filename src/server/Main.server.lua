@@ -10,6 +10,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.Config)
 local Colors = require(Shared.Colors)
 local Designs = require(Shared.Designs)
+local Exhibition = require(Shared.Exhibition)
 
 local Services = script.Parent:WaitForChild("Services")
 local DataService = require(Services.DataService)
@@ -38,6 +39,13 @@ local CancelPainting = remote("RemoteEvent", "CancelPainting")
 local FinishPainting = remote("RemoteFunction", "FinishPainting")
 local BuyUpgrade = remote("RemoteFunction", "BuyUpgrade")
 local SelectStored = remote("RemoteEvent", "SelectStored")
+local OpenStand = remote("RemoteEvent", "OpenStand")
+local StandAction = remote("RemoteFunction", "StandAction")
+local Offer = remote("RemoteEvent", "Offer")
+local OfferClosed = remote("RemoteEvent", "OfferClosed")
+local RespondOffer = remote("RemoteEvent", "RespondOffer")
+local OpenMixer = remote("RemoteEvent", "OpenMixer")
+local MixColors = remote("RemoteFunction", "MixColors")
 local SkipTutorial = remote("RemoteEvent", "SkipTutorial")
 local ClaimDaily = remote("RemoteFunction", "ClaimDaily")
 local ClaimQuest = remote("RemoteFunction", "ClaimQuest")
@@ -56,8 +64,8 @@ end)
 local tryRoll
 local renderAutoPrompt
 local toggleAutoRoll
-local hangPainting
-local takeDownPainting
+local buyStand
+local buyRoom
 
 -- Estado de la sesión --------------------------------------------------------------------
 local plotOf = {}
@@ -67,7 +75,7 @@ local sessions = {}
 local function getSession(player)
 	local session = sessions[player]
 	if not session then
-		session = { nextRoll = 0, nextAuto = 0, painting = nil, lastHome = 0 }
+		session = { nextRoll = 0, nextAuto = 0, painting = nil, lastHome = 0, lastPass = 0 }
 		sessions[player] = session
 	end
 	return session
@@ -185,10 +193,16 @@ local function buildState(player)
 		made = data.made,
 		upgrades = data.upgrades,
 		openLevel = openLevel(data),
-		slots = Config.gallerySlots(data.upgrades),
+		stands = data.stands,
+		standCount = Exhibition.countStands(data.stands),
+		standCost = Exhibition.standCost(Exhibition.countStands(data.stands)),
+		rooms = data.rooms,
+		gallery = data.gallery,
 		displayed = #data.gallery,
 		storage = data.storage,
 		storageMax = Config.STORAGE_SIZE,
+		hasCashier = Config.hasCashier(data.upgrades),
+		best = data.best,
 		autoUnlocked = Config.hasAutoRoll(data.upgrades),
 		autoRoll = data.autoRoll and Config.hasAutoRoll(data.upgrades),
 		lastRoll = data.lastRoll,
@@ -303,32 +317,59 @@ local function slotEntry(data, slot)
 	return nil
 end
 
-local function renderGallery(plot, data)
-	local slots = Config.gallerySlots(data.upgrades)
-	for i = 1, Config.GALLERY_SIZE do
-		local canvas = plot.canvases[i]
-		local plaque = plot.plaques[i]
+-- Stands, cuadros expuestos y tapias de ampliación de la sala.
+local function renderStands(plot, data, animateSpot)
+	for room = 1, data.rooms do
+		WorldBuilder.openRoom(plot, room, false)
+	end
+	local owned = Exhibition.countStands(data.stands)
+	local cost = Exhibition.standCost(owned)
+	for i, spot in ipairs(plot.spots) do
+		local open = spot.def.room <= data.rooms
+		local tier = data.stands[i] or 0
+		WorldBuilder.setStand(plot, i, tier, animateSpot == i)
 		local entry = slotEntry(data, i)
 		local design = entry and Designs.get(entry.d)
-		canvas:SetAttribute("Locked", i > slots)
-		if design then
-			canvas:SetAttribute("Design", entry.d)
-			canvas:SetAttribute("Colors", entry.c)
-			canvas:SetAttribute("Price", entry.v)
-			canvas:SetAttribute("Stars", entry.st or 1)
-			plaque.Text = design.name .. "  ·  💵 " .. entry.v
+		local anchor, standPrompt = spot.anchor, spot.prompt
+		anchor:SetAttribute("Open", open)
+		anchor:SetAttribute("Owned", tier > 0)
+		anchor:SetAttribute("Tier", tier)
+		anchor:SetAttribute("Cost", cost)
+		anchor:SetAttribute("HasPainting", design ~= nil)
+		standPrompt.Enabled = open
+		if tier == 0 then
+			standPrompt.ActionText = "Comprar stand"
+			standPrompt.ObjectText = cost > 0 and ("💵 " .. Config.formatNumber(cost)) or "Gratis"
+			standPrompt.HoldDuration = 0.6
 		else
-			canvas:SetAttribute("Design", "")
-			canvas:SetAttribute("Colors", "")
-			canvas:SetAttribute("Price", 0)
-			canvas:SetAttribute("Stars", 0)
-			plaque.Text = i > slots and "🔒 Mejora «Más paredes»" or "Marco libre"
+			standPrompt.HoldDuration = 0
+			if design then
+				standPrompt.ActionText = "Gestionar"
+				standPrompt.ObjectText = design.name .. " · 💵 " .. Config.formatNumber(entry.p)
+			else
+				standPrompt.ActionText = #data.storage > 0 and "Exponer cuadro" or "Ver stand"
+				standPrompt.ObjectText = Exhibition.tierName(i, tier)
+			end
 		end
-		plot.hangPrompts[i].Enabled = not design and i <= slots and #data.storage > 0
-		plot.takePrompts[i].Enabled = design ~= nil
-		if design then
-			plot.takePrompts[i].ObjectText = design.name
+		local canvas = spot.canvas
+		if canvas then
+			canvas:SetAttribute("Design", design and entry.d or "")
+			canvas:SetAttribute("Colors", design and entry.c or "")
+			canvas:SetAttribute("Stars", design and (entry.st or 1) or 0)
+			canvas:SetAttribute("Price", design and entry.p or 0)
+			canvas:SetAttribute("Market", design and Exhibition.marketPrice(entry.v, tier) or 0)
+			spot.plaque.Text = design and (design.name .. "  ·  💵 " .. Config.formatNumber(entry.p))
+				or Exhibition.tierName(i, tier)
 		end
+	end
+	for index, hoarding in pairs(plot.hoardings) do
+		local def = Exhibition.Rooms[index]
+		local ready = owned >= def.needStands
+		hoarding.prompt.Enabled = data.rooms == index - 1
+		hoarding.prompt.ActionText = ready and "Ampliar la galería" or ("Necesitas " .. def.needStands .. " stands")
+		hoarding.prompt.ObjectText = def.name .. " · 💵 " .. Config.formatNumber(def.cost)
+		hoarding.status.Text = ready and ("Ampliar por 💵 " .. Config.formatNumber(def.cost))
+			or string.format("Compra %d stands (%d/%d)", def.needStands, owned, def.needStands)
 	end
 end
 
@@ -390,7 +431,7 @@ local function refreshPlot(player)
 	local plot = plotOf[player]
 	local data = DataService.get(player)
 	if plot and data then
-		renderGallery(plot, data)
+		renderStands(plot, data)
 		renderShelf(plot, data)
 	end
 end
@@ -415,8 +456,9 @@ local function createPlot(player, data)
 	end)
 	WorldBuilder.setOwnerName(plot, player.DisplayName)
 	plotOf[player] = plot
-	renderGallery(plot, data)
+	renderStands(plot, data)
 	renderShelf(plot, data)
+	WorldBuilder.setCashier(plot, Config.hasCashier(data.upgrades))
 	renderMachine(plot, data.lastRoll)
 	WorldBuilder.setDecorLevel(plot, data.upgrades.decoracion or 0)
 	VisitorService.attach(plot, player)
@@ -436,16 +478,29 @@ local function createPlot(player, data)
 			toggleAutoRoll(player)
 		end
 	end)
+	plot.workshop.mixPrompt.Triggered:Connect(function(who)
+		if who == player then
+			OpenMixer:FireClient(player)
+		end
+	end)
 	renderAutoPrompt(plot, data)
-	for i = 1, Config.GALLERY_SIZE do
-		plot.hangPrompts[i].Triggered:Connect(function(who)
-			if who == player then
-				hangPainting(player, i)
+	for i, spot in ipairs(plot.spots) do
+		spot.prompt.Triggered:Connect(function(who)
+			if who ~= player then
+				return
+			end
+			local current = DataService.get(player)
+			if current and (current.stands[i] or 0) > 0 then
+				OpenStand:FireClient(player, i)
+			else
+				buyStand(player, i)
 			end
 		end)
-		plot.takePrompts[i].Triggered:Connect(function(who)
+	end
+	for index, hoarding in pairs(plot.hoardings) do
+		hoarding.prompt.Triggered:Connect(function(who)
 			if who == player then
-				takeDownPainting(player, i)
+				buyRoom(player, index)
 			end
 		end)
 	end
@@ -603,7 +658,7 @@ StartPainting.OnServerInvoke = function(player, designId, colors)
 		return false, "Ya estás pintando un cuadro."
 	end
 	if #data.storage >= Config.STORAGE_SIZE then
-		return false, "Tu almacén está lleno: cuelga tus cuadros en la galería."
+		return false, "Tu almacén está lleno: expón tus cuadros en los stands de la sala."
 	end
 	if not data.unlocked[designId] or not Designs.isLevelOpen(design.level, data.made) then
 		return false, "Ese diseño está bloqueado."
@@ -657,10 +712,11 @@ end
 
 CancelPainting.OnServerEvent:Connect(cancelPainting)
 
-local function freeSlot(data)
-	for slot = 1, Config.gallerySlots(data.upgrades) do
-		if not slotEntry(data, slot) then
-			return slot
+-- Primer stand comprado y sin cuadro.
+local function freeStand(data)
+	for i, tier in ipairs(data.stands) do
+		if tier > 0 and Exhibition.roomOf(i) <= data.rooms and not slotEntry(data, i) then
+			return i
 		end
 	end
 	return nil
@@ -695,11 +751,11 @@ FinishPainting.OnServerInvoke = function(player)
 	end
 	tutorialEvent(player, data, 3, 1)
 
-	-- El cuadro no se vende aquí: va al almacén y lo llevas a la galería.
-	local price = math.floor(value * Config.GALLERY_BONUS)
-	table.insert(data.storage, 1, { d = design.id, c = encoded, v = price, st = stars })
-	local result = { ok = true, value = value, price = price, stars = stars, designId = design.id }
-	result.freeFrames = freeSlot(data) ~= nil
+	-- El cuadro no se vende aquí: va al almacén y lo expones en un stand.
+	local market = math.floor(value * Config.GALLERY_BONUS)
+	table.insert(data.storage, 1, { d = design.id, c = encoded, v = market, st = stars })
+	local result = { ok = true, value = value, price = market, stars = stars, designId = design.id }
+	result.freeStands = freeStand(data) ~= nil
 
 	local tierAfter = Config.masteryFor(data.made[design.id])
 	if tierAfter and tierAfter ~= tierBefore then
@@ -720,47 +776,120 @@ FinishPainting.OnServerInvoke = function(player)
 	return result
 end
 
--- Colgar y descolgar cuadros en la galería -----------------------------------------------------
-hangPainting = function(player, slot)
+-- Stands y ampliaciones de la sala ---------------------------------------------------------------
+buyStand = function(player, index)
 	local data = DataService.get(player)
-	if not data or #data.storage == 0 then
+	local plot = plotOf[player]
+	local def = Exhibition.Spots[index]
+	if not (data and plot and def) or def.room > data.rooms or (data.stands[index] or 0) > 0 then
 		return
 	end
-	if slot > Config.gallerySlots(data.upgrades) or slotEntry(data, slot) then
+	local cost = Exhibition.standCost(Exhibition.countStands(data.stands))
+	if data.coins < cost then
+		notify(player, "Te faltan 💵" .. Config.formatNumber(cost - data.coins) .. " para este stand.", "error")
 		return
 	end
-	local entry = table.remove(data.storage, 1)
-	table.insert(data.gallery, { s = slot, d = entry.d, c = entry.c, v = entry.v, st = entry.st })
-	tutorialEvent(player, data, 4, 1)
-	local design = Designs.get(entry.d)
-	notify(
-		player,
-		"🖼️ Colgaste «" .. (design and design.name or "tu cuadro") .. "». ¡Pronto vendrá un visitante!",
-		"success"
-	)
-	renderCarry(player, data)
-	refreshPlot(player)
+	data.coins -= cost
+	data.stands[index] = 1
+	notify(player, "🛠️ ¡Stand nuevo! Pulsa sobre él para exponer un cuadro.", "success")
+	renderStands(plot, data, index)
 	pushState(player)
 end
 
-takeDownPainting = function(player, slot)
+buyRoom = function(player, index)
 	local data = DataService.get(player)
-	if not data then
+	local plot = plotOf[player]
+	local def = Exhibition.Rooms[index]
+	if not (data and plot and def) or data.rooms ~= index - 1 then
 		return
 	end
-	local entry, index = slotEntry(data, slot)
-	if not entry then
+	local owned = Exhibition.countStands(data.stands)
+	if owned < def.needStands then
+		notify(player, "Compra " .. def.needStands .. " stands para ampliar (tienes " .. owned .. ").", "error")
 		return
 	end
-	if #data.storage >= Config.STORAGE_SIZE then
-		notify(player, "Tu almacén está lleno.", "error")
+	if data.coins < def.cost then
+		notify(player, "Te faltan 💵" .. Config.formatNumber(def.cost - data.coins) .. " para ampliar.", "error")
 		return
 	end
-	table.remove(data.gallery, index)
-	table.insert(data.storage, 1, { d = entry.d, c = entry.c, v = entry.v, st = entry.st })
-	renderCarry(player, data)
-	refreshPlot(player)
+	data.coins -= def.cost
+	data.rooms = index
+	WorldBuilder.openRoom(plot, index, true)
+	notify(player, "🏗️ ¡Galería ampliada! Nueva sala: " .. def.name, "gold")
+	renderStands(plot, data)
 	pushState(player)
+end
+
+-- Acciones del panel de un stand: exponer, cambiar precio, retirar y mejorar.
+StandAction.OnServerInvoke = function(player, action, index, a, b)
+	local data = DataService.get(player)
+	local plot = plotOf[player]
+	if not (data and plot) or type(action) ~= "string" or type(index) ~= "number" then
+		return false, "Acción no válida."
+	end
+	index = math.floor(index)
+	local def = Exhibition.Spots[index]
+	local tier = def and data.stands[index] or 0
+	if not def or tier == 0 or def.room > data.rooms then
+		return false, "Ese stand no es tuyo."
+	end
+	local entry, entryIndex = slotEntry(data, index)
+	local message
+	local animate = nil
+	if action == "exhibit" then
+		if entry then
+			return false, "Ese stand ya tiene un cuadro."
+		end
+		local storageIndex = math.floor(tonumber(a) or 1)
+		local stored = data.storage[storageIndex]
+		if not stored then
+			return false, "No tienes ese cuadro."
+		end
+		local price = Exhibition.clampPrice(b, Exhibition.marketPrice(stored.v, tier))
+		table.remove(data.storage, storageIndex)
+		table.insert(data.gallery, { s = index, d = stored.d, c = stored.c, v = stored.v, p = price, st = stored.st })
+		tutorialEvent(player, data, 4, 1)
+		local design = Designs.get(stored.d)
+		message = "🖼️ «"
+			.. (design and design.name or "Tu cuadro")
+			.. "» a la venta por 💵"
+			.. Config.formatNumber(price)
+			.. ". ¡Pronto vendrán visitantes!"
+	elseif action == "price" then
+		if not entry then
+			return false, "Ese stand está vacío."
+		end
+		entry.p = Exhibition.clampPrice(a, Exhibition.marketPrice(entry.v, tier))
+		message = "🏷️ Nuevo precio: 💵" .. Config.formatNumber(entry.p)
+	elseif action == "takedown" then
+		if not entry then
+			return false, "Ese stand está vacío."
+		end
+		if #data.storage >= Config.STORAGE_SIZE then
+			return false, "Tu almacén está lleno."
+		end
+		table.remove(data.gallery, entryIndex)
+		table.insert(data.storage, 1, { d = entry.d, c = entry.c, v = entry.v, st = entry.st })
+		message = "Retiraste el cuadro: ahora lo llevas a la espalda."
+	elseif action == "upgrade" then
+		if tier >= Exhibition.MAX_TIER then
+			return false, "Este stand ya es de la mejor calidad."
+		end
+		local cost = Exhibition.upgradeCost(tier, def.room)
+		if data.coins < cost then
+			return false, "Te faltan 💵" .. Config.formatNumber(cost - data.coins) .. "."
+		end
+		data.coins -= cost
+		data.stands[index] = tier + 1
+		animate = index
+		message = "✨ Stand mejorado: «" .. Exhibition.tierName(index, tier + 1) .. "»"
+	else
+		return false, "Acción no válida."
+	end
+	renderCarry(player, data)
+	renderStands(plot, data, animate)
+	pushState(player)
+	return true, message
 end
 
 SkipTutorial.OnServerEvent:Connect(function(player)
@@ -794,18 +923,55 @@ VisitorService.getProfile = function(player)
 	return DataService.get(player)
 end
 
-VisitorService.availableSlots = function(player)
+-- Cuadros a la venta: precio que pusiste y precio medio en su stand.
+VisitorService.listings = function(player)
 	local data = DataService.get(player)
 	local list = {}
 	if data then
 		for _, entry in ipairs(data.gallery) do
-			table.insert(list, entry.s)
+			local tier = data.stands[entry.s] or 1
+			list[entry.s] = {
+				price = entry.p,
+				market = Exhibition.marketPrice(entry.v, tier),
+				tier = tier,
+				room = Exhibition.roomOf(entry.s),
+				d = entry.d,
+				c = entry.c,
+				st = entry.st,
+			}
 		end
 	end
 	return list
 end
 
-VisitorService.onPurchase = function(player, slot, buyerName, vip)
+VisitorService.isTutorial = function(player)
+	local data = DataService.get(player)
+	return data ~= nil and data.tutorial == 5
+end
+
+VisitorService.hasCashier = function(player)
+	local data = DataService.get(player)
+	return data ~= nil and Config.hasCashier(data.upgrades)
+end
+
+-- Un visitante mira un cuadro y no se anima: te lo cuenta (de vez en cuando).
+VisitorService.onPass = function(player, slot, ratio, buyerName)
+	local data = DataService.get(player)
+	local session = getSession(player)
+	local entry = data and slotEntry(data, slot)
+	local design = entry and Designs.get(entry.d)
+	if not design or ratio < 1.25 or os.clock() - session.lastPass < 25 then
+		return
+	end
+	session.lastPass = os.clock()
+	notify(
+		player,
+		"😬 A " .. tostring(buyerName) .. " le pareció caro «" .. design.name .. "». Prueba a bajar el precio.",
+		"info"
+	)
+end
+
+VisitorService.onSale = function(player, slot, amount, buyerName, vip, how)
 	local data = DataService.get(player)
 	if not data or not player.Parent then
 		return nil
@@ -815,26 +981,77 @@ VisitorService.onPurchase = function(player, slot, buyerName, vip)
 		return nil
 	end
 	table.remove(data.gallery, index)
-	local price = vip and math.floor(entry.v * Config.VIP_MULTIPLIER) or entry.v
-	earn(player, data, price)
+	amount = math.max(1, math.floor(amount))
+	earn(player, data, amount)
 	data.sold += 1
+	data.best = math.max(data.best, amount)
 	questEvent(player, data, "vender", 1)
+	if amount > Exhibition.marketPrice(entry.v, data.stands[slot] or 1) then
+		questEvent(player, data, "caro", 1)
+	end
 	tutorialEvent(player, data, 5, 1)
 	local design = Designs.get(entry.d)
-	notify(
-		player,
-		(vip and "👑 ¡Coleccionista! " or "🖼️ ")
-			.. tostring(buyerName)
-			.. " compró «"
-			.. (design and design.name or "tu cuadro")
-			.. "» por 💵"
-			.. price,
-		"gold"
-	)
+	local name = design and design.name or "tu cuadro"
+	local text
+	if how == "cashier" then
+		text = "🧑‍💼 Tu cajero vendió «" .. name .. "» a " .. tostring(buyerName)
+	else
+		text = (vip and "👑 " or "💵 ") .. tostring(buyerName) .. " compró «" .. name .. "»"
+	end
+	notify(player, text .. " por 💵" .. Config.formatNumber(amount), "sale")
 	refreshPlot(player)
 	pushState(player)
-	return price
+	return { d = entry.d, c = entry.c, st = entry.st }
 end
+
+-- Ofertas en la caja: el dueño acepta, rechaza o pide más.
+local offers = {}
+local offerCounter = 0
+
+VisitorService.askOwner = function(player, info)
+	offerCounter += 1
+	local id = offerCounter
+	local record = { player = player, answer = nil, final = info.final == true }
+	offers[id] = record
+	local cashier = VisitorService.hasCashier(player)
+	local tutorial = VisitorService.isTutorial(player)
+	local timeout = tutorial and 60 or (cashier and Exhibition.CASHIER_TIME or Exhibition.OFFER_TIME)
+	Offer:FireClient(player, {
+		id = id,
+		buyer = info.buyer,
+		userId = info.userId,
+		vip = info.vip,
+		designId = info.d,
+		colors = info.c,
+		stars = info.st,
+		price = info.price,
+		market = info.market,
+		offer = info.offer,
+		counter = Exhibition.counterPrice(info.offer, info.price),
+		final = record.final,
+		time = timeout,
+		cashier = cashier,
+	})
+	local started = os.clock()
+	while not record.answer and player.Parent and os.clock() - started < timeout do
+		task.wait(0.1)
+	end
+	offers[id] = nil
+	if player.Parent then
+		OfferClosed:FireClient(player, id)
+	end
+	return record.answer or "timeout"
+end
+
+RespondOffer.OnServerEvent:Connect(function(player, id, action)
+	local record = offers[id]
+	if not record or record.player ~= player or record.answer then
+		return
+	end
+	if action == "accept" or action == "reject" or (action == "counter" and not record.final) then
+		record.answer = action
+	end
+end)
 
 -- Mejoras, regalo diario y misiones ----------------------------------------------------------------
 BuyUpgrade.OnServerInvoke = function(player, id)
@@ -857,8 +1074,8 @@ BuyUpgrade.OnServerInvoke = function(player, id)
 	if plot then
 		if id == "decoracion" then
 			WorldBuilder.setDecorLevel(plot, level + 1)
-		elseif id == "paredes" then
-			renderGallery(plot, data)
+		elseif id == "cajero" then
+			WorldBuilder.setCashier(plot, true)
 		end
 	end
 	if id == "auto" then
@@ -936,6 +1153,51 @@ ClaimQuest.OnServerInvoke = function(player, index)
 	return true, result
 end
 
+-- Mezclador: varios colores de una rareza dan uno de la rareza siguiente.
+MixColors.OnServerInvoke = function(player, rarityId, picks)
+	local data = DataService.get(player)
+	local need = type(rarityId) == "string" and Colors.MixCost[rarityId]
+	if not (data and need) or type(picks) ~= "table" then
+		return false, "Mezcla no válida."
+	end
+	local total = 0
+	for colorId, count in pairs(picks) do
+		local entry = Colors.ById[colorId]
+		if not entry or entry.rarity ~= rarityId or type(count) ~= "number" or count < 1 or count % 1 ~= 0 then
+			return false, "Mezcla no válida."
+		end
+		if (data.paints[colorId] or 0) < count then
+			return false, "No tienes suficiente «" .. entry.name .. "»."
+		end
+		total += count
+	end
+	if total ~= need then
+		return false, "Pon " .. need .. " colores en el mezclador."
+	end
+	for colorId, count in pairs(picks) do
+		data.paints[colorId] -= count
+		if data.paints[colorId] <= 0 then
+			data.paints[colorId] = nil
+		end
+	end
+	local result = Colors.mix(rarityId, rng, data.discovered)
+	local isNew = addPaint(data, result.id, 1)
+	local rarity = Colors.rarityOf(result)
+	if rarity.index >= 3 then
+		questEvent(player, data, "raro", 1)
+	end
+	if isNew then
+		earn(player, data, Config.discoveryBonus(rarity))
+	end
+	local plot = plotOf[player]
+	if plot then
+		plot.workshop.mixLiquid.Color = Colors.mainColor(result.id)
+	end
+	refreshPlot(player)
+	pushState(player)
+	return true, result.id, isNew
+end
+
 GetState.OnServerInvoke = function(player)
 	for _ = 1, 50 do
 		if DataService.get(player) then
@@ -1002,6 +1264,19 @@ local function onPlayerAdded(player)
 			data.discovered[colorId] = true
 		end
 	end
+	-- Cuadros expuestos en stands que ya no existen vuelven al almacén.
+	local kept, seen = {}, {}
+	for _, entry in ipairs(data.gallery) do
+		local def = Exhibition.Spots[entry.s]
+		if def and def.room <= data.rooms and (data.stands[entry.s] or 0) > 0 and not seen[entry.s] then
+			seen[entry.s] = true
+			entry.p = entry.p or entry.v
+			table.insert(kept, entry)
+		elseif #data.storage < Config.STORAGE_SIZE then
+			table.insert(data.storage, { d = entry.d, c = entry.c, v = entry.v, st = entry.st })
+		end
+	end
+	data.gallery = kept
 	ensureQuests(data)
 
 	local plot = createPlot(player, data)

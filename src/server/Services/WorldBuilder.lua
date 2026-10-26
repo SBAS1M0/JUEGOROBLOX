@@ -3,10 +3,12 @@
 -- assets externos. Cada jugador tiene su propio terreno, lejos de los demás.
 
 local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
-local Config = require(Shared.Config)
+local Exhibition = require(Shared.Exhibition)
 
 local WorldBuilder = {}
 
@@ -432,77 +434,6 @@ local function buildFountain(parent, cf)
 		water.EmissionDirection = Enum.NormalId.Top
 		water.Parent = jet
 	end
-end
-
--- Cuadro enmarcado de la galería: marco negro fino, paspartú blanco y foco.
-local function buildFrame(parent, cf, name)
-	local frame = Instance.new("Model")
-	frame.Name = name
-	part({
-		Size = Vector3.new(8, 8, 0.4),
-		CFrame = cf,
-		Color = COLORS.charcoal,
-		Material = Enum.Material.Metal,
-		Parent = frame,
-	})
-	part({
-		Size = Vector3.new(7.5, 7.5, 0.2),
-		CFrame = cf * CFrame.new(0, 0, -0.25),
-		Color = rgb(250, 250, 248),
-		Parent = frame,
-	})
-	local canvas = part({
-		Name = "Canvas",
-		Size = Vector3.new(6.2, 6.2, 0.2),
-		CFrame = cf * CFrame.new(0, 0, -0.38),
-		Color = COLORS.cream,
-		Parent = frame,
-	})
-	local plaque = part({
-		Name = "Plaque",
-		Size = Vector3.new(4.6, 0.8, 0.12),
-		CFrame = cf * CFrame.new(0, -4.7, -0.1),
-		Color = rgb(250, 250, 248),
-		Parent = frame,
-	})
-	local plaqueLabel = surfaceText(
-		plaque,
-		Enum.NormalId.Front,
-		"",
-		{ pps = 60, color = COLORS.charcoal, font = Enum.Font.BuilderSansBold }
-	)
-	plaqueLabel.Name = "PlaqueText"
-	part({
-		Size = Vector3.new(0.2, 0.2, 1),
-		CFrame = cf * CFrame.new(0, 4.6, -0.6),
-		Color = COLORS.charcoal,
-		Material = Enum.Material.Metal,
-		CanCollide = false,
-		Parent = frame,
-	})
-	local lamp = part({
-		Size = Vector3.new(2.6, 0.3, 0.4),
-		CFrame = cf * CFrame.new(0, 4.8, -1.1),
-		Color = COLORS.charcoal,
-		Material = Enum.Material.Metal,
-		CanCollide = false,
-		Parent = frame,
-	})
-	addLight(
-		lamp,
-		"SpotLight",
-		{ Face = Enum.NormalId.Bottom, Angle = 75, Range = 11, Brightness = 2.2, Color = rgb(255, 242, 224) }
-	)
-	-- Avisos para colgar y descolgar (solo uno activo a la vez).
-	local hang = prompt(canvas, "Colgar cuadro", "Marco libre", 10)
-	hang.Name = "HangPrompt"
-	hang.Enabled = false
-	local take = prompt(canvas, "Descolgar", "Cuadro expuesto", 10)
-	take.Name = "TakePrompt"
-	take.HoldDuration = 0.4
-	take.Enabled = false
-	frame.Parent = parent
-	return canvas, plaqueLabel, hang, take
 end
 
 local function buildEasel(parent, cf, scale)
@@ -966,7 +897,22 @@ local function buildBuilding(model, L)
 	doorFrame(building, L, -18.4, 25, 31, FLOOR, FLOOR + 11)
 
 	-- Paredes traseras y laterales (la galería sube más: pretil).
-	wall(building, L, "x", 17.5, -40, -4, FLOOR, galleryTop, 1, {}, COLORS.plaster, plaster)
+	-- Pared del fondo con el arco hacia la ampliación (tapado hasta que se compra).
+	wall(
+		building,
+		L,
+		"x",
+		17.5,
+		-40,
+		-4,
+		FLOOR,
+		galleryTop,
+		1,
+		{ { -26, -18, FLOOR, FLOOR + 12 } },
+		COLORS.plaster,
+		plaster
+	)
+	doorFrame(building, L, 17.5, -26, -18, FLOOR, FLOOR + 12)
 	wall(
 		building,
 		L,
@@ -1155,14 +1101,152 @@ local function buildBuilding(model, L)
 end
 
 -- Interior de la galería ----------------------------------------------------------------------
+-- Caja: mostrador donde los visitantes pagan o te hacen una oferta.
+local function buildCaja(folder, L)
+	local caja = Instance.new("Model")
+	caja.Name = "Caja"
+	part({
+		Name = "Counter",
+		Size = Vector3.new(7.4, 3.8, 2.6),
+		CFrame = L(-10, FLOOR + 1.9, -13.4),
+		Color = COLORS.plaster,
+		Material = Enum.Material.SmoothPlastic,
+		Parent = caja,
+	})
+	-- Frente con listones de roble.
+	for i = 0, 6 do
+		part({
+			Size = Vector3.new(0.5, 3.2, 0.12),
+			CFrame = L(-13 + i, FLOOR + 1.9, -12.06),
+			Color = COLORS.wood,
+			Material = Enum.Material.Wood,
+			CanCollide = false,
+			Parent = caja,
+		})
+	end
+	part({
+		Size = Vector3.new(7.8, 0.3, 3),
+		CFrame = L(-10, FLOOR + 3.95, -13.4),
+		Color = COLORS.darkWood,
+		Material = Enum.Material.Wood,
+		Parent = caja,
+	})
+	-- Caja registradora con pantalla hacia el cliente.
+	local register = part({
+		Name = "Register",
+		Size = Vector3.new(2, 0.9, 1.5),
+		CFrame = L(-8.4, FLOOR + 4.55, -13.6),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		Parent = caja,
+	})
+	part({
+		Class = "WedgePart",
+		Size = Vector3.new(2, 0.6, 1.2),
+		CFrame = L(-8.4, FLOOR + 5.3, -13.75) * CFrame.Angles(0, math.pi, 0),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		Parent = caja,
+	})
+	local screen = part({
+		Name = "Screen",
+		Size = Vector3.new(1.3, 0.7, 0.1),
+		CFrame = L(-8.4, FLOOR + 5.9, -13.3) * CFrame.Angles(math.rad(-12), 0, 0),
+		Color = rgb(40, 200, 170),
+		Material = Enum.Material.Neon,
+		Parent = caja,
+	})
+	local screenLabel = surfaceText(screen, Enum.NormalId.Back, "💵", { pps = 60, color = rgb(20, 40, 40) })
+	screenLabel.Name = "ScreenText"
+	part({
+		Size = Vector3.new(1.8, 0.25, 0.1),
+		CFrame = L(-8.4, FLOOR + 4.3, -12.82),
+		Color = COLORS.gold,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = caja,
+	})
+	-- Datáfono y timbre.
+	part({
+		Size = Vector3.new(0.6, 0.15, 1),
+		CFrame = L(-11.6, FLOOR + 4.2, -12.9) * CFrame.Angles(math.rad(-15), 0, 0),
+		Color = COLORS.charcoal,
+		Parent = caja,
+	})
+	part({
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(0.7, 0.7, 0.7),
+		CFrame = L(-12.8, FLOOR + 4.15, -13.1),
+		Color = COLORS.brass,
+		Material = Enum.Material.Metal,
+		Parent = caja,
+	})
+	-- Cartel colgante «CAJA».
+	local sign = part({
+		Name = "CajaSign",
+		Size = Vector3.new(5, 1.6, 0.25),
+		CFrame = L(-10, FLOOR + 11, -12.6),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = caja,
+	})
+	surfaceText(sign, Enum.NormalId.Back, "💵 CAJA", {
+		pps = 40,
+		color = rgb(255, 255, 255),
+		font = Enum.Font.BuilderSansExtraBold,
+	})
+	for _, x in ipairs({ -12, -8 }) do
+		part({
+			Size = Vector3.new(0.08, CEILING - FLOOR - 11.8, 0.08),
+			CFrame = L(x, (CEILING + FLOOR + 11.8) / 2, -12.6),
+			Color = COLORS.charcoal,
+			CanCollide = false,
+			Parent = caja,
+		})
+	end
+	addLight(sign, "SpotLight", {
+		Face = Enum.NormalId.Bottom,
+		Angle = 80,
+		Range = 12,
+		Brightness = 1.3,
+		Color = rgb(255, 236, 210),
+	})
+	-- Marcas de la cola en el suelo.
+	local queue = {}
+	for i = 1, 3 do
+		local position = Vector3.new(-10, FLOOR, -9.4 + (i - 1) * 3)
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.06, 2.2, 2.2),
+			CFrame = cylinderUp(L(position.X, FLOOR + 0.24, position.Z)),
+			Color = i == 1 and rgb(40, 190, 165) or rgb(200, 204, 210),
+			CanCollide = false,
+			CastShadow = false,
+			Parent = caja,
+		})
+		local world = L(position.X, position.Y, position.Z)
+		queue[i] = CFrame.lookAt(world.Position, world.Position + Vector3.new(0, 0, -1))
+	end
+	caja.Parent = folder
+	local cashier = L(-10, FLOOR, -15.6)
+	return {
+		model = caja,
+		register = register,
+		screenLabel = screenLabel,
+		queue = queue,
+		cashierCF = CFrame.lookAt(cashier.Position, cashier.Position + Vector3.new(0, 0, 1)),
+	}
+end
+
 local function buildGalleryInterior(model, L)
 	local folder = Instance.new("Model")
 	folder.Name = "GalleryInterior"
 
-	-- Alfombra gris claro y banco de roble junto a la cristalera.
+	-- Pasillo central de alfombra y banco de roble junto a la cristalera.
 	part({
-		Size = Vector3.new(16, 0.1, 10),
-		CFrame = L(-22, FLOOR + 0.25, 3),
+		Size = Vector3.new(7, 0.1, 16),
+		CFrame = L(-22, FLOOR + 0.25, 4),
 		Color = rgb(222, 222, 218),
 		Material = Enum.Material.Fabric,
 		CanCollide = false,
@@ -1185,28 +1269,7 @@ local function buildGalleryInterior(model, L)
 		})
 	end
 
-	-- Mostrador de recepción blanco con tapa de roble y pantalla.
-	part({
-		Size = Vector3.new(7, 3.8, 2.6),
-		CFrame = L(-10, FLOOR + 1.9, -13),
-		Color = COLORS.plaster,
-		Material = Enum.Material.SmoothPlastic,
-		Parent = folder,
-	})
-	part({
-		Size = Vector3.new(7.4, 0.3, 3),
-		CFrame = L(-10, FLOOR + 3.95, -13),
-		Color = COLORS.wood,
-		Material = Enum.Material.Wood,
-		Parent = folder,
-	})
-	part({
-		Size = Vector3.new(1.8, 1.1, 0.12),
-		CFrame = L(-8.4, FLOOR + 4.8, -12.6) * CFrame.Angles(math.rad(-10), 0, 0),
-		Color = COLORS.charcoal,
-		Material = Enum.Material.Metal,
-		Parent = folder,
-	})
+	local caja = buildCaja(folder, L)
 
 	-- Escultura abstracta sobre peana.
 	part({
@@ -1227,7 +1290,7 @@ local function buildGalleryInterior(model, L)
 		})
 	end
 
-	-- Rótulo de la sala sobre la pared del fondo.
+	-- Rótulo de la sala sobre el arco del fondo.
 	local sign = part({
 		Size = Vector3.new(16, 1.8, 0.15),
 		CFrame = L(-22, CEILING - 2.4, 16.8),
@@ -1241,7 +1304,7 @@ local function buildGalleryInterior(model, L)
 		font = Enum.Font.BuilderSansBold,
 	})
 
-	-- Plantas en las esquinas.
+	-- Plantas en las esquinas del fondo.
 	buildPlant(folder, L(-36.5, FLOOR, 14.5), 1)
 	buildPlant(folder, L(-7.5, FLOOR, 14.5), 1)
 
@@ -1285,9 +1348,961 @@ local function buildGalleryInterior(model, L)
 		addLight(bulb, "PointLight", { Range = 24, Brightness = 1.1, Color = rgb(255, 232, 206), Shadows = true })
 	end
 	folder.Parent = model
+	return caja
+end
+
+-- Stands de la sala de exposición -------------------------------------------------------------
+-- Cada hueco puede tener un stand de pared (marco) o de pie, en tres calidades.
+-- El cuadro siempre está en una pieza "Canvas" que el cliente dibuja.
+local VELVET = rgb(124, 30, 54)
+local GOLD = rgb(232, 184, 80)
+local GOLD_DARK = rgb(184, 134, 46)
+local OAK = rgb(214, 176, 128)
+local HIGHLIGHT = rgb(18, 168, 148)
+
+local function canvasPart(parent, cf, size)
+	return part({
+		Name = "Canvas",
+		Size = Vector3.new(size, size, 0.2),
+		CFrame = cf,
+		Color = COLORS.cream,
+		CanCollide = false,
+		Parent = parent,
+	})
+end
+
+local function plaqueOn(parent, cf, size, color, textColor)
+	local plaque = part({
+		Name = "Plaque",
+		Size = size,
+		CFrame = cf,
+		Color = color,
+		Material = color == GOLD and Enum.Material.Metal or Enum.Material.SmoothPlastic,
+		CanCollide = false,
+		Parent = parent,
+	})
+	local label = surfaceText(
+		plaque,
+		Enum.NormalId.Front,
+		"",
+		{ pps = 60, color = textColor or COLORS.charcoal, font = Enum.Font.BuilderSansBold }
+	)
+	label.Name = "PlaqueText"
+	return label
+end
+
+-- Lámpara de cuadro: brazo desde arriba y foco hacia el lienzo. top = centro
+-- del borde superior del marco.
+local function pictureLamp(parent, top, width, color, brightness)
+	part({
+		Size = Vector3.new(0.18, 0.18, 1),
+		CFrame = top * CFrame.new(0, 0.2, -0.5),
+		Color = color,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = parent,
+	})
+	local lamp = part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(width, 0.42, 0.42),
+		CFrame = top * CFrame.new(0, 0.25, -1.1),
+		Color = color,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = parent,
+	})
+	addLight(lamp, "SpotLight", {
+		Face = Enum.NormalId.Bottom,
+		Angle = 80,
+		Range = 12,
+		Brightness = brightness or 2.2,
+		Color = rgb(255, 240, 220),
+	})
+end
+
+-- Cordón de terciopelo con dos postes dorados. base = suelo, centro.
+local function velvetRope(parent, base, width)
+	for _, x in ipairs({ -width / 2, width / 2 }) do
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(3, 0.3, 0.3),
+			CFrame = cylinderUp(base * CFrame.new(x, 1.5, 0)),
+			Color = GOLD,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = parent,
+		})
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.2, 1.1, 1.1),
+			CFrame = cylinderUp(base * CFrame.new(x, 0.1, 0)),
+			Color = GOLD_DARK,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = parent,
+		})
+		part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(0.5, 0.5, 0.5),
+			CFrame = base * CFrame.new(x, 3.1, 0),
+			Color = GOLD,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = parent,
+		})
+	end
+	-- La cuerda cae un poco en el centro (dos tramos).
+	for _, side in ipairs({ -1, 1 }) do
+		local a = Vector3.new(side * width / 2, 2.75, 0)
+		local b = Vector3.new(0, 2.3, 0)
+		local mid = (a + b) / 2
+		local length = (a - b).Magnitude
+		part({
+			Size = Vector3.new(length, 0.18, 0.18),
+			CFrame = base * CFrame.new(mid) * CFrame.Angles(0, 0, math.atan2(a.Y - b.Y, a.X - b.X)),
+			Color = VELVET,
+			Material = Enum.Material.Fabric,
+			CanCollide = false,
+			Parent = parent,
+		})
+	end
+end
+
+local function easelLegs(parent, base, color)
+	for _, x in ipairs({ -1.7, 1.7 }) do
+		part({
+			Size = Vector3.new(0.38, 9.2, 0.38),
+			CFrame = base * CFrame.new(x, 4.6, 0) * CFrame.Angles(math.rad(-7), 0, math.rad(x > 0 and 7 or -7)),
+			Color = color,
+			Material = Enum.Material.Wood,
+			Parent = parent,
+		})
+	end
+	part({
+		Size = Vector3.new(0.38, 8.6, 0.38),
+		CFrame = base * CFrame.new(0, 4.2, 1.4) * CFrame.Angles(math.rad(14), 0, 0),
+		Color = color,
+		Material = Enum.Material.Wood,
+		CanCollide = false,
+		Parent = parent,
+	})
+end
+
+-- Devuelve el lienzo y la placa del stand construido.
+local STAND_BUILDERS = {
+	wall = {
+		-- Marco sencillo de roble colgado de un clavo.
+		function(model, base)
+			local c = base * CFrame.new(0, 8, 0)
+			part({
+				Size = Vector3.new(6.9, 6.9, 0.3),
+				CFrame = c,
+				Color = OAK,
+				Material = Enum.Material.Wood,
+				Parent = model,
+			})
+			local canvas = canvasPart(model, c * CFrame.new(0, 0, -0.2), 6)
+			for _, side in ipairs({ -1, 1 }) do
+				local a = Vector3.new(side * 2.6, 3.2, 0.1)
+				local b = Vector3.new(0, 4.6, 0.1)
+				part({
+					Size = Vector3.new((a - b).Magnitude, 0.06, 0.06),
+					CFrame = c * CFrame.new((a + b) / 2) * CFrame.Angles(0, 0, math.atan2(a.Y - b.Y, a.X - b.X)),
+					Color = rgb(120, 110, 96),
+					CanCollide = false,
+					Parent = model,
+				})
+			end
+			part({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(0.3, 0.3, 0.3),
+				CFrame = c * CFrame.new(0, 4.6, 0.1),
+				Color = COLORS.charcoal,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				Parent = model,
+			})
+			local plaque = plaqueOn(model, c * CFrame.new(0, -4.1, 0.1), Vector3.new(3.8, 0.7, 0.1), COLORS.cream)
+			return canvas, plaque
+		end,
+		-- Marco de galería: negro fino, paspartú blanco y foco.
+		function(model, base)
+			local c = base * CFrame.new(0, 8, 0)
+			part({
+				Size = Vector3.new(8, 8, 0.4),
+				CFrame = c,
+				Color = COLORS.charcoal,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(7.5, 7.5, 0.2),
+				CFrame = c * CFrame.new(0, 0, -0.25),
+				Color = rgb(250, 250, 248),
+				Parent = model,
+			})
+			local canvas = canvasPart(model, c * CFrame.new(0, 0, -0.38), 6.2)
+			local plaque =
+				plaqueOn(model, c * CFrame.new(0, -4.7, -0.05), Vector3.new(4.8, 0.85, 0.12), rgb(250, 250, 248))
+			pictureLamp(model, c * CFrame.new(0, 4, 0), 2.6, COLORS.charcoal, 2.2)
+			return canvas, plaque
+		end,
+		-- Marco dorado sobre terciopelo, lámpara de latón y cordón.
+		function(model, base)
+			local c = base * CFrame.new(0, 8, 0)
+			part({
+				Size = Vector3.new(10.6, 12.6, 0.12),
+				CFrame = c * CFrame.new(0, -0.7, 0.3),
+				Color = VELVET,
+				Material = Enum.Material.Fabric,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(9, 9, 0.5),
+				CFrame = c,
+				Color = GOLD,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(8.2, 8.2, 0.5),
+				CFrame = c * CFrame.new(0, 0, -0.1),
+				Color = GOLD_DARK,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(7.4, 7.4, 0.5),
+				CFrame = c * CFrame.new(0, 0, -0.15),
+				Color = rgb(250, 246, 236),
+				Parent = model,
+			})
+			local canvas = canvasPart(model, c * CFrame.new(0, 0, -0.45), 6.4)
+			-- Adornos en las esquinas.
+			for _, corner in ipairs({ { -1, -1 }, { -1, 1 }, { 1, -1 }, { 1, 1 } }) do
+				part({
+					Shape = Enum.PartType.Ball,
+					Size = Vector3.new(0.9, 0.9, 0.9),
+					CFrame = c * CFrame.new(corner[1] * 4.45, corner[2] * 4.45, -0.2),
+					Color = GOLD,
+					Material = Enum.Material.Metal,
+					CanCollide = false,
+					Parent = model,
+				})
+			end
+			local plaque = plaqueOn(model, c * CFrame.new(0, -5.4, -0.05), Vector3.new(5, 0.9, 0.12), GOLD)
+			pictureLamp(model, c * CFrame.new(0, 4.5, 0), 3.2, GOLD, 2.8)
+			velvetRope(model, base * CFrame.new(0, 0, -3), 7)
+			return canvas, plaque
+		end,
+	},
+	floor = {
+		-- Caballete de madera.
+		function(model, base)
+			easelLegs(model, base, COLORS.wood)
+			part({
+				Size = Vector3.new(5.6, 0.4, 0.9),
+				CFrame = base * CFrame.new(0, 3.6, -0.5),
+				Color = COLORS.wood,
+				Material = Enum.Material.Wood,
+				Parent = model,
+			})
+			local tilt = CFrame.Angles(math.rad(-7), 0, 0)
+			part({
+				Size = Vector3.new(5.6, 5.6, 0.3),
+				CFrame = base * CFrame.new(0, 6.6, -0.3) * tilt,
+				Color = rgb(236, 226, 206),
+				Parent = model,
+			})
+			local canvas = canvasPart(model, base * CFrame.new(0, 6.6, -0.5) * tilt, 5.2)
+			local plaque = plaqueOn(
+				model,
+				base * CFrame.new(0, 3.95, -0.95) * CFrame.Angles(math.rad(-20), 0, 0),
+				Vector3.new(3.4, 0.55, 0.1),
+				COLORS.cream
+			)
+			return canvas, plaque
+		end,
+		-- Panel blanco exento con marco negro y foco.
+		function(model, base)
+			part({
+				Size = Vector3.new(8.4, 0.5, 2.6),
+				CFrame = base * CFrame.new(0, 0.25, 0.4),
+				Color = COLORS.charcoal,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(8, 11, 0.8),
+				CFrame = base * CFrame.new(0, 6, 0.4),
+				Color = COLORS.plaster,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(7.2, 7.2, 0.3),
+				CFrame = base * CFrame.new(0, 7, -0.1),
+				Color = COLORS.charcoal,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(6.8, 6.8, 0.2),
+				CFrame = base * CFrame.new(0, 7, -0.2),
+				Color = rgb(250, 250, 248),
+				Parent = model,
+			})
+			local canvas = canvasPart(model, base * CFrame.new(0, 7, -0.32), 6)
+			local plaque =
+				plaqueOn(model, base * CFrame.new(0, 2.4, -0.05), Vector3.new(4.6, 0.8, 0.12), rgb(250, 250, 248))
+			pictureLamp(model, base * CFrame.new(0, 11.1, 0.2), 2.6, COLORS.charcoal, 2.2)
+			return canvas, plaque
+		end,
+		-- Vitrina de lujo: peana de mármol, terciopelo, marco dorado y cordón.
+		function(model, base)
+			part({
+				Size = Vector3.new(9.4, 0.6, 3.6),
+				CFrame = base * CFrame.new(0, 0.3, 0.5),
+				Color = rgb(60, 58, 66),
+				Material = Enum.Material.Marble,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(8.6, 0.6, 3),
+				CFrame = base * CFrame.new(0, 0.9, 0.5),
+				Color = rgb(238, 236, 232),
+				Material = Enum.Material.Marble,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(8, 11, 0.8),
+				CFrame = base * CFrame.new(0, 6.7, 0.5),
+				Color = VELVET,
+				Material = Enum.Material.Fabric,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(8.4, 0.5, 1.2),
+				CFrame = base * CFrame.new(0, 12.45, 0.5),
+				Color = GOLD,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(7.6, 7.6, 0.4),
+				CFrame = base * CFrame.new(0, 7.4, 0),
+				Color = GOLD,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			part({
+				Size = Vector3.new(6.9, 6.9, 0.4),
+				CFrame = base * CFrame.new(0, 7.4, -0.08),
+				Color = GOLD_DARK,
+				Material = Enum.Material.Metal,
+				Parent = model,
+			})
+			local canvas = canvasPart(model, base * CFrame.new(0, 7.4, -0.32), 6)
+			local plaque = plaqueOn(model, base * CFrame.new(0, 2.6, 0.05), Vector3.new(4.6, 0.8, 0.12), GOLD)
+			pictureLamp(model, base * CFrame.new(0, 12.7, 0.1), 3, GOLD, 2.8)
+			velvetRope(model, base * CFrame.new(0, 0, -3.2), 8)
+			return canvas, plaque
+		end,
+	},
+}
+
+-- Hueco sin stand: silueta luminosa y discreta.
+local function buildSpotMarker(model, base, kind)
+	local function bar(size, cf)
+		part({
+			Size = size,
+			CFrame = cf,
+			Color = HIGHLIGHT,
+			Material = Enum.Material.Neon,
+			Transparency = 0.45,
+			CanCollide = false,
+			CanQuery = false,
+			CastShadow = false,
+			Parent = model,
+		})
+	end
+	if kind == "wall" then
+		local c = base * CFrame.new(0, 8, 0.05)
+		for _, y in ipairs({ -3.5, 3.5 }) do
+			for _, x in ipairs({ -2.6, 0, 2.6 }) do
+				bar(Vector3.new(1.6, 0.16, 0.06), c * CFrame.new(x, y, 0))
+			end
+		end
+		for _, x in ipairs({ -3.5, 3.5 }) do
+			for _, y in ipairs({ -2.6, 0, 2.6 }) do
+				bar(Vector3.new(0.16, 1.6, 0.06), c * CFrame.new(x, y, 0))
+			end
+		end
+	else
+		local c = base * CFrame.new(0, 0.26, 0)
+		for _, z in ipairs({ -1.6, 1.6 }) do
+			for _, x in ipairs({ -3, -1, 1, 3 }) do
+				bar(Vector3.new(1.3, 0.05, 0.2), c * CFrame.new(x, 0, z))
+			end
+		end
+		for _, x in ipairs({ -3.9, 3.9 }) do
+			bar(Vector3.new(0.2, 0.05, 1.2), c * CFrame.new(x, 0, -0.8))
+			bar(Vector3.new(0.2, 0.05, 1.2), c * CFrame.new(x, 0, 0.8))
+		end
+	end
+end
+
+-- Aparece con un fundido y un destello (al comprar algo).
+local function fadeIn(model, origin)
+	for _, descendant in ipairs(model:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			local target = descendant.Transparency
+			descendant.Transparency = 1
+			TweenService:Create(
+				descendant,
+				TweenInfo.new(0.5 + math.random() * 0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Transparency = target }
+			):Play()
+		end
+	end
+	if origin then
+		local burst = Instance.new("Attachment")
+		burst.Name = "Burst"
+		burst.Parent = origin
+		local sparkle = Instance.new("ParticleEmitter")
+		sparkle.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		sparkle.Color = ColorSequence.new(rgb(255, 220, 120), rgb(120, 230, 210))
+		sparkle.Size = NumberSequence.new(0.8, 0)
+		sparkle.Lifetime = NumberRange.new(0.6, 1.2)
+		sparkle.Speed = NumberRange.new(6, 12)
+		sparkle.SpreadAngle = Vector2.new(180, 180)
+		sparkle.Enabled = false
+		sparkle.Parent = burst
+		sparkle:Emit(40)
+		task.delay(2, function()
+			burst:Destroy()
+		end)
+	end
+end
+
+-- Construye (o cambia) lo que hay en un hueco: nada, la silueta o un stand.
+function WorldBuilder.setStand(plot, index, tier, animate)
+	local spot = plot.spots[index]
+	if not spot then
+		return
+	end
+	local open = plot.openRooms[spot.def.room] == true
+	local key = open and tier or -1
+	if spot.built == key then
+		return
+	end
+	spot.built = key
+	if spot.model then
+		spot.model:Destroy()
+		spot.model = nil
+	end
+	spot.canvas, spot.plaque = nil, nil
+	if not open then
+		return
+	end
+	local model = Instance.new("Model")
+	model.Name = "Stand" .. index
+	model:SetAttribute("Tier", tier)
+	if tier > 0 then
+		local builder = STAND_BUILDERS[spot.def.kind][math.clamp(tier, 1, 3)]
+		spot.canvas, spot.plaque = builder(model, spot.base)
+		spot.canvas:SetAttribute("Spot", index)
+	else
+		buildSpotMarker(model, spot.base, spot.def.kind)
+	end
+	model.Parent = plot.standsFolder
+	spot.model = model
+	if animate then
+		fadeIn(model, spot.anchor)
+	end
+end
+
+-- Ampliaciones de la galería -------------------------------------------------------------------
+local galleryTop = CEILING + 3
+
+-- Techo, cubierta y lucernario de una sala (rectángulo x0..x1, z0..z1).
+local function roomRoof(parent, L, x0, x1, z0, z1)
+	local cx, cz = (x0 + x1) / 2, (z0 + z1) / 2
+	part({
+		Size = Vector3.new(x1 - x0, 0.4, z1 - z0),
+		CFrame = L(cx, CEILING + 0.2, cz),
+		Color = rgb(250, 250, 248),
+		Parent = parent,
+	})
+	part({
+		Size = Vector3.new(x1 - x0 - 1, 0.3, z1 - z0 - 1),
+		CFrame = L(cx, CEILING + 0.55, cz),
+		Color = rgb(150, 154, 160),
+		Material = Enum.Material.Concrete,
+		Parent = parent,
+	})
+	-- Caja de luz cenital a lo largo de la sala.
+	local skylight = part({
+		Size = Vector3.new(5, 0.12, z1 - z0 - 8),
+		CFrame = L(cx, CEILING - 0.06, cz),
+		Color = rgb(255, 250, 240),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = parent,
+	})
+	addLight(skylight, "SurfaceLight", {
+		Face = Enum.NormalId.Bottom,
+		Angle = 90,
+		Range = 22,
+		Brightness = 0.9,
+		Color = rgb(255, 244, 228),
+	})
+	for _, data in ipairs({
+		{ Vector3.new(x1 - x0 + 1.4, 0.4, 1.4), L(cx, galleryTop + 0.2, z1) },
+		{ Vector3.new(1.4, 0.4, z1 - z0 + 1.4), L(x0, galleryTop + 0.2, cz) },
+		{ Vector3.new(1.4, 0.4, z1 - z0 + 1.4), L(x1, galleryTop + 0.2, cz) },
+	}) do
+		part({ Size = data[1], CFrame = data[2], Color = COLORS.trim, Parent = parent })
+	end
+end
+
+-- Exterior de una ampliación: zócalo oscuro, apliques de luz y linterna de
+-- cristal en la cubierta. faces: { { "x" | "z", fijo, desde, hasta, hacia } }.
+local function roomExterior(parent, L, faces, lantern)
+	for _, face in ipairs(faces) do
+		local axis, fixed, from, to, outward = face[1], face[2], face[3], face[4], face[5]
+		local length = to - from
+		local center = (from + to) / 2
+		local offset = fixed + outward * 0.65
+		part({
+			Size = axis == "x" and Vector3.new(length, 1.4, 0.3) or Vector3.new(0.3, 1.4, length),
+			CFrame = axis == "x" and L(center, FLOOR + 0.7, offset) or L(offset, FLOOR + 0.7, center),
+			Color = rgb(120, 122, 128),
+			Material = Enum.Material.Concrete,
+			Parent = parent,
+		})
+		for u = from + 6, to - 5, 12 do
+			local cf = axis == "x" and L(u, FLOOR + 11.5, fixed + outward * 0.9)
+				or L(fixed + outward * 0.9, FLOOR + 11.5, u)
+			wallLight(parent, cf)
+		end
+	end
+	part({
+		Size = lantern.size,
+		CFrame = lantern.cf,
+		Color = COLORS.glass,
+		Material = Enum.Material.Glass,
+		Transparency = 0.35,
+		Parent = parent,
+	})
+end
+
+local function pendant(parent, cf)
+	part({
+		Size = Vector3.new(0.12, 3, 0.12),
+		CFrame = cf * CFrame.new(0, -1.5, 0),
+		Color = COLORS.charcoal,
+		CanCollide = false,
+		Parent = parent,
+	})
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(1.6, 2.4, 2.4),
+		CFrame = cylinderUp(cf * CFrame.new(0, -3.6, 0)),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = parent,
+	})
+	local bulb = part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.1, 2, 2),
+		CFrame = cylinderUp(cf * CFrame.new(0, -4.42, 0)),
+		Color = rgb(255, 238, 214),
+		Material = Enum.Material.Neon,
+		CanCollide = false,
+		Parent = parent,
+	})
+	addLight(bulb, "PointLight", { Range = 24, Brightness = 1.1, Color = rgb(255, 232, 206) })
+end
+
+local function roomSign(parent, cf, text, plate, textColor)
+	local sign = part({
+		Size = Vector3.new(16, 1.8, 0.15),
+		CFrame = cf,
+		Color = plate,
+		Material = Enum.Material.Metal,
+		Parent = parent,
+	})
+	surfaceText(sign, Enum.NormalId.Front, text, {
+		pps = 40,
+		color = textColor,
+		font = Enum.Font.BuilderSansBold,
+	})
+end
+
+local ROOM_BUILDERS = {
+	-- 2. Sala del jardín: detrás de la sala principal, con un ventanal al jardín.
+	[2] = function(folder, L)
+		part({
+			Size = Vector3.new(36, FLOOR, 30.5),
+			CFrame = L(-22, FLOOR / 2, 32.75),
+			Color = COLORS.stone,
+			Material = Enum.Material.Concrete,
+			Parent = folder,
+		})
+		part({
+			Size = Vector3.new(34, 0.2, 29.5),
+			CFrame = L(-22, FLOOR + 0.1, 32.75),
+			Color = COLORS.galleryFloor,
+			Material = Enum.Material.WoodPlanks,
+			Parent = folder,
+		})
+		local plaster = Enum.Material.SmoothPlastic
+		wall(folder, L, "x", 47.5, -40, -4, FLOOR, galleryTop, 1, {}, COLORS.plaster, plaster)
+		wall(
+			folder,
+			L,
+			"z",
+			-39.5,
+			18,
+			47,
+			FLOOR,
+			galleryTop,
+			1,
+			{ { 28, 36, FLOOR, FLOOR + 12 } },
+			COLORS.plaster,
+			plaster
+		)
+		-- Marco del paso a la sala de los maestros (pared paralela a Z).
+		doorFrame(folder, function(u, y)
+			return L(-39.5, y, u) * CFrame.Angles(0, math.pi / 2, 0)
+		end, 0, 28, 36, FLOOR, FLOOR + 12)
+		wall(
+			folder,
+			L,
+			"z",
+			-4.5,
+			18,
+			47,
+			FLOOR,
+			galleryTop,
+			1,
+			{ { 30, 37, FLOOR + 1, FLOOR + 15 } },
+			COLORS.plaster,
+			plaster
+		)
+		part({
+			Size = Vector3.new(0.25, 14, 7),
+			CFrame = L(-4.5, FLOOR + 8, 33.5),
+			Color = COLORS.glass,
+			Material = Enum.Material.Glass,
+			Transparency = 0.6,
+			Parent = folder,
+		})
+		for _, z in ipairs({ 30, 33.5, 37 }) do
+			part({
+				Size = Vector3.new(0.45, 14, 0.3),
+				CFrame = L(-4.5, FLOOR + 8, z),
+				Color = COLORS.charcoal,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				Parent = folder,
+			})
+		end
+		roomRoof(folder, L, -40, -4, 17.5, 47.5)
+		roomExterior(folder, L, { { "x", 47.5, -40, -4, 1 }, { "z", -4.5, 18, 48, 1 } }, {
+			size = Vector3.new(6, 1.4, 20),
+			cf = L(-22, CEILING + 1.4, 32.5),
+		})
+		pendant(folder, L(-22, CEILING, 25))
+		pendant(folder, L(-22, CEILING, 40))
+		roomSign(folder, L(-22, CEILING - 2.4, 46.9), "SALA DEL JARDÍN", COLORS.charcoal, rgb(255, 255, 255))
+		buildPlant(folder, L(-29.5, FLOOR, 20), 0.9)
+		buildPlant(folder, L(-14.5, FLOOR, 20), 0.9)
+	end,
+	-- 3. Sala de los maestros: paredes verde oscuro, zócalo de madera y lámpara de araña.
+	[3] = function(folder, L)
+		part({
+			Size = Vector3.new(32, FLOOR, 30.5),
+			CFrame = L(-55.5, FLOOR / 2, 32.75),
+			Color = COLORS.stone,
+			Material = Enum.Material.Concrete,
+			Parent = folder,
+		})
+		part({
+			Size = Vector3.new(30.6, 0.2, 29.5),
+			CFrame = L(-55.2, FLOOR + 0.1, 32.75),
+			Color = rgb(150, 104, 70),
+			Material = Enum.Material.WoodPlanks,
+			Parent = folder,
+		})
+		local plaster = Enum.Material.SmoothPlastic
+		wall(folder, L, "x", 47.5, -71, -40, FLOOR, galleryTop, 1, {}, COLORS.plaster, plaster)
+		wall(folder, L, "x", 17.5, -71, -40, FLOOR, galleryTop, 1, {}, COLORS.plaster, plaster)
+		wall(folder, L, "z", -70.5, 17, 48, FLOOR, galleryTop, 1, {}, COLORS.plaster, plaster)
+		-- Forrado interior verde con zócalo de madera.
+		local green = rgb(38, 82, 72)
+		local linings = {
+			{ Vector3.new(29.6, CEILING - FLOOR - 3, 0.2), L(-55.2, (CEILING + FLOOR + 3) / 2, 46.9) },
+			{ Vector3.new(29.6, CEILING - FLOOR - 3, 0.2), L(-55.2, (CEILING + FLOOR + 3) / 2, 18.1) },
+			{ Vector3.new(0.2, CEILING - FLOOR - 3, 28.6), L(-69.9, (CEILING + FLOOR + 3) / 2, 32.5) },
+		}
+		for _, data in ipairs(linings) do
+			part({ Size = data[1], CFrame = data[2], Color = green, Material = Enum.Material.Fabric, Parent = folder })
+		end
+		for _, data in ipairs({
+			{ Vector3.new(29.6, 3, 0.3), L(-55.2, FLOOR + 1.5, 46.85) },
+			{ Vector3.new(29.6, 3, 0.3), L(-55.2, FLOOR + 1.5, 18.15) },
+			{ Vector3.new(0.3, 3, 28.6), L(-69.85, FLOOR + 1.5, 32.5) },
+		}) do
+			part({
+				Size = data[1],
+				CFrame = data[2],
+				Color = COLORS.darkWood,
+				Material = Enum.Material.Wood,
+				Parent = folder,
+			})
+		end
+		roomRoof(folder, L, -71, -40, 17.5, 47.5)
+		roomExterior(folder, L, {
+			{ "x", 47.5, -71, -40, 1 },
+			{ "x", 17.5, -71, -40, -1 },
+			{ "z", -70.5, 18, 48, -1 },
+		}, { size = Vector3.new(8, 1.6, 8), cf = L(-55.5, CEILING + 1.5, 32.5) })
+		-- Lámpara de araña dorada.
+		local center = L(-55, CEILING, 32)
+		part({
+			Size = Vector3.new(0.15, 4, 0.15),
+			CFrame = center * CFrame.new(0, -2, 0),
+			Color = GOLD,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = folder,
+		})
+		local hub = part({
+			Shape = Enum.PartType.Ball,
+			Size = Vector3.new(1.4, 1.4, 1.4),
+			CFrame = center * CFrame.new(0, -4.4, 0),
+			Color = GOLD,
+			Material = Enum.Material.Metal,
+			CanCollide = false,
+			Parent = folder,
+		})
+		addLight(hub, "PointLight", { Range = 30, Brightness = 1.2, Color = rgb(255, 226, 180) })
+		for i = 0, 7 do
+			local angle = i / 8 * math.pi * 2
+			local offset = Vector3.new(math.cos(angle) * 2.6, -4.6, math.sin(angle) * 2.6)
+			part({
+				Size = Vector3.new(2.6, 0.14, 0.14),
+				CFrame = CFrame.lookAt(
+					(center * CFrame.new(offset / 2)).Position,
+					(center * CFrame.new(offset)).Position
+				) * CFrame.Angles(0, math.pi / 2, 0),
+				Color = GOLD,
+				Material = Enum.Material.Metal,
+				CanCollide = false,
+				Parent = folder,
+			})
+			part({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(0.6, 0.8, 0.6),
+				CFrame = center * CFrame.new(offset + Vector3.new(0, 0.5, 0)),
+				Color = rgb(255, 236, 200),
+				Material = Enum.Material.Neon,
+				CanCollide = false,
+				Parent = folder,
+			})
+		end
+		roomSign(
+			folder,
+			L(-55, CEILING - 2.4, 18.3) * CFrame.Angles(0, math.pi, 0),
+			"SALA DE LOS MAESTROS",
+			GOLD,
+			COLORS.charcoal
+		)
+		buildPlant(folder, L(-67.5, FLOOR, 44.5), 1)
+		buildPlant(folder, L(-67.5, FLOOR, 20.5), 1)
+	end,
+}
+
+-- Tapia de obra que cierra el paso a la siguiente ampliación.
+-- cf: centro del hueco, a ras de suelo, mirando hacia la sala ya abierta.
+local function buildHoarding(cf, roomDef)
+	local model = Instance.new("Model")
+	model.Name = "Expansion" .. roomDef.id
+	part({
+		Size = Vector3.new(8, 12, 0.6),
+		CFrame = cf * CFrame.new(0, 6, 0),
+		Color = rgb(214, 182, 132),
+		Material = Enum.Material.WoodPlanks,
+		Parent = model,
+	})
+	for i = 0, 7 do
+		part({
+			Size = Vector3.new(1.2, 0.6, 0.08),
+			CFrame = cf * CFrame.new(-3.5 + i, 0.9, -0.34) * CFrame.Angles(0, 0, math.rad(45)),
+			Color = i % 2 == 0 and rgb(250, 196, 40) or rgb(40, 40, 44),
+			CanCollide = false,
+			Parent = model,
+		})
+	end
+	local sign = part({
+		Name = "Sign",
+		Size = Vector3.new(7, 5.2, 0.2),
+		CFrame = cf * CFrame.new(0, 6.4, -0.4),
+		Color = rgb(255, 255, 255),
+		CanCollide = false,
+		Parent = model,
+	})
+	local gui = Instance.new("SurfaceGui")
+	gui.Face = Enum.NormalId.Front
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 40
+	gui.LightInfluence = 0
+	gui.Parent = sign
+	local function line(name, y, h, text, font, color)
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.Position = UDim2.fromScale(0.06, y)
+		label.Size = UDim2.fromScale(0.88, h)
+		label.BackgroundTransparency = 1
+		label.Font = font
+		label.Text = text
+		label.TextScaled = true
+		label.TextColor3 = color
+		label.Parent = gui
+		return label
+	end
+	line("Icon", 0.05, 0.22, "🏗️", Enum.Font.BuilderSansBold, COLORS.charcoal)
+	line("Title", 0.3, 0.16, "PRÓXIMA AMPLIACIÓN", Enum.Font.BuilderSansExtraBold, rgb(198, 124, 10))
+	line("Name", 0.47, 0.18, roomDef.name, Enum.Font.FredokaOne, COLORS.charcoal)
+	local status = line("Status", 0.7, 0.2, "", Enum.Font.BuilderSansBold, rgb(90, 96, 110))
+	local action = prompt(sign, "Ampliar la galería", roomDef.name, 10)
+	action.Name = "ExpandPrompt"
+	action.HoldDuration = 1
+	action.Enabled = false
+	return model, action, status
+end
+
+-- Abre una sala (la construye) y coloca la tapia de la siguiente.
+function WorldBuilder.openRoom(plot, room, animate)
+	if plot.openRooms[room] then
+		return
+	end
+	plot.openRooms[room] = true
+	if ROOM_BUILDERS[room] then
+		local folder = Instance.new("Model")
+		folder.Name = "Room" .. room
+		ROOM_BUILDERS[room](folder, plot.L)
+		folder.Parent = plot.roomsFolder
+		if animate then
+			fadeIn(folder, nil)
+		end
+	end
+	for index, hoarding in pairs(plot.hoardings) do
+		hoarding.model.Parent = (not plot.openRooms[index] and plot.openRooms[index - 1]) and plot.roomsFolder or nil
+	end
 end
 
 -- Taller -------------------------------------------------------------------------------------
+-- Mezclador de colores: varios botes de una rareza se convierten en uno mejor.
+local function buildMixer(parent, cf)
+	local model = Instance.new("Model")
+	model.Name = "Mixer"
+	local body = part({
+		Name = "Body",
+		Size = Vector3.new(4.4, 3.2, 3.4),
+		CFrame = cf * CFrame.new(0, 1.6, 0),
+		Color = rgb(250, 250, 248),
+		Parent = model,
+	})
+	part({
+		Size = Vector3.new(4.42, 0.5, 3.42),
+		CFrame = cf * CFrame.new(0, 2.4, 0),
+		Color = COLORS.workshopAccent,
+		Parent = model,
+	})
+	part({
+		Size = Vector3.new(4.7, 0.3, 3.7),
+		CFrame = cf * CFrame.new(0, 3.35, 0),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		Parent = model,
+	})
+	local label = part({
+		Size = Vector3.new(3.4, 0.9, 0.1),
+		CFrame = cf * CFrame.new(0, 1.3, -1.75),
+		Color = COLORS.charcoal,
+		CanCollide = false,
+		Parent = model,
+	})
+	surfaceText(label, Enum.NormalId.Front, "MEZCLADOR", {
+		pps = 50,
+		color = rgb(255, 255, 255),
+		font = Enum.Font.BuilderSansExtraBold,
+	})
+	-- Jarra de cristal con la pintura que gira dentro.
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(4.2, 3, 3),
+		CFrame = cylinderUp(cf * CFrame.new(0, 5.6, 0)),
+		Color = rgb(220, 236, 246),
+		Material = Enum.Material.Glass,
+		Transparency = 0.6,
+		CanCollide = false,
+		Parent = model,
+	})
+	local liquid = part({
+		Name = "Liquid",
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(2.4, 2.5, 2.5),
+		CFrame = cylinderUp(cf * CFrame.new(0, 4.75, 0)),
+		Color = rgb(150, 96, 222),
+		Material = Enum.Material.SmoothPlastic,
+		CanCollide = false,
+		Parent = model,
+	})
+	addLight(liquid, "PointLight", { Range = 8, Brightness = 0.8, Color = rgb(200, 170, 255) })
+	part({
+		Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.6, 3.3, 3.3),
+		CFrame = cylinderUp(cf * CFrame.new(0, 7.9, 0)),
+		Color = COLORS.charcoal,
+		Material = Enum.Material.Metal,
+		Parent = model,
+	})
+	part({
+		Size = Vector3.new(1.3, 1, 1.3),
+		CFrame = cf * CFrame.new(0, 8.7, 0),
+		Color = COLORS.workshopAccent,
+		Material = Enum.Material.Metal,
+		Parent = model,
+	})
+	part({
+		Size = Vector3.new(0.18, 3.6, 0.18),
+		CFrame = cf * CFrame.new(0, 6, 0),
+		Color = rgb(200, 200, 206),
+		Material = Enum.Material.Metal,
+		CanCollide = false,
+		Parent = model,
+	})
+	-- Tres botes de entrada sobre la tapa.
+	for i, color in ipairs({ rgb(236, 70, 80), rgb(255, 210, 66), rgb(60, 118, 228) }) do
+		local x = -1.6 + (i - 1) * 1.6
+		part({
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.9, 0.8, 0.8),
+			CFrame = cylinderUp(cf * CFrame.new(x, 3.95, -1.3)),
+			Color = color,
+			Parent = model,
+		})
+	end
+	local mixPrompt = prompt(body, "Mezclar colores", "Mezclador", 10)
+	mixPrompt.Name = "MixPrompt"
+	model.Parent = parent
+	return mixPrompt, liquid
+end
+
 local function buildWorkshop(model, L)
 	local workshop = Instance.new("Model")
 	workshop.Name = "Workshop"
@@ -1622,9 +2637,13 @@ local function buildWorkshop(model, L)
 	buildPlant(workshop, L(32.5, FLOOR, -14.5), 0.9)
 	buildPlant(workshop, L(-1.5, FLOOR, -14.5), 0.9)
 
+	local mixPrompt, mixLiquid = buildMixer(workshop, L(0.5, FLOOR, -1) * CFrame.Angles(0, -math.pi / 2, 0))
+
 	workshop.Parent = model
 	return {
 		model = workshop,
+		mixPrompt = mixPrompt,
+		mixLiquid = mixLiquid,
 		easelCanvas = easelCanvas,
 		drawPrompt = drawPrompt,
 		machinePrompt = machinePrompt,
@@ -1829,7 +2848,7 @@ local function buildGrounds(model, L, origin, rng)
 		{ -78, -70 },
 		{ -70, -30 },
 		{ -85, 10 },
-		{ -66, 50 },
+		{ -86, 54 },
 		{ -30, 72 },
 		{ 10, 80 },
 		{ 52, 60 },
@@ -1959,33 +2978,59 @@ function WorldBuilder.buildLot(slot)
 	end)
 
 	local signLabel = buildBuilding(model, L)
-	buildGalleryInterior(model, L)
+	local caja = buildGalleryInterior(model, L)
 	local workshop = buildWorkshop(model, L)
 	local gateLabel = buildGrounds(model, L, origin, rng)
 
+	-- Sala de exposición: huecos para stands, salas y tapias de ampliación.
 	local gallery = Instance.new("Folder")
 	gallery.Name = "Gallery"
 	gallery.Parent = model
-	local y = FLOOR + 10.5
-	local frameCFrames = {
-		L(-34, y, 16.6),
-		L(-22, y, 16.6),
-		L(-10, y, 16.6),
-		L(-38.6, y, 7) * CFrame.Angles(0, -math.pi / 2, 0),
-		L(-38.6, y, -5) * CFrame.Angles(0, -math.pi / 2, 0),
-		L(-5.4, y, 11) * CFrame.Angles(0, math.pi / 2, 0),
-		L(-5.4, y, 1) * CFrame.Angles(0, math.pi / 2, 0),
-	}
-	local canvases, plaques, standPoints, hangPrompts, takePrompts = {}, {}, {}, {}, {}
-	for i = 1, Config.GALLERY_SIZE do
-		canvases[i], plaques[i], hangPrompts[i], takePrompts[i] = buildFrame(gallery, frameCFrames[i], "Frame" .. i)
-		canvases[i]:SetAttribute("Slot", i)
+	local standsFolder = Instance.new("Folder")
+	standsFolder.Name = "Stands"
+	standsFolder.Parent = gallery
+	local roomsFolder = Instance.new("Folder")
+	roomsFolder.Name = "Rooms"
+	roomsFolder.Parent = gallery
+	local spotsFolder = Instance.new("Folder")
+	spotsFolder.Name = "Spots"
+	spotsFolder.Parent = gallery
+
+	local spots = {}
+	local standPoints = {}
+	for i, def in ipairs(Exhibition.Spots) do
+		local base = L(def.x, FLOOR, def.z) * CFrame.Angles(0, math.rad(def.rot), 0)
+		-- Pieza invisible con el aviso del stand, a la altura del cuadro.
+		local anchor = part({
+			Name = "Spot" .. i,
+			Size = Vector3.new(1, 1, 1),
+			CFrame = base * CFrame.new(0, def.kind == "wall" and 8 or 6.5, def.kind == "wall" and -0.6 or -0.8),
+			Transparency = 1,
+			CanCollide = false,
+			CanQuery = false,
+			CanTouch = false,
+			Parent = spotsFolder,
+		})
+		anchor:SetAttribute("Index", i)
+		anchor:SetAttribute("Room", def.room)
+		anchor:SetAttribute("Kind", def.kind)
+		local standPrompt = prompt(anchor, "Comprar stand", "", 10)
+		standPrompt.Name = "StandPrompt"
+		standPrompt.Enabled = false
 		-- Dónde se para un visitante para mirar el cuadro.
-		local front = frameCFrames[i] * CFrame.new(0, 0, -7)
-		standPoints[i] = CFrame.lookAt(
-			Vector3.new(front.X, FLOOR, front.Z),
-			Vector3.new(frameCFrames[i].X, FLOOR, frameCFrames[i].Z)
-		)
+		local front = base * CFrame.new(0, 0, def.kind == "wall" and -6.5 or -6)
+		standPoints[i] = CFrame.lookAt(front.Position, Vector3.new(base.X, FLOOR, base.Z))
+		spots[i] = { def = def, base = base, anchor = anchor, prompt = standPrompt, built = nil }
+	end
+
+	local hoardings = {}
+	local hoardingCFs = {
+		[2] = L(-22, FLOOR, 17.5),
+		[3] = L(-39.5, FLOOR, 32) * CFrame.Angles(0, -math.pi / 2, 0),
+	}
+	for index, cf in pairs(hoardingCFs) do
+		local hoardingModel, expandPrompt, status = buildHoarding(cf, Exhibition.Rooms[index])
+		hoardings[index] = { model = hoardingModel, prompt = expandPrompt, status = status }
 	end
 
 	local decor = Instance.new("Folder")
@@ -1997,7 +3042,7 @@ function WorldBuilder.buildLot(slot)
 
 	model.Parent = plotsFolder
 
-	return {
+	local plot = {
 		index = slot,
 		slot = slot,
 		model = model,
@@ -2005,11 +3050,13 @@ function WorldBuilder.buildLot(slot)
 		L = L,
 		signLabel = signLabel,
 		gateLabel = gateLabel,
-		canvases = canvases,
-		plaques = plaques,
-		hangPrompts = hangPrompts,
-		takePrompts = takePrompts,
+		spots = spots,
 		standPoints = standPoints,
+		standsFolder = standsFolder,
+		roomsFolder = roomsFolder,
+		hoardings = hoardings,
+		openRooms = {},
+		caja = caja,
 		-- Recorrido de los visitantes: de la acera a la galería y de vuelta.
 		route = {
 			L(-90, 0.3, -110),
@@ -2020,7 +3067,15 @@ function WorldBuilder.buildLot(slot)
 			L(-22, FLOOR, -12),
 			L(-22, FLOOR, -5),
 		},
+		-- Desde el centro de la sala principal hasta cada sala.
+		roomPaths = {
+			[1] = {},
+			[2] = { L(-22, FLOOR, 10), L(-22, FLOOR, 22) },
+			[3] = { L(-22, FLOOR, 10), L(-22, FLOOR, 22), L(-33, FLOOR, 31), L(-46, FLOOR, 32) },
+		},
+		hub = L(-22, FLOOR, -5),
 		exitRoute = {
+			L(-16, FLOOR, -9),
 			L(-22, FLOOR, -12),
 			L(-22, 0.3, -26),
 			L(-22, 0.3, -50),
@@ -2038,6 +3093,49 @@ function WorldBuilder.buildLot(slot)
 		workshop = workshop,
 		decorBuilt = 0,
 	}
+	WorldBuilder.openRoom(plot, 1, false)
+	return plot
+end
+
+-- Cajero que atiende la caja (mejora «Cajero»).
+function WorldBuilder.setCashier(plot, enabled)
+	local existing = plot.cashier
+	if enabled == (existing ~= nil) then
+		return
+	end
+	if not enabled then
+		existing:Destroy()
+		plot.cashier = nil
+		return
+	end
+	local ok, npc = pcall(function()
+		local description = Instance.new("HumanoidDescription")
+		description.HeadColor = rgb(241, 194, 150)
+		description.LeftArmColor = rgb(241, 194, 150)
+		description.RightArmColor = rgb(241, 194, 150)
+		description.TorsoColor = rgb(40, 150, 140)
+		description.LeftLegColor = rgb(44, 48, 56)
+		description.RightLegColor = rgb(44, 48, 56)
+		return Players:CreateHumanoidModelFromDescription(description, Enum.HumanoidRigType.R15)
+	end)
+	if not ok or not npc then
+		return
+	end
+	npc.Name = "Cajero"
+	local humanoid = npc:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.DisplayName = "Cajero"
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+	end
+	for _, descendant in ipairs(npc:GetDescendants()) do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true
+		end
+	end
+	npc:PivotTo(plot.caja.cashierCF * CFrame.new(0, 3, 0))
+	npc:SetAttribute("VisitorName", "Cajero")
+	npc.Parent = plot.caja.model
+	plot.cashier = npc
 end
 
 function WorldBuilder.destroyLot(plot)

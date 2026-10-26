@@ -13,6 +13,9 @@ local Painter = require(UI.Painter)
 local Shop = require(UI.Shop)
 local Daily = require(UI.Daily)
 local Tutorial = require(UI.Tutorial)
+local StandPanel = require(UI.StandPanel)
+local Offers = require(UI.Offers)
+local Mixer = require(UI.Mixer)
 local World = require(script.Parent:WaitForChild("World"))
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
@@ -37,6 +40,13 @@ for _, name in ipairs({
 	"SelectStored",
 	"SkipTutorial",
 	"GoHome",
+	"OpenStand",
+	"StandAction",
+	"Offer",
+	"OfferClosed",
+	"RespondOffer",
+	"OpenMixer",
+	"MixColors",
 }) do
 	app.remotes[name] = remotes:WaitForChild(name)
 end
@@ -58,6 +68,11 @@ end
 
 function app.openCollection()
 	Machine.openCollection()
+end
+
+-- Ventana de color conseguido (máquina y mezclador).
+function app.reveal(colorId, isNew)
+	Machine.reveal(colorId, isNew)
 end
 
 function app.openDaily()
@@ -133,6 +148,8 @@ local function applyState(state)
 	DesignPicker.refresh()
 	ColorPicker.refresh()
 	Daily.refresh()
+	StandPanel.refresh()
+	Mixer.refresh()
 	Tutorial.applyState()
 end
 
@@ -148,6 +165,9 @@ Painter.init(app)
 Shop.init(app)
 Daily.init(app)
 Tutorial.init(app)
+StandPanel.init(app)
+Offers.init(app)
+Mixer.init(app)
 World.start()
 
 app.remotes.StateChanged.OnClientEvent:Connect(applyState)
@@ -159,6 +179,22 @@ app.remotes.RollResult.OnClientEvent:Connect(function(colorId, auto)
 end)
 app.remotes.OpenDesigns.OnClientEvent:Connect(function()
 	app.openDesigns()
+end)
+app.remotes.OpenStand.OnClientEvent:Connect(function(index)
+	if not Painter.isOpen() then
+		StandPanel.open(index)
+	end
+end)
+app.remotes.OpenMixer.OnClientEvent:Connect(function()
+	if not Painter.isOpen() then
+		Mixer.open()
+	end
+end)
+app.remotes.Offer.OnClientEvent:Connect(function(data)
+	Offers.show(data)
+end)
+app.remotes.OfferClosed.OnClientEvent:Connect(function(id)
+	Offers.closed(id)
 end)
 
 task.spawn(function()

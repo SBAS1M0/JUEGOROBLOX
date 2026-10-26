@@ -8,132 +8,189 @@ local function rgb(r, g, b)
 end
 
 Colors.Rarities = {
-	{ id = "comun", name = "Común", mult = 1.1, weight = 58, color = rgb(160, 160, 175) },
-	{ id = "pococomun", name = "Poco común", mult = 1.3, weight = 26, color = rgb(70, 190, 110) },
-	{ id = "raro", name = "Raro", mult = 1.6, weight = 11, color = rgb(70, 140, 250) },
-	{ id = "epico", name = "Épico", mult = 2.2, weight = 4, color = rgb(160, 90, 250) },
-	{ id = "legendario", name = "Legendario", mult = 3.5, weight = 0.9, color = rgb(250, 170, 30) },
-	{ id = "mitico", name = "Mítico", mult = 6, weight = 0.1, color = rgb(230, 62, 72) },
+	{ id = "comun", name = "Común", finish = "Mate", mult = 1.1, weight = 58, color = rgb(150, 156, 172) },
+	{ id = "pococomun", name = "Poco común", finish = "Satinado", mult = 1.3, weight = 26, color = rgb(52, 188, 116) },
+	{ id = "raro", name = "Raro", finish = "Brillante", mult = 1.6, weight = 11, color = rgb(64, 140, 240) },
+	{ id = "epico", name = "Épico", finish = "Degradado", mult = 2.2, weight = 4, color = rgb(150, 86, 240) },
+	{
+		id = "legendario",
+		name = "Legendario",
+		finish = "Metálico",
+		mult = 3.5,
+		weight = 0.9,
+		color = rgb(250, 170, 30),
+	},
+	{ id = "mitico", name = "Mítico", finish = "Mágico", mult = 6, weight = 0.1, color = rgb(236, 64, 110) },
 }
 Colors.RarityById = {}
 for index, rarity in ipairs(Colors.Rarities) do
 	rarity.index = index
 	Colors.RarityById[rarity.id] = rarity
 end
-Colors.BASIC_RARITY = { id = "basico", name = "Básico", mult = 1, index = 0, color = rgb(190, 175, 165) }
+Colors.BASIC_RARITY =
+	{ id = "basico", name = "Básico", finish = "Mate", mult = 1, index = 0, color = rgb(190, 175, 165) }
 
 -- color: un solo Color3. gradient: varios Color3 (se pinta con degradado).
+-- Los nombres y tonos están pensados para combinar bien entre sí.
 Colors.List = {
 	-- Básicos (infinitos)
 	{ id = "blanco", name = "Blanco", basic = true, color = rgb(255, 255, 255) },
-	{ id = "crema", name = "Crema", basic = true, color = rgb(255, 244, 222) },
-	{ id = "gris", name = "Gris", basic = true, color = rgb(170, 172, 185) },
-	{ id = "negro", name = "Carbón", basic = true, color = rgb(62, 54, 72) },
-	{ id = "rojo", name = "Rojo", basic = true, color = rgb(238, 78, 86) },
-	{ id = "naranja", name = "Naranja", basic = true, color = rgb(255, 156, 64) },
-	{ id = "amarillo", name = "Amarillo", basic = true, color = rgb(255, 214, 80) },
-	{ id = "durazno", name = "Durazno", basic = true, color = rgb(255, 205, 170) },
-	{ id = "verde", name = "Verde", basic = true, color = rgb(110, 200, 100) },
-	{ id = "verdeoscuro", name = "Verde pino", basic = true, color = rgb(52, 140, 92) },
-	{ id = "celeste", name = "Celeste", basic = true, color = rgb(140, 210, 250) },
-	{ id = "azul", name = "Azul", basic = true, color = rgb(70, 125, 230) },
-	{ id = "marino", name = "Azul noche", basic = true, color = rgb(46, 54, 116) },
-	{ id = "morado", name = "Morado", basic = true, color = rgb(160, 104, 226) },
-	{ id = "rosa", name = "Rosa", basic = true, color = rgb(255, 150, 196) },
-	{ id = "cafe", name = "Café", basic = true, color = rgb(150, 98, 64) },
+	{ id = "crema", name = "Crema", basic = true, color = rgb(255, 243, 220) },
+	{ id = "gris", name = "Gris", basic = true, color = rgb(168, 172, 186) },
+	{ id = "negro", name = "Carbón", basic = true, color = rgb(54, 52, 68) },
+	{ id = "rojo", name = "Rojo", basic = true, color = rgb(236, 70, 80) },
+	{ id = "naranja", name = "Naranja", basic = true, color = rgb(255, 148, 56) },
+	{ id = "amarillo", name = "Amarillo", basic = true, color = rgb(255, 210, 66) },
+	{ id = "durazno", name = "Durazno", basic = true, color = rgb(255, 200, 164) },
+	{ id = "verde", name = "Verde", basic = true, color = rgb(100, 196, 92) },
+	{ id = "verdeoscuro", name = "Verde pino", basic = true, color = rgb(42, 132, 88) },
+	{ id = "celeste", name = "Celeste", basic = true, color = rgb(126, 204, 250) },
+	{ id = "azul", name = "Azul", basic = true, color = rgb(60, 118, 228) },
+	{ id = "marino", name = "Azul noche", basic = true, color = rgb(40, 50, 112) },
+	{ id = "morado", name = "Morado", basic = true, color = rgb(150, 96, 222) },
+	{ id = "rosa", name = "Rosa", basic = true, color = rgb(255, 138, 190) },
+	{ id = "cafe", name = "Café", basic = true, color = rgb(146, 94, 62) },
 
-	-- Común
+	-- Común: pasteles suaves (acabado mate)
 	{ id = "coco", name = "Leche de coco", rarity = "comun", color = rgb(250, 246, 236) },
-	{ id = "arena", name = "Arena", rarity = "comun", color = rgb(232, 210, 168) },
-	{ id = "mentasuave", name = "Menta suave", rarity = "comun", color = rgb(184, 240, 214) },
-	{ id = "cieloclaro", name = "Cielo claro", rarity = "comun", color = rgb(196, 230, 255) },
-	{ id = "lavanda", name = "Lavanda", rarity = "comun", color = rgb(214, 198, 248) },
-	{ id = "algodon", name = "Algodón rosa", rarity = "comun", color = rgb(255, 206, 226) },
-	{ id = "limonada", name = "Limonada", rarity = "comun", color = rgb(255, 244, 150) },
-	{ id = "mantequilla", name = "Mantequilla", rarity = "comun", color = rgb(255, 228, 160) },
+	{ id = "arena", name = "Arena", rarity = "comun", color = rgb(234, 212, 170) },
+	{ id = "mentasuave", name = "Menta suave", rarity = "comun", color = rgb(178, 238, 210) },
+	{ id = "cieloclaro", name = "Cielo claro", rarity = "comun", color = rgb(190, 228, 255) },
+	{ id = "lavanda", name = "Lavanda", rarity = "comun", color = rgb(212, 196, 250) },
+	{ id = "algodon", name = "Algodón rosa", rarity = "comun", color = rgb(255, 204, 226) },
+	{ id = "limonada", name = "Limonada", rarity = "comun", color = rgb(255, 242, 140) },
+	{ id = "mantequilla", name = "Mantequilla", rarity = "comun", color = rgb(255, 226, 156) },
+	{ id = "melocoton", name = "Melocotón", rarity = "comun", color = rgb(255, 186, 150) },
+	{ id = "niebla", name = "Niebla", rarity = "comun", color = rgb(204, 214, 228) },
 
-	-- Poco común
-	{ id = "coral", name = "Coral", rarity = "pococomun", color = rgb(255, 128, 110) },
-	{ id = "pistacho", name = "Pistacho", rarity = "pococomun", color = rgb(196, 226, 140) },
-	{ id = "turquesa", name = "Turquesa", rarity = "pococomun", color = rgb(64, 206, 196) },
-	{ id = "mostaza", name = "Mostaza", rarity = "pococomun", color = rgb(222, 176, 40) },
-	{ id = "ciruela", name = "Ciruela", rarity = "pococomun", color = rgb(140, 64, 120) },
-	{ id = "terracota", name = "Terracota", rarity = "pococomun", color = rgb(204, 106, 72) },
-	{ id = "salvia", name = "Salvia", rarity = "pococomun", color = rgb(150, 182, 150) },
+	-- Poco común: colores vivos (acabado satinado)
+	{ id = "coral", name = "Coral", rarity = "pococomun", color = rgb(255, 122, 104) },
+	{ id = "pistacho", name = "Pistacho", rarity = "pococomun", color = rgb(190, 224, 128) },
+	{ id = "turquesa", name = "Turquesa", rarity = "pococomun", color = rgb(48, 204, 192) },
+	{ id = "mostaza", name = "Mostaza", rarity = "pococomun", color = rgb(226, 174, 32) },
+	{ id = "ciruela", name = "Ciruela", rarity = "pococomun", color = rgb(140, 58, 120) },
+	{ id = "terracota", name = "Terracota", rarity = "pococomun", color = rgb(206, 100, 66) },
+	{ id = "salvia", name = "Salvia", rarity = "pococomun", color = rgb(142, 180, 146) },
+	{ id = "frambuesa", name = "Frambuesa", rarity = "pococomun", color = rgb(228, 56, 120) },
+	{ id = "petroleo", name = "Azul petróleo", rarity = "pococomun", color = rgb(22, 112, 130) },
 
-	-- Raro
-	{ id = "arandano", name = "Arándano negro", rarity = "raro", color = rgb(78, 66, 140) },
-	{ id = "esmeralda", name = "Esmeralda", rarity = "raro", color = rgb(30, 170, 110) },
-	{ id = "zafiro", name = "Zafiro", rarity = "raro", color = rgb(36, 84, 200) },
-	{ id = "cereza", name = "Cereza", rarity = "raro", color = rgb(200, 30, 70) },
-	{ id = "mandarina", name = "Mandarina", rarity = "raro", color = rgb(255, 120, 20) },
-	{ id = "helecho", name = "Helecho dorado", rarity = "raro", color = rgb(140, 190, 60) },
+	-- Raro: tonos joya (acabado brillante)
+	{ id = "arandano", name = "Arándano negro", rarity = "raro", color = rgb(74, 60, 142) },
+	{ id = "esmeralda", name = "Esmeralda", rarity = "raro", color = rgb(16, 170, 108) },
+	{ id = "zafiro", name = "Zafiro", rarity = "raro", color = rgb(30, 80, 204) },
+	{ id = "cereza", name = "Cereza", rarity = "raro", color = rgb(204, 24, 66) },
+	{ id = "mandarina", name = "Mandarina", rarity = "raro", color = rgb(255, 118, 14) },
+	{ id = "helecho", name = "Helecho dorado", rarity = "raro", color = rgb(136, 190, 50) },
+	{ id = "amatista", name = "Amatista", rarity = "raro", color = rgb(150, 70, 214) },
+	{ id = "cobalto", name = "Cobalto eléctrico", rarity = "raro", color = rgb(0, 132, 255) },
 
-	-- Épico
+	-- Épico: degradados
 	{
 		id = "lava",
 		name = "Flujo de lava",
 		rarity = "epico",
-		gradient = { rgb(255, 210, 60), rgb(255, 90, 30), rgb(170, 20, 40) },
+		gradient = { rgb(255, 214, 70), rgb(255, 96, 30), rgb(178, 18, 44) },
 	},
 	{
 		id = "aurora",
 		name = "Aurora boreal",
 		rarity = "epico",
-		gradient = { rgb(80, 240, 180), rgb(80, 160, 250), rgb(180, 100, 250) },
+		gradient = { rgb(80, 244, 180), rgb(70, 160, 252), rgb(182, 96, 252) },
 	},
 	{
 		id = "oceano",
 		name = "Océano profundo",
 		rarity = "epico",
-		gradient = { rgb(60, 200, 240), rgb(30, 90, 200), rgb(20, 40, 110) },
+		gradient = { rgb(70, 214, 244), rgb(30, 96, 206), rgb(18, 36, 110) },
 	},
 	{
 		id = "cobre",
 		name = "Hervidor de cobre",
 		rarity = "epico",
-		gradient = { rgb(250, 190, 140), rgb(200, 110, 60), rgb(140, 70, 40) },
+		gradient = { rgb(252, 196, 146), rgb(206, 112, 58), rgb(140, 66, 36) },
+	},
+	{
+		id = "sakura",
+		name = "Flor de cerezo",
+		rarity = "epico",
+		gradient = { rgb(255, 228, 238), rgb(255, 156, 196), rgb(226, 84, 150) },
+	},
+	{
+		id = "selva",
+		name = "Selva tropical",
+		rarity = "epico",
+		gradient = { rgb(196, 244, 96), rgb(40, 176, 96), rgb(8, 92, 74) },
+	},
+	{
+		id = "golosina",
+		name = "Algodón de azúcar",
+		rarity = "epico",
+		gradient = { rgb(255, 184, 222), rgb(204, 180, 255), rgb(150, 220, 255) },
 	},
 
-	-- Legendario
+	-- Legendario: metálicos con destello
 	{
 		id = "oro",
 		name = "Oro puro",
 		rarity = "legendario",
-		gradient = { rgb(255, 236, 140), rgb(240, 180, 40), rgb(255, 230, 120), rgb(200, 140, 20) },
+		gradient = { rgb(255, 240, 150), rgb(240, 180, 40), rgb(255, 234, 128), rgb(196, 136, 16) },
 	},
 	{
 		id = "plata",
 		name = "Plata lunar",
 		rarity = "legendario",
-		gradient = { rgb(250, 252, 255), rgb(170, 180, 200), rgb(235, 240, 250), rgb(140, 150, 175) },
+		gradient = { rgb(252, 253, 255), rgb(168, 178, 200), rgb(236, 240, 250), rgb(136, 146, 172) },
 	},
 	{
 		id = "atardecer",
 		name = "Atardecer",
 		rarity = "legendario",
-		gradient = { rgb(255, 220, 110), rgb(255, 130, 120), rgb(170, 90, 200) },
+		gradient = { rgb(255, 222, 110), rgb(255, 128, 118), rgb(168, 86, 200) },
+	},
+	{
+		id = "rosaoro",
+		name = "Oro rosa",
+		rarity = "legendario",
+		gradient = { rgb(255, 222, 210), rgb(232, 148, 138), rgb(255, 228, 214), rgb(186, 104, 104) },
+	},
+	{
+		id = "nacar",
+		name = "Nácar",
+		rarity = "legendario",
+		gradient = { rgb(255, 252, 246), rgb(224, 214, 255), rgb(212, 255, 242), rgb(255, 226, 240) },
 	},
 
-	-- Mítico
+	-- Mítico: colores mágicos que se mueven
 	{
 		id = "arcoiris",
 		name = "Arcoíris",
 		rarity = "mitico",
 		gradient = {
-			rgb(255, 90, 110),
-			rgb(255, 180, 60),
-			rgb(255, 235, 80),
-			rgb(90, 220, 120),
-			rgb(80, 160, 255),
-			rgb(170, 100, 255),
+			rgb(255, 84, 108),
+			rgb(255, 176, 56),
+			rgb(255, 234, 76),
+			rgb(84, 220, 120),
+			rgb(76, 158, 255),
+			rgb(168, 98, 255),
 		},
 	},
 	{
 		id = "galaxia",
 		name = "Galaxia",
 		rarity = "mitico",
-		gradient = { rgb(30, 20, 80), rgb(120, 50, 200), rgb(255, 110, 200), rgb(60, 40, 140) },
+		gradient = { rgb(26, 18, 80), rgb(118, 48, 204), rgb(255, 108, 204), rgb(56, 38, 144) },
+	},
+	{
+		id = "fenix",
+		name = "Fuego de fénix",
+		rarity = "mitico",
+		gradient = { rgb(255, 244, 130), rgb(255, 146, 36), rgb(234, 40, 60), rgb(150, 18, 96) },
+	},
+	{
+		id = "holograma",
+		name = "Holograma",
+		rarity = "mitico",
+		gradient = { rgb(120, 255, 240), rgb(255, 120, 236), rgb(255, 246, 120), rgb(120, 200, 255) },
 	},
 }
 
@@ -170,6 +227,50 @@ function Colors.mainColor(id)
 		return entry.gradient[math.ceil(#entry.gradient / 2)]
 	end
 	return entry.color
+end
+
+function Colors.finishOf(id)
+	local entry = Colors.ById[id]
+	return Colors.rarityOf(entry).finish
+end
+
+local WHITE = rgb(255, 255, 255)
+local BLACK = rgb(0, 0, 0)
+
+-- Cómo se pinta un color según su acabado. Devuelve el color de fondo, el
+-- degradado (UIGradient) y la animación: "shine" (destello metálico que
+-- recorre la figura) o "spin" (los colores giran).
+function Colors.look(id)
+	local entry = Colors.ById[id]
+	if not entry then
+		return WHITE, ColorSequence.new(WHITE), nil
+	end
+	if entry.gradient then
+		local animation = entry.rarity == "mitico" and "spin" or (entry.rarity == "legendario" and "shine" or nil)
+		return WHITE, Colors.sequence(id), animation
+	end
+	local c = entry.color
+	if entry.rarity == "raro" then
+		-- Esmalte: reflejo marcado arriba y sombra abajo.
+		return WHITE,
+			ColorSequence.new({
+				ColorSequenceKeypoint.new(0, c:Lerp(WHITE, 0.5)),
+				ColorSequenceKeypoint.new(0.2, c:Lerp(WHITE, 0.12)),
+				ColorSequenceKeypoint.new(0.55, c),
+				ColorSequenceKeypoint.new(1, c:Lerp(BLACK, 0.2)),
+			}),
+			nil
+	elseif entry.rarity == "pococomun" then
+		-- Satinado: un brillo suave.
+		return WHITE,
+			ColorSequence.new({
+				ColorSequenceKeypoint.new(0, c:Lerp(WHITE, 0.2)),
+				ColorSequenceKeypoint.new(0.6, c),
+				ColorSequenceKeypoint.new(1, c:Lerp(BLACK, 0.08)),
+			}),
+			nil
+	end
+	return c, ColorSequence.new(WHITE), nil
 end
 
 -- ColorSequence para UIGradient (blanco si es color liso).
@@ -209,6 +310,30 @@ function Colors.roll(luck, random, minIndex)
 		end
 	end
 	local options = Colors.ByRarity[chosen.id]
+	return options[random:NextInteger(1, #options)]
+end
+
+-- Mezclador: varios colores de una rareza se convierten en uno de la rareza
+-- siguiente. Cuántos hacen falta según la rareza de partida.
+Colors.MixCost = { comun = 3, pococomun = 3, raro = 4, epico = 4, legendario = 5 }
+
+-- Color que sale de una mezcla (la mitad de las veces, uno que aún no tienes).
+function Colors.mix(rarityId, random, discovered)
+	local rarity = Colors.RarityById[rarityId]
+	local nextRarity = rarity and Colors.Rarities[rarity.index + 1]
+	if not nextRarity then
+		return nil
+	end
+	local options = Colors.ByRarity[nextRarity.id]
+	local fresh = {}
+	for _, entry in ipairs(options) do
+		if not (discovered and discovered[entry.id]) then
+			table.insert(fresh, entry)
+		end
+	end
+	if #fresh > 0 and random:NextNumber() < 0.5 then
+		return fresh[random:NextInteger(1, #fresh)]
+	end
 	return options[random:NextInteger(1, #options)]
 end
 

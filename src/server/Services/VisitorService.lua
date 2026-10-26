@@ -1,11 +1,14 @@
 -- Visitantes: avatares reales de Roblox (los amigos del dueño o avatares
--- conocidos) que entran a la galería, miran un cuadro expuesto y lo compran.
+-- conocidos) que entran a la galería, miran los cuadros expuestos y, si el
+-- precio les convence, van a la caja a pagarlo o a hacerte una oferta.
 
+local PathfindingService = game:GetService("PathfindingService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Exhibition = require(Shared.Exhibition)
 
 local VisitorService = {}
 
@@ -36,8 +39,12 @@ local SHIRT_COLORS = {
 
 -- Callbacks que asigna el servidor principal.
 VisitorService.getProfile = nil -- (player) -> datos
-VisitorService.availableSlots = nil -- (player) -> { hueco, ... } con cuadro
-VisitorService.onPurchase = nil -- (player, hueco, nombre) -> precio o nil
+VisitorService.listings = nil -- (player) -> { [stand] = { price, market, tier, d, c, st } }
+VisitorService.isTutorial = nil -- (player) -> true si el tutorial espera la primera venta
+VisitorService.hasCashier = nil -- (player) -> true con la mejora Cajero
+VisitorService.askOwner = nil -- (player, oferta) -> "accept" | "reject" | "counter" | "timeout"
+VisitorService.onSale = nil -- (player, stand, precio, nombre, vip, cómo) -> cuadro vendido o nil
+VisitorService.onPass = nil -- (player, stand, ratio, nombre): no lo compró por caro
 
 local rng = Random.new()
 local states = {}
@@ -132,10 +139,12 @@ local function createAvatar(owner)
 			return nil
 		end
 	end
-	return model, name or pick(FALLBACK_NAMES)
+	return model, name or pick(FALLBACK_NAMES), userId
 end
 
 -- Movimiento y animaciones -------------------------------------------------------------
+local PATH_PARAMS = { AgentRadius = 1.6, AgentHeight = 5, AgentCanJump = false, WaypointSpacing = 4 }
+
 local function loadTracks(humanoid)
 	local animator = humanoid:FindFirstChildOfClass("Animator")
 	if not animator then
@@ -173,33 +182,69 @@ local function alive(visitor)
 	return visitor.model.Parent ~= nil and visitor.humanoid.Parent ~= nil
 end
 
--- Camina hasta el punto. Roblox corta MoveTo a los 8 s, así que se repite
--- mientras siga avanzando; si se atasca, se le acerca al destino.
+local function flatDistance(a, b)
+	return Vector3.new(a.X - b.X, 0, a.Z - b.Z).Magnitude
+end
+
+-- Un paso con MoveTo; espera a que llegue o a que pase el tiempo.
+local function stepTo(visitor, position, timeout)
+	local finished = false
+	local connection = visitor.humanoid.MoveToFinished:Connect(function()
+		finished = true
+	end)
+	visitor.humanoid:MoveTo(position)
+	local started = os.clock()
+	while not finished and alive(visitor) and os.clock() - started < timeout do
+		task.wait(0.1)
+	end
+	connection:Disconnect()
+	return alive(visitor)
+end
+
+-- Camina hasta el punto esquivando los stands (PathfindingService). Si no
+-- encuentra camino va en línea recta y, si se atasca, se le acerca al destino.
 local function walkTo(visitor, target)
-	for _ = 1, 4 do
-		if not alive(visitor) then
-			return false
-		end
-		play(visitor, "walk")
-		local finished = false
-		local connection = visitor.humanoid.MoveToFinished:Connect(function()
-			finished = true
+	if not alive(visitor) then
+		return false
+	end
+	play(visitor, "walk")
+	local goal = target.Position
+	-- Fuera (calle y jardín) se camina en línea recta; dentro hay stands.
+	local indoors = goal.Y > 1
+	local ok, path = false, nil
+	if indoors then
+		ok, path = pcall(function()
+			local newPath = PathfindingService:CreatePath(PATH_PARAMS)
+			newPath:ComputeAsync(visitor.root.Position, goal)
+			return newPath
 		end)
-		visitor.humanoid:MoveTo(target.Position)
-		local started = os.clock()
-		while not finished and alive(visitor) and os.clock() - started < 9 do
-			task.wait(0.1)
-		end
-		connection:Disconnect()
-		if not alive(visitor) then
-			return false
-		end
-		local offset = visitor.root.Position - target.Position
-		if Vector3.new(offset.X, 0, offset.Z).Magnitude <= 3 then
-			return true
+	end
+	if ok and path and path.Status == Enum.PathStatus.Success then
+		local waypoints = path:GetWaypoints()
+		for i = 2, #waypoints do
+			if not stepTo(visitor, waypoints[i].Position, 4) then
+				return false
+			end
+			if flatDistance(visitor.root.Position, waypoints[i].Position) > 4 then
+				break
+			end
 		end
 	end
-	visitor.model:PivotTo(target * CFrame.new(0, 3, 0))
+	for _ = 1, 3 do
+		if not alive(visitor) then
+			return false
+		end
+		if flatDistance(visitor.root.Position, goal) <= 3 then
+			return true
+		end
+		stepTo(visitor, goal, 9)
+	end
+	if not alive(visitor) then
+		return false
+	end
+	if flatDistance(visitor.root.Position, goal) > 3 then
+		visitor.model:PivotTo(target * CFrame.new(0, 3, 0))
+	end
 	return true
 end
 
@@ -212,11 +257,190 @@ local function walkRoute(visitor, points)
 	return true
 end
 
+-- Recorridos dentro de la galería (las ampliaciones están al fondo).
+local function pathTo(plot, slot)
+	local list = table.clone(plot.roomPaths[Exhibition.roomOf(slot)] or {})
+	table.insert(list, plot.standPoints[slot])
+	return list
+end
+
+local function pathBack(plot, slot)
+	local list = {}
+	local path = plot.roomPaths[Exhibition.roomOf(slot)] or {}
+	for i = #path, 1, -1 do
+		table.insert(list, path[i])
+	end
+	table.insert(list, plot.hub)
+	return list
+end
+
+local function goToStand(visitor, plot, fromSlot, slot)
+	if fromSlot and Exhibition.roomOf(fromSlot) == Exhibition.roomOf(slot) then
+		return walkTo(visitor, plot.standPoints[slot])
+	end
+	if fromSlot and not walkRoute(visitor, pathBack(plot, fromSlot)) then
+		return false
+	end
+	return walkRoute(visitor, pathTo(plot, slot))
+end
+
+local function standStill(visitor, cf)
+	visitor.model:PivotTo(cf * CFrame.new(0, 3, 0))
+	play(visitor, "idle")
+end
+
+-- El cuadro comprado se lo lleva bajo el brazo (a la espalda).
+local function carryPainting(visitor, bought)
+	local root = visitor.root
+	local holder = Instance.new("Model")
+	holder.Name = "BoughtPainting"
+	local base = root.CFrame * CFrame.new(0, 0.3, 0.9) * CFrame.Angles(math.rad(-8), math.pi, 0)
+	local back = Instance.new("Part")
+	back.Name = "Back"
+	back.Size = Vector3.new(3, 3, 0.25)
+	back.CFrame = base
+	back.Color = Color3.fromRGB(214, 176, 128)
+	back.Material = Enum.Material.Wood
+	local canvas = Instance.new("Part")
+	canvas.Name = "Canvas"
+	canvas.Size = Vector3.new(2.6, 2.6, 0.1)
+	canvas.CFrame = base * CFrame.new(0, 0, -0.16)
+	canvas.Color = Color3.fromRGB(250, 248, 242)
+	for _, piece in ipairs({ back, canvas }) do
+		piece.CanCollide = false
+		piece.CanQuery = false
+		piece.CanTouch = false
+		piece.Massless = true
+		piece.CastShadow = false
+		piece.CollisionGroup = VisitorService.COLLISION_GROUP
+		piece.Parent = holder
+		local weld = Instance.new("WeldConstraint")
+		weld.Part0 = root
+		weld.Part1 = piece
+		weld.Parent = piece
+	end
+	canvas:SetAttribute("Design", bought.d)
+	canvas:SetAttribute("Colors", bought.c)
+	canvas:SetAttribute("Stars", bought.st or 1)
+	holder.Parent = visitor.model
+end
+
+-- Cola de la caja ------------------------------------------------------------------------
+local function queueIndex(state, visitor)
+	for i, other in ipairs(state.queue) do
+		if other == visitor then
+			return i
+		end
+	end
+	return nil
+end
+
+local function leaveQueue(state, visitor)
+	local index = queueIndex(state, visitor)
+	if index then
+		table.remove(state.queue, index)
+	end
+end
+
+-- Hace cola hasta ser el primero; devuelve false si algo sale mal.
+local function waitTurn(state, visitor)
+	local plot = state.plot
+	table.insert(state.queue, visitor)
+	local lastSpot = nil
+	while alive(visitor) and states[plot.index] == state do
+		local index = queueIndex(state, visitor)
+		if not index then
+			return false
+		end
+		local spot = math.min(index, #plot.caja.queue)
+		if spot ~= lastSpot then
+			lastSpot = spot
+			if not walkTo(visitor, plot.caja.queue[spot]) then
+				return false
+			end
+			standStill(visitor, plot.caja.queue[spot])
+			if index > 1 then
+				visitor.model:SetAttribute("Reaction", "⏳")
+			end
+		end
+		if index == 1 then
+			return true
+		end
+		task.wait(0.3)
+	end
+	return false
+end
+
+-- Regateo en la caja: devuelve lo que paga (o nil) y cómo se cerró.
+local function negotiate(visitor, owner, info, listing, budget, tutorial)
+	local model = visitor.model
+	local function say(text)
+		model:SetAttribute("Reaction", text)
+	end
+	local offer = Exhibition.roundPrice(math.max(budget, listing.market * Exhibition.PRICE_MIN))
+	if offer >= listing.price then
+		return listing.price, nil
+	end
+	say("💬 ¿Te doy 💵" .. Config.formatNumber(offer) .. "?")
+	local base = {
+		buyer = info.name,
+		userId = info.userId,
+		vip = info.vip,
+		d = listing.d,
+		c = listing.c,
+		st = listing.st,
+		price = listing.price,
+		market = listing.market,
+	}
+	base.offer = offer
+	base.final = false
+	local answer = VisitorService.askOwner(owner, base)
+	if answer == "accept" then
+		return offer, nil
+	elseif answer == "counter" then
+		local counter = Exhibition.counterPrice(offer, listing.price)
+		local flex = tutorial and 10 or rng:NextNumber(1, 1.16)
+		if counter <= budget * flex then
+			say("🤝 ¡Trato hecho!")
+			task.wait(1)
+			return counter, nil
+		end
+		if rng:NextNumber() < 0.55 then
+			local final = math.max(offer, Exhibition.roundPrice(offer + (counter - offer) * rng:NextNumber(0.3, 0.6)))
+			say("Mi última oferta: 💵" .. Config.formatNumber(final))
+			base.offer = final
+			base.final = true
+			local second = VisitorService.askOwner(owner, base)
+			if second == "accept" then
+				return final, nil
+			elseif second == "timeout" and VisitorService.hasCashier(owner) then
+				if final >= listing.price * Exhibition.CASHIER_ACCEPT then
+					return final, "cashier"
+				end
+			end
+		end
+		say("¡Es demasiado para mí! 😤")
+		return nil, nil
+	elseif answer == "timeout" then
+		if VisitorService.hasCashier(owner) then
+			if offer >= listing.price * Exhibition.CASHIER_ACCEPT then
+				return offer, "cashier"
+			end
+			say("El cajero dijo que no… 😕")
+			return nil, nil
+		end
+		say("Nadie me atiende… 😕")
+		return nil, nil
+	end
+	say("Vaya… otra vez será 😕")
+	return nil, nil
+end
+
 -- Ciclo de un visitante -----------------------------------------------------------------
 local function runVisitor(state, slot)
 	local plot = state.plot
 	local owner = state.owner
-	local model, name = createAvatar(owner)
+	local model, name, userId = createAvatar(owner)
 	if not model or states[plot.index] ~= state then
 		state.reserved[slot] = nil
 		if model then
@@ -255,13 +479,26 @@ local function runVisitor(state, slot)
 
 	local visitor = { model = model, humanoid = humanoid, root = root, tracks = loadTracks(humanoid) }
 	state.visitors[visitor] = true
+	local info = { name = name, userId = userId, vip = vip }
 
 	local function finish()
+		leaveQueue(state, visitor)
 		state.visitors[visitor] = nil
 		state.reserved[slot] = nil
 		if model.Parent then
 			model:Destroy()
 		end
+	end
+	local function valid()
+		return alive(visitor) and states[plot.index] == state
+	end
+	local function leave(fromSlot)
+		state.reserved[slot] = nil
+		if fromSlot then
+			walkRoute(visitor, pathBack(plot, fromSlot))
+		end
+		walkRoute(visitor, plot.exitFromHub)
+		finish()
 	end
 
 	if not walkRoute(visitor, plot.route) then
@@ -270,62 +507,145 @@ local function runVisitor(state, slot)
 	end
 
 	-- Mira otro cuadro antes de decidirse (si hay más de uno).
+	local current = nil
 	local others = {}
-	for _, other in ipairs(VisitorService.availableSlots(owner)) do
+	for other in pairs(VisitorService.listings(owner)) do
 		if other ~= slot then
 			table.insert(others, other)
 		end
 	end
 	if #others > 0 and rng:NextNumber() < 0.6 then
-		local browse = plot.standPoints[pick(others)]
-		if walkTo(visitor, browse) then
-			model:PivotTo(browse * CFrame.new(0, 3, 0))
-			play(visitor, "idle")
+		local browse = pick(others)
+		if goToStand(visitor, plot, nil, browse) then
+			standStill(visitor, plot.standPoints[browse])
 			model:SetAttribute("Reaction", "👀")
 			task.wait(rng:NextNumber(1.5, 2.5))
+			current = browse
 		end
 	end
 
 	-- Se planta frente al cuadro elegido y lo admira.
-	local stand = plot.standPoints[slot]
-	if not walkTo(visitor, stand) then
+	if not goToStand(visitor, plot, current, slot) or not valid() then
 		finish()
 		return
 	end
-	model:PivotTo(stand * CFrame.new(0, 3, 0))
-	play(visitor, "idle")
+	standStill(visitor, plot.standPoints[slot])
 	model:SetAttribute("Reaction", vip and "🧐✨" or "🤔")
 	task.wait(rng:NextNumber(2.5, 4))
-	if not alive(visitor) or states[plot.index] ~= state then
+	if not valid() then
 		finish()
 		return
 	end
 
-	local price = VisitorService.onPurchase and VisitorService.onPurchase(owner, slot, name, vip)
-	if price then
-		local line = vip and "¡Una joya para mi colección! 👑" or pick(Config.BuyerLines)
-		model:SetAttribute("Reaction", line .. "\n💰 " .. price)
-		play(visitor, "cheer")
-	else
+	local listing = VisitorService.listings(owner)[slot]
+	if not listing then
 		model:SetAttribute("Reaction", "Oh... ya no está 😢")
 		play(visitor, "wave")
+		task.wait(2)
+		leave(slot)
+		return
 	end
+	local tutorial = VisitorService.isTutorial(owner)
+	local ratio = listing.price / math.max(1, listing.market)
+	local effective = vip and ratio / 1.8 or ratio
+	if not tutorial and rng:NextNumber() > Exhibition.interest(effective) then
+		model:SetAttribute(
+			"Reaction",
+			effective > 1.25 and pick(Config.TooExpensiveLines) or pick(Config.NotForMeLines)
+		)
+		if VisitorService.onPass then
+			VisitorService.onPass(owner, slot, effective, name)
+		end
+		task.wait(2.4)
+		leave(slot)
+		return
+	end
+
+	-- Le encanta: va a la caja a pagar o a hacerte una oferta.
+	model:SetAttribute("Reaction", pick(Config.InterestedLines))
+	task.wait(1.4)
+	if not walkRoute(visitor, pathBack(plot, slot)) or not waitTurn(state, visitor) then
+		finish()
+		return
+	end
+	local caja = plot.caja.queue[1]
+	standStill(visitor, caja)
+
+	listing = VisitorService.listings(owner)[slot]
+	local amount, how = nil, nil
+	if listing then
+		local budget = tutorial and listing.price * 0.9 or Exhibition.budget(listing.market, vip, rng)
+		if listing.price <= budget then
+			amount = listing.price
+			model:SetAttribute("Reaction", "¡Pago lo que pides! 💵" .. Config.formatNumber(amount))
+			task.wait(1.2)
+		else
+			amount, how = negotiate(visitor, owner, info, listing, budget, tutorial)
+		end
+	else
+		model:SetAttribute("Reaction", "Oh... ya no está 😢")
+	end
+	if not valid() then
+		finish()
+		return
+	end
+	local bought = amount and VisitorService.onSale and VisitorService.onSale(owner, slot, amount, name, vip, how)
+	if bought then
+		carryPainting(visitor, bought)
+		local line = vip and "¡Una joya para mi colección! 👑" or pick(Config.BuyerLines)
+		model:SetAttribute("Reaction", line .. "\n💰 " .. Config.formatNumber(amount))
+		play(visitor, "cheer")
+	elseif amount then
+		model:SetAttribute("Reaction", "Oh... ya no está 😢")
+		play(visitor, "wave")
+	else
+		play(visitor, "wave")
+	end
+	leaveQueue(state, visitor)
 	state.reserved[slot] = nil
 	task.wait(2.6)
-
 	walkRoute(visitor, plot.exitRoute)
 	finish()
+end
+
+-- Elige un cuadro: los más baratos (respecto a su precio medio) y los
+-- stands mejores atraen más.
+local function chooseListing(state)
+	local options, total = {}, 0
+	for slot, listing in pairs(VisitorService.listings(state.owner)) do
+		if not state.reserved[slot] then
+			local ratio = listing.price / math.max(1, listing.market)
+			local weight = Exhibition.interest(ratio) * (1 + Exhibition.tierBonus(listing.tier))
+			table.insert(options, { slot = slot, weight = weight })
+			total += weight
+		end
+	end
+	if #options == 0 then
+		return nil
+	end
+	local roll = rng:NextNumber() * total
+	for _, option in ipairs(options) do
+		roll -= option.weight
+		if roll <= 0 then
+			return option.slot
+		end
+	end
+	return options[#options].slot
 end
 
 -- API pública --------------------------------------------------------------------------
 function VisitorService.attach(plot, owner)
 	loadFriends(owner)
+	local exitFromHub = table.clone(plot.exitRoute)
+	table.remove(exitFromHub, 1)
+	plot.exitFromHub = exitFromHub
 	states[plot.index] = {
 		plot = plot,
 		owner = owner,
 		timer = 0,
 		visitors = {},
 		reserved = {},
+		queue = {},
 	}
 end
 
@@ -353,21 +673,17 @@ function VisitorService.start()
 				for _ in pairs(state.visitors) do
 					count += 1
 				end
+				-- En el tutorial el primer visitante llega enseguida.
+				local interval = VisitorService.isTutorial(state.owner) and 4 or Config.buyerInterval(levels)
 				state.timer += dt
-				if count < Config.maxBuyers(levels) and state.timer >= Config.buyerInterval(levels) then
-					local options = {}
-					for _, slot in ipairs(VisitorService.availableSlots(state.owner)) do
-						if not state.reserved[slot] then
-							table.insert(options, slot)
-						end
-					end
-					if #options > 0 then
+				if count < Config.maxBuyers(levels) and state.timer >= interval then
+					local slot = chooseListing(state)
+					if slot then
 						state.timer = 0
-						local slot = pick(options)
 						state.reserved[slot] = true
 						task.spawn(runVisitor, state, slot)
 					else
-						state.timer = Config.buyerInterval(levels) * 0.7
+						state.timer = interval * 0.7
 					end
 				end
 			end

@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Colors = require(Shared.Colors)
 local Config = require(Shared.Config)
+local Exhibition = require(Shared.Exhibition)
 
 local Theme = require(script.Parent.Theme)
 
@@ -15,7 +16,7 @@ local C = Theme.Colors
 local SECTIONS = {
 	{ name = "Máquina de colores", ids = { "suerte", "velocidad", "auto" } },
 	{ name = "Pintura", ids = { "pincel", "cubeta" } },
-	{ name = "Galería", ids = { "precio", "fama", "paredes", "decoracion" } },
+	{ name = "Galería", ids = { "precio", "fama", "cajero", "decoracion" } },
 }
 
 local app
@@ -58,8 +59,8 @@ local function effectText(id, level)
 			Config.buyerInterval(nextLevels),
 			math.floor(Config.vipChance(nextLevels) * 100 + 0.5)
 		)
-	elseif id == "paredes" then
-		return string.format("Cuadros en venta %d → %d", Config.gallerySlots(levels), Config.gallerySlots(nextLevels))
+	elseif id == "cajero" then
+		return "Acepta solo las ofertas de al menos el " .. math.floor(Exhibition.CASHIER_ACCEPT * 100) .. "%"
 	end
 	return ""
 end

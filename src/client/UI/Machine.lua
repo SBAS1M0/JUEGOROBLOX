@@ -33,7 +33,7 @@ local function rarityText(colorId)
 		return "¡Tira tu primer color!", C.InkSoft
 	end
 	local rarity = Colors.rarityOf(entry)
-	return rarity.name .. "  ·  x" .. string.format("%.1f", rarity.mult), rarity.color
+	return rarity.name .. " " .. rarity.finish:lower() .. "  ·  x" .. string.format("%.1f", rarity.mult), rarity.color
 end
 
 local function myMachine()
@@ -252,7 +252,7 @@ local function showPopup(colorId, isNew)
 	local token = popupToken
 	refs.popupBand.BackgroundColor3 = rarity.color
 	refs.popupRarity.TextColor3 = rarity.color:Lerp(C.Ink, 0.25)
-	refs.popupRarity.Text = (isNew and "Nuevo · " or "") .. rarity.name
+	refs.popupRarity.Text = (isNew and "Nuevo · " or "") .. rarity.name .. " · " .. rarity.finish
 	DesignArt.swatch(refs.popupSwatch, colorId)
 	refs.popupName.Text = entry.name
 	refs.popupMult.Text = "Multiplica tus cuadros x" .. string.format("%.1f", rarity.mult)
@@ -418,8 +418,12 @@ function Machine.refreshCollection()
 		Theme.label({
 			Position = UDim2.fromOffset(160, 4),
 			Size = UDim2.new(1, -170, 0, 26),
-			Text = rarity.id == "basico" and "Siempre disponibles · x1.0"
-				or string.format("Valor x%.1f  ·  %.1f%% por tirada", rarity.mult, chances[rarity.id] * 100),
+			Text = rarity.id == "basico" and "Siempre disponibles · x1.0" or string.format(
+				"Acabado %s  ·  Valor x%.1f  ·  %.1f%% por tirada",
+				rarity.finish,
+				rarity.mult,
+				chances[rarity.id] * 100
+			),
 			Font = Theme.Fonts.Bold,
 			TextColor3 = C.InkSoft,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -450,6 +454,13 @@ function Machine.refreshCollection()
 			colorCell(grid, entry, app.state.paints[entry.id] or 0, i)
 		end
 	end
+end
+
+-- Muestra la ventana de color conseguido (también la usa el mezclador).
+function Machine.reveal(colorId, isNew)
+	knownPaints = knownPaints or {}
+	knownPaints[colorId] = true
+	showPopup(colorId, isNew)
 end
 
 function Machine.openCollection()

@@ -9,9 +9,11 @@ Studio.
 pip install lupa msgpack
 cargo install rojo          # descarga la base de datos de la API de Roblox
 python3 tests/sim/gen_db.py # genera rbxdb.lua y defaults.lua
-python3 tests/sim/run.py scenario.lua   # partida completa: tutorial, pintar, vender, misiones...
+python3 tests/sim/run.py scenario.lua   # partida completa: tutorial, pintar, stands, ofertas, mezclador...
 python3 tests/sim/run.py multi.lua      # 13 jugadores (cada uno su terreno) sin DataStore
 python3 tests/sim/run.py studio.lua     # Studio sin acceso a las APIs
+python3 tests/sim/run.py migrate.lua    # partidas antiguas: marcos -> stands
+python3 tests/sim/run.py showcase.lua   # galería con 3 salas para las capturas
 ```
 
 Cada escenario imprime `ok - ...` por comprobación y termina con `errors: 0`.

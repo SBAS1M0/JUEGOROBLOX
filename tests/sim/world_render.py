@@ -41,7 +41,24 @@ for (const p of parts) {
   const neon = p.m === 'Neon';
   const mat = new THREE.MeshStandardMaterial({color: col, roughness: p.m === 'SmoothPlastic' ? .55 : (p.m === 'Metal' ? .35 : .85), metalness: p.m === 'Metal' ? .5 : 0,
     emissive: neon ? col : 0x000000, emissiveIntensity: neon ? 1.6 : 0, transparent: p.t > 0, opacity: 1 - p.t});
-  const mesh = new THREE.Mesh(geo, mat);
+  let mesh = new THREE.Mesh(geo, mat);
+  if (p.art) {
+    // Cuadro en la cara frontal (-Z en Roblox): figuras dibujadas en un canvas.
+    const S = 256, cv = document.createElement('canvas'); cv.width = cv.height = S;
+    const g = cv.getContext('2d'); g.fillStyle = '#fdfaf2'; g.fillRect(0, 0, S, S);
+    for (const sh of p.art) {
+      g.save(); g.translate(sh.x * S, sh.y * S); g.rotate(sh.rot * Math.PI / 180);
+      const w = sh.w * S, h = sh.h * S, r = sh.r * Math.min(w, h);
+      let fill = `rgb(${sh.c[0].join(',')})`;
+      if (sh.c.length > 1) { const lg = g.createLinearGradient(-w/2, -h/2, w/2, h/2); sh.c.forEach((c, i) => lg.addColorStop(i / (sh.c.length - 1), `rgb(${c.join(',')})`)); fill = lg; }
+      g.fillStyle = fill; g.beginPath();
+      if (g.roundRect) g.roundRect(-w/2, -h/2, w, h, Math.min(r, w/2, h/2)); else g.rect(-w/2, -h/2, w, h);
+      g.fill(); g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 1.2; g.stroke(); g.restore();
+    }
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const face = new THREE.MeshStandardMaterial({map: tex, roughness: .7});
+    mesh = new THREE.Mesh(geo, [mat, mat, mat, mat, mat, face]);
+  }
   const r = p.cf; const m = new THREE.Matrix4().set(r[3],r[4],r[5],r[0], r[6],r[7],r[8],r[1], r[9],r[10],r[11],r[2], 0,0,0,1);
   m.multiply(extra); m.multiply(new THREE.Matrix4().makeScale(sx, sy, sz));
   mesh.matrixAutoUpdate = false; mesh.matrix.copy(m);

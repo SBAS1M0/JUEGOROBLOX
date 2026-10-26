@@ -8,6 +8,7 @@ local RunService = game:GetService("RunService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Config = require(Shared.Config)
+local Exhibition = require(Shared.Exhibition)
 
 local DataService = {}
 
@@ -29,6 +30,14 @@ do
 	end
 end
 
+local function defaultStands()
+	local stands = {}
+	for i = 1, Exhibition.SPOT_COUNT do
+		stands[i] = i <= Exhibition.FREE_STANDS and 1 or 0
+	end
+	return stands
+end
+
 local function defaultData()
 	return {
 		coins = Config.START_COINS,
@@ -36,8 +45,11 @@ local function defaultData()
 		unlocked = { globo = true }, -- diseños comprados
 		made = {}, -- diseñoId -> veces pintado
 		upgrades = {},
-		gallery = {}, -- { s = hueco, d = diseño, c = colores, v = valor }
-		storage = {}, -- cuadros terminados sin colgar (el primero es el que llevas)
+		gallery = {}, -- { s = stand, d = diseño, c = colores, v = valor, p = precio, st = estrellas }
+		storage = {}, -- cuadros terminados sin exponer (el primero es el que llevas)
+		stands = defaultStands(), -- calidad del stand de cada hueco (0 = sin comprar)
+		rooms = 1, -- salas abiertas
+		best = 0, -- mejor venta
 		autoRoll = false,
 		lastRoll = "",
 		rolls = 0,
@@ -55,9 +67,39 @@ local function defaultData()
 	}
 end
 
+-- Partidas de la versión con marcos fijos y la mejora «Más paredes»: cada
+-- marco que tenías pasa a ser un stand de galería con su cuadro expuesto.
+local function migrate(data)
+	if type(data) ~= "table" or data.stands ~= nil then
+		return data
+	end
+	local upgrades = type(data.upgrades) == "table" and data.upgrades or {}
+	local frames = math.clamp(3 + (tonumber(upgrades.paredes) or 0), 1, 8)
+	upgrades.paredes = nil
+	local stands = {}
+	for i = 1, Exhibition.SPOT_COUNT do
+		stands[i] = i <= frames and 2 or 0
+	end
+	data.stands = stands
+	data.rooms = 1
+	if type(data.gallery) == "table" then
+		local kept = {}
+		for _, entry in ipairs(data.gallery) do
+			if type(entry) == "table" and #kept < frames then
+				entry.s = #kept + 1
+				entry.p = entry.v
+				table.insert(kept, entry)
+			end
+		end
+		data.gallery = kept
+	end
+	return data
+end
+
 -- Rellena campos que falten (por ejemplo tras una actualización del juego).
 local function reconcile(data)
 	local template = defaultData()
+	data = migrate(data)
 	if type(data) ~= "table" then
 		return template
 	end
@@ -71,6 +113,13 @@ local function reconcile(data)
 			data.upgrades[id] = nil
 		end
 	end
+	for i = 1, Exhibition.SPOT_COUNT do
+		if type(data.stands[i]) ~= "number" then
+			data.stands[i] = 0
+		end
+		data.stands[i] = math.clamp(math.floor(data.stands[i]), 0, Exhibition.MAX_TIER)
+	end
+	data.rooms = math.clamp(math.floor(data.rooms), 1, #Exhibition.Rooms)
 	return data
 end
 

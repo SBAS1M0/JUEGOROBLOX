@@ -5,7 +5,6 @@ local Colors = require(script.Parent.Colors)
 local Config = {}
 
 Config.MAX_PLOTS = 12
-Config.GALLERY_SIZE = 7
 Config.START_COINS = 25
 Config.AUTOSAVE_SECONDS = 90
 Config.DAILY_COOLDOWN = 20 * 60 * 60
@@ -13,9 +12,8 @@ Config.MAX_PAINT_STACK = 999
 
 -- Vender en la galería (a un visitante) paga más que vender al instante.
 Config.GALLERY_BONUS = 1.25
--- Cuadros terminados que puedes guardar antes de colgarlos en la galería.
+-- Cuadros terminados que puedes guardar antes de exponerlos en un stand.
 Config.STORAGE_SIZE = 8
-Config.QUICK_SELL = 1
 
 -- Maestría por diseño: cuantas más veces lo pintas, más vale.
 Config.Mastery = {
@@ -33,6 +31,33 @@ function Config.masteryFor(made)
 		end
 	end
 	return current, nextTier
+end
+
+-- Números con separador de miles (1.250) y abreviados a partir de 10.000 (12,5K).
+function Config.formatNumber(n)
+	n = math.floor(n or 0)
+	local abs = math.abs(n)
+	local function short(value, suffix)
+		local text = string.format("%.1f", value)
+		text = string.gsub(text, "%.0$", "")
+		return text .. suffix
+	end
+	if abs >= 1e9 then
+		return short(n / 1e9, "B")
+	elseif abs >= 1e6 then
+		return short(n / 1e6, "M")
+	elseif abs >= 1e4 then
+		return short(n / 1e3, "K")
+	end
+	local formatted = tostring(n)
+	while true do
+		local replaced, count = string.gsub(formatted, "^(-?%d+)(%d%d%d)", "%1.%2")
+		formatted = replaced
+		if count == 0 then
+			break
+		end
+	end
+	return formatted
 end
 
 -- Mejoras ------------------------------------------------------------------------------
@@ -101,13 +126,13 @@ Config.Upgrades = {
 		growth = 1.55,
 	},
 	{
-		id = "paredes",
-		name = "Más paredes",
-		icon = "🖼️",
-		desc = "Más cuadros expuestos a la venta.",
-		max = 4,
-		cost = 300,
-		growth = 2.2,
+		id = "cajero",
+		name = "Cajero",
+		icon = "🧑‍💼",
+		desc = "Atiende la caja si no respondes: acepta las ofertas buenas.",
+		max = 1,
+		cost = 900,
+		growth = 1,
 	},
 	{
 		id = "decoracion",
@@ -167,8 +192,8 @@ function Config.maxBuyers(levels)
 	return math.min(4, 2 + math.floor((levels.fama or 0) / 4))
 end
 
-function Config.gallerySlots(levels)
-	return math.min(Config.GALLERY_SIZE, 3 + (levels.paredes or 0))
+function Config.hasCashier(levels)
+	return (levels.cajero or 0) >= 1
 end
 
 -- Valor de un cuadro ---------------------------------------------------------------------
@@ -279,6 +304,13 @@ Config.QuestTypes = {
 		goals = { 1, 2, 3 },
 	},
 	{ id = "ganar", text = "Gana %d monedas", icon = "💵", goals = { 150, 400, 900 }, scale = true },
+	{
+		id = "caro",
+		text = "Vende %d cuadros por encima de su precio medio",
+		one = "Vende 1 cuadro por encima de su precio medio",
+		icon = "📈",
+		goals = { 1, 2, 3 },
+	},
 }
 Config.QuestById = {}
 for _, quest in ipairs(Config.QuestTypes) do
@@ -307,8 +339,8 @@ Config.Tutorial = {
 	{ text = "Ve a la máquina de colores y tira 3 veces", target = "machine", goal = 3 },
 	{ text = "Ve a la mesa de dibujo y empieza un cuadro", target = "easel", goal = 1 },
 	{ text = "Elige un color de la paleta y colorea el dibujo", target = nil, goal = 1 },
-	{ text = "Lleva el cuadro a la sala y cuélgalo en un marco libre", target = "freeFrame", goal = 1 },
-	{ text = "Espera a que un visitante compre tu cuadro", target = "gallery", goal = 1 },
+	{ text = "Ve a la sala y expón tu cuadro en el stand: tú pones el precio", target = "freeStand", goal = 1 },
+	{ text = "Un visitante irá a la caja: responde a su oferta", target = "caja", goal = 1 },
 }
 Config.TUTORIAL_REWARD = 150
 
@@ -323,5 +355,10 @@ Config.BuyerLines = {
 	"¡Wow, qué colores! ✨",
 	"¡Lo compro ya mismo! 💰",
 }
+-- Cuando le gusta un cuadro y va a la caja.
+Config.InterestedLines = { "¡Me encanta! 😍", "¡Lo quiero! 💖", "Voy a la caja 🛒", "¡Qué colores! ✨" }
+-- Cuando el precio le parece demasiado alto.
+Config.TooExpensiveLines = { "Muy caro para mí 😬", "¿Tanto? 😳", "Precioso, pero carísimo 💸" }
+Config.NotForMeLines = { "Hmm… no es para mí 🤔", "Bonito, pero sigo mirando 👀" }
 
 return Config

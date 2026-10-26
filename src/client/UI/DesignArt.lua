@@ -5,6 +5,7 @@
 -- la forma de la figura con un CanvasGroup y, al completarla, aparece el color
 -- final. setFocus resalta las figuras del color que llevas en el pincel.
 
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
@@ -17,16 +18,49 @@ local WHITE = Color3.new(1, 1, 1)
 local SKETCH_LINE = Color3.fromRGB(150, 156, 170)
 local UNPAINTED_LIGHT = Color3.fromRGB(196, 200, 210)
 local HINT_LINE = Color3.fromRGB(250, 176, 40)
+local FAINT = Color3.fromRGB(244, 244, 246)
 local FADE = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
+-- Acabados animados: los metálicos llevan un destello que va y viene y los
+-- míticos hacen girar sus colores. Un solo bucle mueve todos los degradados.
+local animated = setmetatable({}, { __mode = "k" })
+local baseRotation = setmetatable({}, { __mode = "k" })
+local animatorRunning = false
+
+local function startAnimator()
+	if animatorRunning then
+		return
+	end
+	animatorRunning = true
+	RunService.Heartbeat:Connect(function()
+		local t = os.clock()
+		for gradient, kind in pairs(animated) do
+			if not gradient.Parent then
+				animated[gradient] = nil
+			elseif kind == "spin" then
+				gradient.Rotation = (baseRotation[gradient] + t * 50) % 360
+				gradient.Offset = Vector2.new(math.sin(t * 0.9) * 0.15, 0)
+			else
+				gradient.Offset = Vector2.new(math.sin(t * 1.7) * 0.35, 0)
+			end
+		end
+	end)
+end
+
 local function applyColor(frame, gradient, colorId)
-	local entry = Colors.ById[colorId]
-	if entry and entry.gradient then
-		frame.BackgroundColor3 = WHITE
-		gradient.Color = Colors.sequence(colorId)
-	else
-		frame.BackgroundColor3 = entry and entry.color or WHITE
-		gradient.Color = ColorSequence.new(WHITE)
+	local background, sequence, animation = Colors.look(colorId)
+	frame.BackgroundColor3 = background
+	gradient.Color = sequence
+	if baseRotation[gradient] == nil then
+		baseRotation[gradient] = gradient.Rotation
+	end
+	if animation then
+		animated[gradient] = animation
+		startAnimator()
+	elseif animated[gradient] then
+		animated[gradient] = nil
+		gradient.Rotation = baseRotation[gradient]
+		gradient.Offset = Vector2.new()
 	end
 end
 
@@ -55,7 +89,13 @@ function DesignArt.render(container, design, opts)
 		old:Destroy()
 	end
 	local mode = opts.mode or "color"
-	local colors = opts.colors or Designs.defaultColors(design)
+	-- Las zonas sin color elegido usan el color por defecto del diseño.
+	local colors = Designs.defaultColors(design)
+	for areaId, colorId in pairs(opts.colors or {}) do
+		if Colors.ById[colorId] then
+			colors[areaId] = colorId
+		end
+	end
 	local zindex = opts.zindex or container.ZIndex
 	local stroke = opts.stroke or 2
 
@@ -87,7 +127,9 @@ function DesignArt.render(container, design, opts)
 			-- para que se note qué falta por pintar.
 			local light = 0.299 * main.R + 0.587 * main.G + 0.114 * main.B
 			entry.pale = light > 0.8 and main:Lerp(UNPAINTED_LIGHT, 0.6) or main:Lerp(WHITE, 0.78)
-			entry.faint = entry.pale:Lerp(WHITE, 0.55)
+			-- Zona activa: más color para que destaque. Resto: casi en blanco.
+			entry.vivid = light > 0.8 and main:Lerp(UNPAINTED_LIGHT, 0.75) or main:Lerp(WHITE, 0.5)
+			entry.faint = entry.pale:Lerp(FAINT, 0.7)
 			entry.lineColor = SKETCH_LINE
 			base.BackgroundColor3 = entry.pale
 			local line = Instance.new("UIStroke")
@@ -244,28 +286,34 @@ function DesignArt.render(container, design, opts)
 		end
 	end
 
-	-- Resalta las figuras del color elegido y aclara las demás.
+	-- Resalta mucho las figuras del color elegido (más color y contorno grueso)
+	-- y deja las demás casi en blanco, con un trazo de lápiz muy suave.
 	function handle.setFocus(areaId)
 		for _, entry in ipairs(handle.shapes) do
 			if not entry.done and entry.line then
 				local active = areaId ~= nil and entry.shape.area == areaId
-				entry.lineColor = active and entry.main:Lerp(Color3.new(0, 0, 0), 0.35) or SKETCH_LINE
+				entry.active = active
+				entry.lineColor = active and entry.main:Lerp(Color3.new(0, 0, 0), 0.4) or SKETCH_LINE
 				entry.line.Color = entry.lineColor
-				entry.line.Thickness = active and stroke + 1 or stroke
-				entry.line.Transparency = active and 0 or 0.25
-				entry.base.BackgroundColor3 = (areaId == nil or active) and entry.pale or entry.faint
+				entry.line.Thickness = active and stroke + 1.5 or stroke
+				entry.line.Transparency = (areaId == nil or active) and 0 or 0.6
+				if areaId == nil then
+					entry.base.BackgroundColor3 = entry.pale
+				else
+					entry.base.BackgroundColor3 = active and entry.vivid or entry.faint
+				end
 			end
 		end
 	end
 
-	-- Pista: hace latir el contorno de una figura sin pintar (alpha 0..1).
+	-- Latido del contorno de una figura sin pintar (alpha 0..1).
 	function handle.setHint(i, alpha)
 		local entry = handle.shapes[i]
 		if not entry or entry.done or not entry.line then
 			return
 		end
 		entry.line.Color = entry.lineColor:Lerp(HINT_LINE, alpha)
-		entry.line.Thickness = stroke + 1 + alpha * 1.5
+		entry.line.Thickness = (entry.active and stroke + 1.5 or stroke) + alpha * 2
 	end
 
 	function handle.setColors(newColors)

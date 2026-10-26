@@ -1,11 +1,15 @@
--- Parte visual del mundo que se dibuja en el cliente: cuadros de la galería,
--- caballete del taller y globos de diálogo de los visitantes.
+-- Parte visual del mundo que se dibuja en el cliente: cuadros de los stands
+-- (con su etiqueta de precio), avisos de los huecos libres, caballete del
+-- taller y globos de diálogo de los visitantes.
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
 local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
+local Colors = require(Shared.Colors)
+local Config = require(Shared.Config)
 local Designs = require(Shared.Designs)
+local Exhibition = require(Shared.Exhibition)
 
 local UI = script.Parent:WaitForChild("UI")
 local Theme = require(UI.Theme)
@@ -62,16 +66,45 @@ local function setupCanvas(canvas)
 		Parent = art,
 	})
 	Theme.round().Parent = stars
+	-- Etiqueta de precio con el color de la banda (ganga, justo, caro...).
+	local priceTag = Theme.label({
+		Name = "PriceTag",
+		Position = UDim2.new(0, 8, 1, -36),
+		Size = UDim2.fromOffset(130, 28),
+		BackgroundColor3 = C.Primary,
+		BackgroundTransparency = 0,
+		Text = "",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.White,
+		MaxTextSize = 22,
+		Visible = false,
+		ZIndex = 5,
+		Parent = art,
+	})
+	Theme.round().Parent = priceTag
+	local glitter = nil
 	local function refresh()
 		local design = Designs.get(canvas:GetAttribute("Design") or "")
 		local starCount = canvas:GetAttribute("Stars") or 0
 		stars.Text = design and string.rep("★", starCount) or ""
 		stars.Visible = stars.Text ~= ""
+		local price = canvas:GetAttribute("Price") or 0
+		local market = canvas:GetAttribute("Market") or 0
+		priceTag.Visible = design ~= nil and price > 0
+		if priceTag.Visible then
+			priceTag.Text = "💵 " .. Config.formatNumber(price)
+			priceTag.BackgroundColor3 = Exhibition.band(price / math.max(1, market)).color
+		end
+		local best = 0
 		if design then
 			placeholder.Visible = false
+			local colors = Designs.decodeColors(canvas:GetAttribute("Colors"))
+			for _, colorId in pairs(colors) do
+				best = math.max(best, Colors.rarityOf(Colors.ById[colorId]).index)
+			end
 			DesignArt.render(art, design, {
 				mode = "color",
-				colors = Designs.decodeColors(canvas:GetAttribute("Colors")),
+				colors = colors,
 				outlineThickness = 1.5,
 			})
 		else
@@ -82,11 +115,28 @@ local function setupCanvas(canvas)
 			placeholder.Visible = true
 			placeholder.Text = canvas:GetAttribute("Locked") and "🔒" or "Espacio libre"
 		end
+		-- Los cuadros con colores legendarios o míticos brillan.
+		if best >= 5 and not glitter then
+			glitter = Theme.new("ParticleEmitter", {
+				Name = "Glitter",
+				Texture = "rbxasset://textures/particles/sparkles_main.dds",
+				Color = ColorSequence.new(best >= 6 and Color3.fromRGB(255, 140, 220) or Color3.fromRGB(255, 214, 110)),
+				Size = NumberSequence.new(0.35, 0),
+				Lifetime = NumberRange.new(0.8, 1.4),
+				Rate = best >= 6 and 6 or 3,
+				Speed = NumberRange.new(0.3, 0.8),
+				SpreadAngle = Vector2.new(60, 60),
+				LightEmission = 0.6,
+				Parent = canvas,
+			})
+		elseif best < 5 and glitter then
+			glitter:Destroy()
+			glitter = nil
+		end
 	end
-	canvas:GetAttributeChangedSignal("Design"):Connect(refresh)
-	canvas:GetAttributeChangedSignal("Colors"):Connect(refresh)
-	canvas:GetAttributeChangedSignal("Locked"):Connect(refresh)
-	canvas:GetAttributeChangedSignal("Stars"):Connect(refresh)
+	for _, attribute in ipairs({ "Design", "Colors", "Locked", "Stars", "Price", "Market" }) do
+		canvas:GetAttributeChangedSignal(attribute):Connect(refresh)
+	end
 	refresh()
 end
 
@@ -144,15 +194,78 @@ local function setupVisitor(model)
 	refresh()
 end
 
--- Avisos (taller y marcos) solo para el dueño del terreno.
-local function updatePrompts(plot)
+-- Hueco de la sala: cartel «＋ Stand» con su precio (solo lo ve el dueño).
+local function setupSpot(anchor, plot)
+	if anchor:FindFirstChild("SpotTag") then
+		return
+	end
+	local billboard = Theme.new("BillboardGui", {
+		Name = "SpotTag",
+		Size = UDim2.fromOffset(170, 64),
+		StudsOffset = Vector3.new(0, 0.5, 0),
+		MaxDistance = 60,
+		LightInfluence = 0,
+		AlwaysOnTop = false,
+		ResetOnSpawn = false,
+		Enabled = false,
+		Parent = anchor,
+	})
+	local card = Theme.new("Frame", {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromOffset(160, 56),
+		BackgroundColor3 = C.Navy,
+		BackgroundTransparency = 0.08,
+		Parent = billboard,
+	}, { Theme.corner(16), Theme.stroke(C.White, 2, 0.4) })
+	local title = Theme.label({
+		Position = UDim2.fromOffset(8, 4),
+		Size = UDim2.new(1, -16, 0, 26),
+		Text = "＋ Stand",
+		Font = Theme.Fonts.Display,
+		TextColor3 = C.White,
+		MaxTextSize = 22,
+		Parent = card,
+	})
+	local cost = Theme.label({
+		Position = UDim2.fromOffset(8, 30),
+		Size = UDim2.new(1, -16, 0, 20),
+		Text = "",
+		Font = Theme.Fonts.Heavy,
+		TextColor3 = C.Gold,
+		MaxTextSize = 18,
+		Parent = card,
+	})
+	local function refresh()
+		local mine = plot:GetAttribute("OwnerUserId") == player.UserId
+		local open = anchor:GetAttribute("Open") == true
+		local owned = anchor:GetAttribute("Owned") == true
+		billboard.Enabled = mine and open and not owned
+		local price = anchor:GetAttribute("Cost") or 0
+		title.Text = "＋ Stand"
+		cost.Text = price > 0 and ("💵 " .. Config.formatNumber(price)) or "¡Gratis!"
+	end
+	for _, attribute in ipairs({ "Open", "Owned", "Cost" }) do
+		anchor:GetAttributeChangedSignal(attribute):Connect(refresh)
+	end
+	plot:GetAttributeChangedSignal("OwnerUserId"):Connect(refresh)
+	refresh()
+end
+
+-- Avisos (taller y sala) solo para el dueño del terreno.
+local function setPromptDistance(plot, prompt)
 	local mine = plot:GetAttribute("OwnerUserId") == player.UserId
+	local inGallery = prompt:IsDescendantOf(plot:FindFirstChild("Gallery") or plot)
+	prompt.MaxActivationDistance = mine and (inGallery and 10 or 12) or 0
+end
+
+local function updatePrompts(plot)
 	for _, folderName in ipairs({ "Workshop", "Gallery" }) do
 		local folder = plot:FindFirstChild(folderName)
 		if folder then
 			for _, descendant in ipairs(folder:GetDescendants()) do
 				if descendant:IsA("ProximityPrompt") then
-					descendant.MaxActivationDistance = mine and (folderName == "Gallery" and 10 or 12) or 0
+					setPromptDistance(plot, descendant)
 				end
 			end
 		end
@@ -162,11 +275,25 @@ end
 local function watchPlot(plot)
 	local gallery = plot:WaitForChild("Gallery", 10)
 	if gallery then
-		for _, descendant in ipairs(gallery:GetDescendants()) do
+		local function check(descendant)
 			if descendant.Name == "Canvas" and descendant:IsA("BasePart") then
 				setupCanvas(descendant)
+			elseif descendant:IsA("ProximityPrompt") then
+				setPromptDistance(plot, descendant)
+			elseif
+				descendant:IsA("BasePart")
+				and descendant:GetAttribute("Index")
+				and descendant.Parent.Name == "Spots"
+			then
+				setupSpot(descendant, plot)
 			end
 		end
+		for _, descendant in ipairs(gallery:GetDescendants()) do
+			task.spawn(check, descendant)
+		end
+		gallery.DescendantAdded:Connect(function(descendant)
+			task.defer(check, descendant)
+		end)
 	end
 	local workshop = plot:WaitForChild("Workshop", 10)
 	local easel = workshop and workshop:WaitForChild("Easel", 10)
@@ -181,6 +308,12 @@ local function watchPlot(plot)
 		end
 		visitors.ChildAdded:Connect(function(model)
 			task.spawn(setupVisitor, model)
+		end)
+		-- El cuadro que se lleva el visitante que lo compró.
+		visitors.DescendantAdded:Connect(function(descendant)
+			if descendant.Name == "Canvas" and descendant:IsA("BasePart") then
+				task.defer(setupCanvas, descendant)
+			end
 		end)
 	end
 	plot:GetAttributeChangedSignal("OwnerUserId"):Connect(function()
