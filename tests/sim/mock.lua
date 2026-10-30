@@ -672,7 +672,9 @@ local function defaultFor(p, inst, prop)
 		return false
 	elseif t == "Float32" or t == "Float64" or t == "Int32" or t == "Int64" then
 		return 0
-	elseif t == "String" or t == "Content" or t == "ContentId" then
+	elseif t == "Content" then
+		return M.Content and M.Content.none or ""
+	elseif t == "String" or t == "ContentId" then
 		return ""
 	elseif t == "Vector3" then
 		return v3()
@@ -718,7 +720,11 @@ local function checkType(inst, prop, p, value)
 		if value ~= value then
 			fail("NaN assigned to " .. inst.ClassName .. "." .. prop)
 		end
-	elseif t == "String" or t == "ContentId" or t == "Content" then
+	elseif t == "Content" then
+		if tv ~= "Content" then
+			bad()
+		end
+	elseif t == "String" or t == "ContentId" then
 		if tv ~= "string" and not (tv == "number" and t == "String") then
 			bad()
 		end
@@ -1177,6 +1183,81 @@ method("ParticleEmitter", "Emit", function(self, n)
 	end
 end)
 
+-- buffer (Luau) sobre tablas: bytes en d[offset], con comprobación de límites.
+local bufferMT = { __type = "buffer" }
+local function checkRange(b, offset, count)
+	if getmetatable(b) ~= bufferMT then
+		fail("buffer expected")
+	end
+	if type(offset) ~= "number" or offset % 1 ~= 0 or offset < 0 or offset + count > b.n then
+		fail(string.format("buffer access out of bounds (offset %s, count %d, len %d)", tostring(offset), count, b.n))
+	end
+end
+local Buffer = {}
+function Buffer.create(n)
+	if type(n) ~= "number" or n < 0 or n % 1 ~= 0 then
+		fail("buffer.create expects a size")
+	end
+	return setmetatable({ n = n, d = {} }, bufferMT)
+end
+function Buffer.len(b)
+	return b.n
+end
+function Buffer.readu8(b, o)
+	checkRange(b, o, 1)
+	return b.d[o] or 0
+end
+function Buffer.writeu8(b, o, v)
+	checkRange(b, o, 1)
+	b.d[o] = math.floor(v) % 256
+end
+function Buffer.readu32(b, o)
+	checkRange(b, o, 4)
+	local d = b.d
+	return (d[o] or 0) + (d[o + 1] or 0) * 256 + (d[o + 2] or 0) * 65536 + (d[o + 3] or 0) * 16777216
+end
+function Buffer.writeu32(b, o, v)
+	checkRange(b, o, 4)
+	v = math.floor(v) % 4294967296
+	local d = b.d
+	d[o] = v % 256
+	d[o + 1] = v // 256 % 256
+	d[o + 2] = v // 65536 % 256
+	d[o + 3] = v // 16777216
+end
+function Buffer.fill(b, o, v, count)
+	checkRange(b, o, count or (b.n - o))
+	for i = o, o + (count or (b.n - o)) - 1 do
+		b.d[i] = v
+	end
+end
+function Buffer.copy(target, toffset, source, soffset, count)
+	soffset = soffset or 0
+	count = count or (source.n - soffset)
+	checkRange(target, toffset, count)
+	checkRange(source, soffset, count)
+	for i = 0, count - 1 do
+		target.d[toffset + i] = source.d[soffset + i]
+	end
+end
+M.Buffer = Buffer
+
+-- Content: referencia a una imagen editable o a una URI.
+local contentMT = { __type = "Content" }
+local Content = {
+	fromObject = function(object)
+		if type(object) ~= "table" or not object.isEditableImage then
+			fail("Content.fromObject expects an EditableImage")
+		end
+		return setmetatable({ object = object }, contentMT)
+	end,
+	fromUri = function(uri)
+		return setmetatable({ uri = uri }, contentMT)
+	end,
+}
+Content.none = setmetatable({}, contentMT)
+M.Content = Content
+
 M.InstanceMT = InstanceMT
 M.method = method
 M.isA = isA
@@ -1201,6 +1282,8 @@ M.globals = {
 	Enum = Enum,
 	task = task,
 	typeof = typeofValue,
+	buffer = Buffer,
+	Content = Content,
 	Instance = {
 		new = function(className, parent)
 			local inst = newInstance(className)

@@ -127,6 +127,63 @@ objeto resaltado y una flecha encima.
 | --- | --- | --- |
 | ![Sala principal](docs/sala.jpg) | ![Sala del jardín](docs/jardin.jpg) | ![Sala de los maestros](docs/maestros.jpg) |
 
+### Ilustraciones: dibujos de verdad para colorear
+
+Además de los 20 diseños hechos con figuras, hay una categoría
+**Ilustraciones** (arriba del todo en «Elige un diseño»; se abre al pintar
+todo el nivel 1): dibujos de líneas como un libro para colorear. El primero es
+**«Chica tímida»**, con 75 zonas y 7 colores (fondo, pelo, lazos, piel, ojos,
+blusa y falda). Se pinta igual que el resto: cada zona lleva su número, las
+del color elegido se iluminan y el pincel **nunca se sale de las líneas**.
+Al terminarla vale mucho más que un diseño sencillo y se expone en los stands
+como cualquier cuadro.
+
+| Pintando la ilustración | ¡Terminada! |
+| --- | --- |
+| ![Ilustración](docs/ilustracion.jpg) | ![Ilustración terminada](docs/ilustracion_fin.jpg) |
+
+Las ilustraciones se dibujan píxel a píxel con **EditableImage** de Roblox. En
+Studio funciona sin hacer nada. Si en el juego publicado no se ven, revisa en
+*Configuración del juego → Seguridad* que estén permitidas las APIs de
+imágenes y mallas editables. En los dispositivos que no puedan crearlas, la
+ilustración aparece como «No disponible en este dispositivo» y el resto del
+juego sigue igual.
+
+#### Añadir tus propios dibujos
+
+1. Guarda el dibujo (líneas negras sobre fondo blanco, PNG o JPG) en
+   `tools/dibujos/`, por ejemplo `tools/dibujos/gato.png`. Funcionan mejor las
+   líneas cerradas y gruesas, como en los libros para colorear.
+2. Copia `tools/dibujos/chica.json` como `gato.json` y cambia `id`, `name`,
+   `image` y las **áreas**: cada área tiene un nombre, un color básico por
+   defecto y unas **semillas**, puntos `[x, y]` (en píxeles de la imagen; los
+   ves en Paint o cualquier editor al pasar el ratón) que caen dentro de una
+   zona de esa área. Basta con una semilla por zona; las zonas sin semilla
+   toman el área de su vecina y las diminutas quedan blancas (o ponlas en
+   `white`, como los brillos de los ojos).
+3. Conviértelo:
+
+   ```bash
+   pip install pillow numpy scipy
+   python3 tools/dibujos/convertir.py tools/dibujos/gato.json
+   ```
+
+   Se crea `src/shared/Drawings/gato.lua` y una vista previa
+   `tools/dibujos/gato_zonas.png` con cada zona del color de su área: si algo
+   sale de otro color, añade una semilla y vuelve a convertir.
+4. Añádelo en `src/shared/Designs.lua`, en la sección *Ilustraciones*:
+
+   ```lua
+   {
+   	id = "gato",
+   	name = "Gato dormilón",
+   	level = 6,
+   	value = 520,
+   	price = 1500,
+   	drawing = require(Drawings:WaitForChild("gato")),
+   },
+   ```
+
 ### Lo que te engancha
 
 - **Misiones diarias 📜**: 3 misiones nuevas cada día (pintar, vender, tirar,
@@ -194,6 +251,8 @@ Para **publicarlo** y que se guarde el progreso:
 - **Diseños nuevos**: `src/shared/Designs.lua`. Cada diseño se arma con
   figuras: `R` (rectángulo), `C` (círculo), `P` (píldora), `Heart`,
   `Sparkle` y `Ring`, sobre un lienzo de 0 a 1. Cada figura pertenece a un área.
+- **Ilustraciones** (dibujos de líneas): `tools/dibujos/convertir.py` (ver
+  «Añadir tus propios dibujos»).
 - **Colores, rarezas, acabados y mezclas**: `src/shared/Colors.lua`.
 - **Economía, mejoras, estrellas, misiones y tutorial**: `src/shared/Config.lua`.
 - **Salas, huecos, stands, precio medio y regateo**: `src/shared/Exhibition.lua`.
@@ -209,6 +268,7 @@ src/
   server/      Terrenos, visitantes, guardado, máquina, stands, ofertas, misiones
   client/      Interfaz: HUD, máquina, diseños, colores, pintura, stands, ofertas,
                mezclador, tienda...
+tools/dibujos/ Conversor de dibujos de líneas a ilustraciones para colorear
 tests/sim/     Simulador que ejecuta el juego completo fuera de Roblox
 ```
 

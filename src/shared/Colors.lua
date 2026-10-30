@@ -237,40 +237,52 @@ end
 local WHITE = rgb(255, 255, 255)
 local BLACK = rgb(0, 0, 0)
 
+-- Paradas del acabado de un color: { tiempo, Color3 } de 0 a 1. Un color mate
+-- tiene una sola parada.
+function Colors.stops(id)
+	local entry = Colors.ById[id]
+	if not entry then
+		return { { 0, WHITE } }
+	end
+	if entry.gradient then
+		local list = {}
+		local count = #entry.gradient
+		for i, color in ipairs(entry.gradient) do
+			table.insert(list, { (i - 1) / (count - 1), color })
+		end
+		return list
+	end
+	local c = entry.color
+	if entry.rarity == "raro" then
+		-- Esmalte: reflejo marcado arriba y sombra abajo.
+		return {
+			{ 0, c:Lerp(WHITE, 0.5) },
+			{ 0.2, c:Lerp(WHITE, 0.12) },
+			{ 0.55, c },
+			{ 1, c:Lerp(BLACK, 0.2) },
+		}
+	elseif entry.rarity == "pococomun" then
+		-- Satinado: un brillo suave.
+		return { { 0, c:Lerp(WHITE, 0.2) }, { 0.6, c }, { 1, c:Lerp(BLACK, 0.08) } }
+	end
+	return { { 0, c } }
+end
+
 -- Cómo se pinta un color según su acabado. Devuelve el color de fondo, el
 -- degradado (UIGradient) y la animación: "shine" (destello metálico que
 -- recorre la figura) o "spin" (los colores giran).
 function Colors.look(id)
 	local entry = Colors.ById[id]
-	if not entry then
-		return WHITE, ColorSequence.new(WHITE), nil
+	local stops = Colors.stops(id)
+	if #stops == 1 then
+		return stops[1][2], ColorSequence.new(WHITE), nil
 	end
-	if entry.gradient then
-		local animation = entry.rarity == "mitico" and "spin" or (entry.rarity == "legendario" and "shine" or nil)
-		return WHITE, Colors.sequence(id), animation
+	local keypoints = {}
+	for _, stop in ipairs(stops) do
+		table.insert(keypoints, ColorSequenceKeypoint.new(stop[1], stop[2]))
 	end
-	local c = entry.color
-	if entry.rarity == "raro" then
-		-- Esmalte: reflejo marcado arriba y sombra abajo.
-		return WHITE,
-			ColorSequence.new({
-				ColorSequenceKeypoint.new(0, c:Lerp(WHITE, 0.5)),
-				ColorSequenceKeypoint.new(0.2, c:Lerp(WHITE, 0.12)),
-				ColorSequenceKeypoint.new(0.55, c),
-				ColorSequenceKeypoint.new(1, c:Lerp(BLACK, 0.2)),
-			}),
-			nil
-	elseif entry.rarity == "pococomun" then
-		-- Satinado: un brillo suave.
-		return WHITE,
-			ColorSequence.new({
-				ColorSequenceKeypoint.new(0, c:Lerp(WHITE, 0.2)),
-				ColorSequenceKeypoint.new(0.6, c),
-				ColorSequenceKeypoint.new(1, c:Lerp(BLACK, 0.08)),
-			}),
-			nil
-	end
-	return c, ColorSequence.new(WHITE), nil
+	local animation = entry.rarity == "mitico" and "spin" or (entry.rarity == "legendario" and "shine" or nil)
+	return WHITE, ColorSequence.new(keypoints), animation
 end
 
 -- ColorSequence para UIGradient (blanco si es color liso).

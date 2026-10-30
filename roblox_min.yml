@@ -16,6 +16,10 @@ globals:
     any: true
   Vector2:
     any: true
+  Content:
+    any: true
+  buffer:
+    any: true
   CFrame:
     any: true
   Color3:

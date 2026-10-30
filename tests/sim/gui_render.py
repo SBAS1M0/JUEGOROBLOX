@@ -73,6 +73,11 @@ def draw(n, x, y, w, h, clip, scale=1, origin=(0,0)):
         fs = n.get("TextSize", 14)
         inner = (f'<div class="t" data-scaled="{1 if scaled else 0}" data-max="{mx}" style="position:absolute;left:{pl:.1f}px;top:{pt:.1f}px;right:{pr:.1f}px;bottom:{pb:.1f}px;'
                  f'display:flex;align-items:{va};justify-content:{ha};text-align:{ta};color:{rgb(tc,1-n.get("TextTransparency",0))};font-family:{font};font-size:{fs}px;line-height:1.05;white-space:pre-wrap;{shadow}"><span>{html.escape(text)}</span></div>')
+    if n.get("img"):
+        from PIL import Image as _Image
+        png = n["img"].replace(".rgba", ".png")
+        _Image.frombytes("RGBA", (n["iw"], n["ih"]), open(n["img"], "rb").read()).save(png)
+        inner += f'<img src="file://{png}" style="position:absolute;left:0;top:0;width:100%;height:100%">'
     out.append(f'<div style="position:absolute;{";".join(style)}">{inner}')
     layout(n, w, h)
     out.append("</div>")

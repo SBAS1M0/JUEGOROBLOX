@@ -1,8 +1,24 @@
 -- Diseños que se pintan. Cada diseño está hecho de figuras (rectángulos
 -- redondeados, círculos y píldoras) sobre un lienzo cuadrado de 0 a 1.
 -- Cada figura pertenece a un "área"; antes de pintar se elige un color por área.
+-- Las ilustraciones son dibujos de líneas (src/shared/Drawings, generados con
+-- tools/dibujos/convertir.py): cada zona cerrada por las líneas es una figura.
+
+local DrawingData = require(script.Parent.DrawingData)
+local Drawings = script.Parent:WaitForChild("Drawings")
 
 local Designs = {}
+
+-- Niveles especiales: nombre y nivel que hay que tener abierto para verlos.
+Designs.MAIN_LEVELS = 5
+Designs.LevelInfo = {
+	[6] = { name = "Ilustraciones", requires = 2 },
+}
+
+function Designs.levelName(level)
+	local info = Designs.LevelInfo[level]
+	return info and info.name or ("Nivel " .. level)
+end
 
 -- Figuras ---------------------------------------------------------------------------
 -- r: redondeo de las esquinas (0 = recto, 0.5 = círculo / píldora).
@@ -682,6 +698,16 @@ Designs.List = {
 			R("rayas", 0.5, 0.2, 0.18, 0.05, 0, 0.5),
 		},
 	},
+
+	-- Ilustraciones (dibujos de líneas) --------------------------------------------------
+	{
+		id = "chica",
+		name = "Chica tímida",
+		level = 6,
+		value = 520,
+		price = 1500,
+		drawing = require(Drawings:WaitForChild("chica")),
+	},
 }
 
 -- Geometría ---------------------------------------------------------------------------
@@ -706,6 +732,9 @@ end
 
 -- Índice de la figura visible (la de más arriba) en ese punto.
 function Designs.shapeAt(design, x, y)
+	if design.drawing then
+		return DrawingData.labelAt(design.drawing, x, y)
+	end
 	local shapes = design.shapes
 	for i = #shapes, 1, -1 do
 		if Designs.contains(shapes[i], x, y) then
@@ -720,8 +749,38 @@ local SAMPLES = 40
 -- Preparación ---------------------------------------------------------------------------
 Designs.ById = {}
 Designs.Levels = {}
-for index, design in ipairs(Designs.List) do
-	design.index = index
+-- Ilustración: las áreas vienen del dibujo y cada zona es una figura.
+local function prepareDrawing(design)
+	local drawing = design.drawing
+	design.kind = "image"
+	design.areas = {}
+	design.areaById = {}
+	for areaIndex, area in ipairs(drawing.areas) do
+		local copy = { id = area.id, name = area.name, default = area.default, index = areaIndex, weight = 0 }
+		design.areas[areaIndex] = copy
+		design.areaById[area.id] = copy
+	end
+	design.shapes = {}
+	for i, region in ipairs(drawing.regions) do
+		local area = design.areaById[region.a]
+		assert(area, "Área desconocida " .. tostring(region.a) .. " en " .. design.id)
+		design.shapes[i] = {
+			area = region.a,
+			x = region.x,
+			y = region.y,
+			w = region.w,
+			h = region.h,
+			rot = 0,
+			r = 0,
+			visible = region.v,
+			label = { x = region.lx, y = region.ly, r = region.lr },
+		}
+		area.weight += region.v
+	end
+end
+
+-- Diseño de figuras: aplana las compuestas y calcula la parte visible de cada una.
+local function prepareShapes(design)
 	-- Aplana las figuras compuestas (destellos, corazones, anillos).
 	local flat = {}
 	for _, item in ipairs(design.shapes) do
@@ -756,6 +815,15 @@ for index, design in ipairs(Designs.List) do
 		shape.visible = (counts[i] or 0) / (SAMPLES * SAMPLES)
 		area.weight += shape.visible
 	end
+end
+
+for index, design in ipairs(Designs.List) do
+	design.index = index
+	if design.drawing then
+		prepareDrawing(design)
+	else
+		prepareShapes(design)
+	end
 	for _, area in ipairs(design.areas) do
 		assert(area.weight > 0, "El área " .. area.id .. " de " .. design.id .. " no se ve")
 	end
@@ -775,6 +843,10 @@ end
 function Designs.isLevelOpen(level, made)
 	if level <= 1 then
 		return true
+	end
+	local info = Designs.LevelInfo[level]
+	if info then
+		return Designs.isLevelOpen(info.requires, made)
 	end
 	local previous = Designs.Levels[level - 1]
 	if not previous then

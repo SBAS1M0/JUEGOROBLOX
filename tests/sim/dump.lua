@@ -51,8 +51,37 @@ local GUI_PROPS = { "Size", "Position", "AnchorPoint", "BackgroundColor3", "Back
 	"CornerRadius", "Color", "Thickness", "Transparency", "PaddingTop", "PaddingBottom", "PaddingLeft", "PaddingRight",
 	"FillDirection", "Padding", "HorizontalAlignment", "VerticalAlignment", "SortOrder", "CellSize", "CellPadding",
 	"AspectRatio", "MaxSize", "Scale", "MaxTextSize", "ClipsDescendants", "TextWrapped", "TextTransparency", "ApplyStrokeMode", "TextSize", "Transparency" }
+-- Píxeles de una EditableImage a un fichero RGBA crudo (para las capturas).
+local imageCount = 0
+local function dumpImage(image)
+	imageCount = imageCount + 1
+	local path = SIM_DIR .. "/img_" .. imageCount .. ".rgba"
+	local f = io.open(path, "wb")
+	local d = image.pixels.d
+	local total = image.width * image.height * 4
+	local chunk = {}
+	for i = 0, total - 1 do
+		chunk[#chunk + 1] = string.char(d[i] or 0)
+		if #chunk >= 65536 then
+			f:write(table.concat(chunk))
+			chunk = {}
+		end
+	end
+	f:write(table.concat(chunk))
+	f:close()
+	return string.format('"img":%s,"iw":%d,"ih":%d', esc(path), image.width, image.height)
+end
+
 function D.gui(inst, typeofFn)
 	local fields = { '"c":' .. esc(inst.ClassName), '"n":' .. esc(inst.props.Name) }
+	if inst.ClassName == "ImageLabel" then
+		local ok, content = pcall(function()
+			return inst.ImageContent
+		end)
+		if ok and type(content) == "table" and content.object and content.object.pixels then
+			table.insert(fields, dumpImage(content.object))
+		end
+	end
 	for _, p in ipairs(GUI_PROPS) do
 		local ok, val = pcall(function() return inst[p] end)
 		if ok and val ~= nil and type(val) ~= "function" and typeofFn(val) ~= "Instance" and typeofFn(val) ~= "RBXScriptSignal" then

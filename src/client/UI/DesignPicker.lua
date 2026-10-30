@@ -8,6 +8,7 @@ local Designs = require(Shared.Designs)
 
 local Theme = require(script.Parent.Theme)
 local DesignArt = require(script.Parent.DesignArt)
+local ImageArt = require(script.Parent.ImageArt)
 
 local DesignPicker = {}
 
@@ -181,20 +182,20 @@ local function buildList(parent)
 			Name = "Header" .. level,
 			Size = UDim2.new(1, -10, 0, 36),
 			BackgroundTransparency = 1,
-			LayoutOrder = level * 2 - 1,
+			LayoutOrder = (Designs.LevelInfo[level] and -level or level) * 2 - 1,
 			Parent = list,
 		})
 		local title = Theme.label({
 			Position = UDim2.fromOffset(2, 6),
-			Size = UDim2.fromOffset(112, 26),
-			Text = "Nivel " .. level,
+			Size = UDim2.fromOffset(Designs.LevelInfo[level] and 190 or 112, 26),
+			Text = Designs.levelName(level),
 			Font = Theme.Fonts.Heavy,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			MaxTextSize = 20,
 			Parent = header,
 		})
 		local info = Theme.label({
-			Position = UDim2.fromOffset(120, 9),
+			Position = UDim2.fromOffset(Designs.LevelInfo[level] and 198 or 120, 9),
 			Size = UDim2.new(1, -128, 0, 20),
 			Text = "Se venden por ~💵" .. Theme.formatNumber(averageValue(level)),
 			Font = Theme.Fonts.Medium,
@@ -208,7 +209,7 @@ local function buildList(parent)
 			Name = "Level" .. level,
 			Size = UDim2.new(1, -10, 0, 204),
 			BackgroundTransparency = 1,
-			LayoutOrder = level * 2,
+			LayoutOrder = (Designs.LevelInfo[level] and -level or level) * 2,
 			Parent = list,
 		}, {
 			Theme.new("UIGridLayout", {
@@ -357,7 +358,7 @@ function DesignPicker.refresh()
 	for level, header in pairs(levelHeaders) do
 		local open = Designs.isLevelOpen(level, state.made)
 		header.title.TextColor3 = open and C.Ink or C.InkFaint
-		header.title.Text = (open and "" or "🔒 ") .. "Nivel " .. level
+		header.title.Text = (open and "" or "🔒 ") .. Designs.levelName(level)
 	end
 	for _, design in ipairs(Designs.List) do
 		local card = cards[design.id]
@@ -384,19 +385,22 @@ function DesignPicker.refresh()
 	local design = Designs.get(selectedId) or Designs.List[1]
 	local status = stateOf(design)
 	local made = state.made[design.id] or 0
-	DesignArt.render(detail.art, design, { mode = "color", outline = false })
+	-- Solo se redibuja al cambiar de diseño (las ilustraciones pesan más).
+	if detail.shownId ~= design.id then
+		detail.shownId = design.id
+		DesignArt.render(detail.art, design, { mode = "color", outline = false })
+	end
 	detail.art.Visible = status ~= "closed"
 	detail.lock.Visible = status == "closed"
 	local value = Config.paintingValue(design, Designs.defaultColors(design), state.upgrades, made, 3)
 	detail.value.Text = "💵 Hasta ~" .. Theme.formatNumber(value) .. " con colores básicos"
 	detail.name.Text = status == "closed" and "???" or design.name
-	detail.info.Text = "Nivel "
-		.. design.level
+	detail.info.Text = Designs.levelName(design.level)
 		.. "  ·  "
 		.. #design.areas
 		.. " colores  ·  "
 		.. #design.shapes
-		.. " figuras"
+		.. (design.kind == "image" and " zonas" or " figuras")
 	local tier, nextTier = Config.masteryFor(made)
 	detail.medal.Text = tier and MEDALS[tier.id] or "⚪"
 	detail.tier.Text = tier and ("Maestría de " .. tier.name) or "Sin maestría aún"
@@ -410,7 +414,12 @@ function DesignPicker.refresh()
 		detail.progress.Text = "¡Maestría máxima! (" .. made .. " pintados)"
 	end
 
-	if status == "unlocked" then
+	if design.kind == "image" and not ImageArt.supported() then
+		-- Sin EditableImage no se puede pintar una ilustración en este dispositivo.
+		detail.button.SetText("No disponible en este dispositivo")
+		detail.button.SetVariant("primary")
+		detail.button.SetEnabled(false)
+	elseif status == "unlocked" then
 		detail.button.SetText(state.painting and "Tienes un cuadro empezado" or "Empezar a pintar")
 		detail.button.SetVariant("primary")
 		detail.button.SetEnabled(not state.painting)
@@ -419,7 +428,8 @@ function DesignPicker.refresh()
 		detail.button.SetVariant("gold")
 		detail.button.SetEnabled(state.coins >= design.price)
 	else
-		detail.button.SetText("Pinta todo el nivel " .. (design.level - 1))
+		local info = Designs.LevelInfo[design.level]
+		detail.button.SetText("Pinta todo el nivel " .. ((info and info.requires or design.level) - 1))
 		detail.button.SetEnabled(false)
 	end
 end

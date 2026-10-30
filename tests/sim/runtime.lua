@@ -40,6 +40,7 @@ for _, cls in ipairs({
 	"PhysicsService",
 	"ReplicatedFirst",
 	"PathfindingService",
+	"AssetService",
 }) do
 	addService(cls)
 end
@@ -352,6 +353,44 @@ M.method("Humanoid", "MoveTo", function(self, position, part)
 		self.MoveToFinished:Fire(true)
 	end)
 end)
+-- EditableImage: guarda los píxeles (RGBA) para poder sacar capturas.
+M.editableImages = {}
+M.method("AssetService", "CreateEditableImage", function(self, options)
+	if type(options) ~= "table" or G.typeof(options.Size) ~= "Vector2" then
+		error("CreateEditableImage expects { Size = Vector2 }", 2)
+	end
+	local w, h = options.Size.X, options.Size.Y
+	if w < 1 or h < 1 or w > 1024 or h > 1024 or w % 1 ~= 0 or h % 1 ~= 0 then
+		error("CreateEditableImage: invalid size " .. w .. "x" .. h, 2)
+	end
+	local B = G.buffer
+	local image = { isEditableImage = true, Size = options.Size, width = w, height = h, pixels = B.create(w * h * 4) }
+	function image:WritePixelsBuffer(position, size, data)
+		if self.destroyed then
+			error("EditableImage was destroyed", 2)
+		end
+		if G.typeof(position) ~= "Vector2" or G.typeof(size) ~= "Vector2" or G.typeof(data) ~= "buffer" then
+			error("WritePixelsBuffer(Vector2, Vector2, buffer)", 2)
+		end
+		local x0, y0, sw, sh = position.X, position.Y, size.X, size.Y
+		if x0 % 1 ~= 0 or y0 % 1 ~= 0 or sw % 1 ~= 0 or sh % 1 ~= 0 or x0 < 0 or y0 < 0 or x0 + sw > w or y0 + sh > h then
+			error("WritePixelsBuffer: rectangle out of bounds", 2)
+		end
+		if B.len(data) ~= sw * sh * 4 then
+			error("WritePixelsBuffer: buffer size mismatch", 2)
+		end
+		for row = 0, sh - 1 do
+			B.copy(self.pixels, ((y0 + row) * w + x0) * 4, data, row * sw * 4, sw * 4)
+		end
+		self.writes = (self.writes or 0) + 1
+	end
+	function image:Destroy()
+		self.destroyed = true
+	end
+	table.insert(M.editableImages, image)
+	return setmetatable(image, { __type = "EditableImage" })
+end)
+
 -- Pathfinding: camino recto del origen al destino (con un punto intermedio).
 M.method("PathfindingService", "CreatePath", function(self, params)
 	if params ~= nil and type(params) ~= "table" then

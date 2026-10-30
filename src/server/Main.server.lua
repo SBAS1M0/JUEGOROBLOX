@@ -87,7 +87,7 @@ end
 
 local function openLevel(data)
 	local level = 1
-	for l = 2, Designs.MAX_LEVEL do
+	for l = 2, Designs.MAIN_LEVELS do
 		if Designs.isLevelOpen(l, data.made) then
 			level = l
 		end
@@ -624,7 +624,9 @@ UnlockDesign.OnServerInvoke = function(player, designId)
 		return false, "Ya lo tienes."
 	end
 	if not Designs.isLevelOpen(design.level, data.made) then
-		return false, "Pinta todos los diseños del nivel " .. (design.level - 1) .. " primero."
+		local info = Designs.LevelInfo[design.level]
+		return false,
+			"Pinta todos los diseños del nivel " .. ((info and info.requires or design.level) - 1) .. " primero."
 	end
 	if data.coins < design.price then
 		return false, "Te faltan " .. (design.price - data.coins) .. " monedas."

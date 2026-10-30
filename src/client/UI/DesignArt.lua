@@ -12,6 +12,8 @@ local Shared = game:GetService("ReplicatedStorage"):WaitForChild("Shared")
 local Colors = require(Shared.Colors)
 local Designs = require(Shared.Designs)
 
+local ImageArt = require(script.Parent.ImageArt)
+
 local DesignArt = {}
 
 local WHITE = Color3.new(1, 1, 1)
@@ -83,6 +85,10 @@ function DesignArt.toLocal(shape, x, y)
 end
 
 function DesignArt.render(container, design, opts)
+	-- Las ilustraciones (dibujos de líneas) se pintan píxel a píxel.
+	if design.kind == "image" then
+		return ImageArt.render(container, design, opts)
+	end
 	opts = opts or {}
 	local old = container:FindFirstChild("Art")
 	if old then

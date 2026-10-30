@@ -15,3 +15,4 @@ tests/sim/*.png
 tests/sim/*.html
 tests/sim/out_*.txt
 tests/sim/out.txt
+tests/sim/img_*

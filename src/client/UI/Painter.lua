@@ -90,8 +90,10 @@ local function buildSamples(design, radius)
 				end
 			end
 			if #info.points == 0 then
-				-- Figura diminuta: basta con pasar por su centro.
-				table.insert(info.points, { shape.x, shape.y, false })
+				-- Figura diminuta: basta con pasar por su centro (o por un
+				-- punto que seguro está dentro, en las ilustraciones).
+				local spot = shape.label
+				table.insert(info.points, { spot and spot.x or shape.x, spot and spot.y or shape.y, false })
 			end
 		end
 		info.total = #info.points
@@ -107,6 +109,15 @@ local labelCache = {}
 local function labelSpots(design)
 	if labelCache[design.id] then
 		return labelCache[design.id]
+	end
+	-- Las ilustraciones traen el sitio del número calculado al convertirlas.
+	if design.kind == "image" then
+		local spots = {}
+		for i, shape in ipairs(design.shapes) do
+			spots[i] = shape.label
+		end
+		labelCache[design.id] = spots
+		return spots
 	end
 	local n = LABEL_GRID
 	local owner = {}
